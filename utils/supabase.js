@@ -590,34 +590,20 @@ export async function adminSignInWithSupabase(email, password) {
     const cleanEmail = (email || '').trim().toLowerCase();
     const cleanPassword = (password || '').trim();
 
-    // 1. Attempt Supabase Auth password authentication
+    // Direct Supabase Auth Email & Password Sign In (No SQL/roles required!)
     const { data, error } = await supabase.auth.signInWithPassword({
       email: cleanEmail,
       password: cleanPassword
     });
 
     if (!error && data && data.user) {
-      console.log('[Supabase Admin] Successfully authenticated admin user via Supabase Auth:', cleanEmail);
+      console.log('[Supabase Auth] Successfully signed in:', cleanEmail);
       return { success: true, user: data.user, session: data.session };
     }
 
-    // 2. Check cloud PostgreSQL profiles table for role = 'admin'
-    const { data: profile, error: profileErr } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('email', cleanEmail)
-      .maybeSingle();
-
-    if (profile && (profile.role === 'admin' || profile.role === 'superadmin')) {
-      console.log('[Supabase Admin] Successfully verified admin profile in Supabase database:', cleanEmail);
-      return { success: true, user: profile };
-    }
-
-    // 3. Return explicit error message from Supabase
-    const msg = error ? error.message : (profileErr ? profileErr.message : 'Identifiants Supabase invalides. / Invalid Supabase credentials.');
-    return { success: false, error: msg };
+    return { success: false, error: error ? error.message : 'Invalid Supabase email or password.' };
   } catch (err) {
-    console.error('[Supabase Admin Auth Error]:', err);
-    return { success: false, error: err.message || 'Erreur d\'authentification Supabase.' };
+    console.error('[Supabase Auth Error]:', err);
+    return { success: false, error: err.message || 'Supabase authentication error.' };
   }
 }
