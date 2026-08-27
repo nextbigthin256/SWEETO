@@ -663,20 +663,26 @@
   #wishlist-btn {
     display: none !important;
   }
+  .user-profile {
+    display: none !important; /* Removed profile icon from mobile top header */
+  }
   #notification-bell-btn {
-    display: flex !important;
+    display: flex !important; /* Notification bell icon visible on mobile */
     padding: 6px;
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
   }
   .nav-actions {
-    gap: 4px;
+    gap: 6px;
   }
 }
 
 @media (max-width: 440px) {
   .top-nav {
-    padding: 0 6px;
+    padding: 0 8px;
     gap: 6px;
   }
   .search-bar input {
