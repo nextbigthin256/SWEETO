@@ -83,12 +83,16 @@
 }
 
 .logo-title {
-  font-size: 19px;
+  font-size: 20px;
   font-weight: 900;
-  letter-spacing: -0.6px;
-  color: #0f172a;
+  letter-spacing: -0.7px;
+  background: linear-gradient(135deg, #0052cc 0%, #00b4d8 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
   text-transform: uppercase;
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: 'Fraunces', 'Poppins', 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.1;
+  filter: drop-shadow(0 2px 8px rgba(0, 82, 204, 0.15));
 }
 
 .logo-badge-pill {
@@ -628,13 +632,6 @@
   .user-name, .chevron-icon {
     display: none !important;
   }
-  .user-profile {
-    padding: 2px;
-    border-radius: 50%;
-    width: 36px;
-    height: 36px;
-    justify-content: center;
-  }
 }
 
 @media (max-width: 680px) {
@@ -645,38 +642,48 @@
     max-width: 100vw;
     box-sizing: border-box;
   }
+  .logo-icon-wrapper {
+    display: none !important; /* Web logo graphic removed on mobile header */
+  }
   .logo-badge-pill {
     display: none !important;
   }
   .logo-title {
-    font-size: 15px;
-    letter-spacing: -0.4px;
-  }
-  .logo-icon-wrapper {
-    width: 32px;
-    height: 32px;
+    font-size: 16px;
+    letter-spacing: -0.5px;
   }
   .camera-search-btn,
-  .voice-search-btn {
-    display: none !important;
-  }
-  #wishlist-btn {
-    display: none !important;
-  }
+  .voice-search-btn,
+  #wishlist-btn,
   .user-profile {
-    display: none !important; /* Removed profile icon from mobile top header */
-  }
-  #notification-bell-btn {
-    display: flex !important; /* Notification bell icon visible on mobile */
-    padding: 6px;
-    width: 36px;
-    height: 36px;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
+    display: none !important; /* Hide profile pill from top header on mobile */
   }
   .nav-actions {
+    display: flex !important;
+    align-items: center;
     gap: 6px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  #notification-bell-btn {
+    display: flex !important; /* Notification bell icon 100% visible on mobile */
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  #cart-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    border-radius: 50%;
+    flex-shrink: 0;
   }
 }
 
@@ -684,6 +691,12 @@
   .top-nav {
     padding: 0 8px;
     gap: 6px;
+  }
+  .logo-title {
+    font-size: 15px;
+  }
+  .search-bar {
+    height: 36px;
   }
   .search-bar input {
     font-size: 12px;
