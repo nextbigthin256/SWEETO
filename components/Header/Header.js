@@ -535,11 +535,17 @@ class Header extends HTMLElement {
     });
 
     // Logo click home
-    shadow.getElementById('logo-btn').addEventListener('click', () => {
-      window.dispatchEvent(new CustomEvent('navigation:changed', {
-        detail: { page: 'home' }
-      }));
-    });
+    const logoBtn = shadow.getElementById('logo-btn');
+    if (logoBtn) {
+      logoBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.dispatchEvent(new CustomEvent('navigation:changed', {
+          detail: { page: 'home', category: 'All' }
+        }));
+      });
+    }
 
     // Sync count on Cart badge
     window.addEventListener('cart:updated', (e) => {
