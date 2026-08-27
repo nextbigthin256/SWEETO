@@ -661,10 +661,7 @@
     display: none !important;
   }
   #wishlist-btn {
-    display: flex !important;
-    padding: 6px;
-    width: 34px;
-    height: 34px;
+    display: none !important;
   }
   #notification-bell-btn {
     display: flex !important;
