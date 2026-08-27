@@ -1020,27 +1020,35 @@ class AdminPage extends HTMLElement {
   renderLogin() {
     return `
       <div class="admin-login-wrapper">
-        <div class="admin-login-card glass-panel animate-in">
+        <div class="admin-login-card animate-in">
           <div class="brand-logo-glow"></div>
           <div class="login-header">
-            <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--primary)" stroke-width="2.5" style="width: 36px; height: 36px; flex-shrink: 0; display: inline-block;">
-              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
-            </svg>
+            <div class="admin-logo-badge">
+              <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
+              </svg>
+            </div>
             <h2>SWEETOS Admin Portal</h2>
-            <p style="color: var(--primary-light, #00b4d8); font-weight: 700; margin-top: 4px;">⚡ Authentification Cloud Supabase</p>
+            <p>⚡ Authentification Cloud Supabase</p>
           </div>
           <form id="admin-login-form">
             <div class="form-group">
               <label>Email Admin Supabase</label>
-              <input type="email" id="admin-email" required placeholder="sweeto@sweeto.store" autocomplete="email">
+              <input type="email" id="admin-email" required placeholder="sweeto@store" autocomplete="email">
             </div>
             <div class="form-group">
               <label>Mot de Passe Admin</label>
               <input type="password" id="admin-password" required placeholder="••••••••" autocomplete="current-password">
             </div>
-            <div id="login-error-msg" class="error-text" style="color: #ef4444; font-size: 13px; font-weight: 650; margin-bottom: 12px;"></div>
-            <button type="submit" id="admin-submit-btn" class="admin-btn admin-btn-primary">Connexion Supabase 🚀</button>
+            <div id="login-error-msg" class="error-text" style="color: #f87171; font-size: 13px; font-weight: 650; margin-bottom: 12px; text-align: center;"></div>
+            <button type="submit" id="admin-submit-btn">Connexion Supabase 🚀</button>
           </form>
+          
+          <div style="margin-top: 24px; text-align: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px;">
+            <span style="font-size: 11px; color: rgba(255,255,255,0.45); font-weight: 600;">
+              🔒 Session Sécurisée Supabase Cloud 256-bit
+            </span>
+          </div>
         </div>
       </div>
     `;
