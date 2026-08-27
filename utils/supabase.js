@@ -324,26 +324,55 @@ export async function fetchSettingsFromSupabase() {
 export async function fetchProfileFromSupabase(email) {
   if (!email) return null;
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('email', email.toLowerCase())
-      .maybeSingle();
+    const emailLower = email.toLowerCase();
+    const [{ data: pData }, cloudOrders] = await Promise.all([
+      supabase.from('profiles').select('*').eq('email', emailLower).maybeSingle(),
+      fetchOrdersFromSupabase(emailLower)
+    ]);
 
-    if (!error && data) {
+    const safeKey = emailLower.replace(/[^a-zA-Z0-9]/g, '_');
+    let existing = null;
+    try {
+      existing = JSON.parse(localStorage.getItem(`SWEETOS_user_profile_${safeKey}`) || localStorage.getItem('SWEETOS_user_profile') || 'null');
+    } catch(e) {}
+
+    let formattedOrders = existing?.orders || [];
+    if (cloudOrders && cloudOrders.length > 0) {
+      formattedOrders = cloudOrders.map(o => ({
+        id: o.order_number || o.id,
+        date: o.created_at ? new Date(o.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently',
+        status: o.status === 'pending' ? 'Processing' : (o.status === 'completed' ? 'Delivered' : (o.status === 'shipped' ? 'Shipped' : o.status)),
+        total: parseFloat(o.total_amount) || 0,
+        itemsCount: (o.order_items || []).reduce((sum, item) => sum + (item.quantity || 1), 0),
+        products: (o.order_items || []).map(item => ({
+          name: item.product_name,
+          price: parseFloat(item.unit_price) || 0,
+          quantity: item.quantity || 1,
+          selectedColor: item.selected_color || '',
+          image: item.item_image || ''
+        })),
+        customerName: o.customer_name,
+        customerPhone: o.customer_phone,
+        customerAddress: typeof o.customer_address === 'string' ? o.customer_address : (o.customer_address?.street || o.customer_address?.address || ''),
+        paymentMethod: o.payment_method
+      }));
+    }
+
+    if (pData || formattedOrders.length > 0) {
       const profile = {
-        firstName: data.first_name || '',
-        lastName: data.last_name || '',
-        email: data.email,
-        phone: data.phone || '',
-        avatar: data.avatar_url || '',
-        role: data.role || 'customer',
-        loyaltyLevel: data.loyalty_level || 'starter',
-        addresses: data.addresses || []
+        firstName: pData?.first_name || existing?.firstName || 'Client',
+        lastName: pData?.last_name || existing?.lastName || '',
+        email: emailLower,
+        phone: pData?.phone || existing?.phone || '',
+        avatar: pData?.avatar_url || existing?.avatar || '',
+        role: pData?.role || 'customer',
+        loyaltyLevel: pData?.loyalty_level || 'starter',
+        addresses: pData?.addresses || existing?.addresses || [],
+        orders: formattedOrders
       };
-      const safeKey = email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
       localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
       localStorage.setItem(`SWEETOS_user_profile_${safeKey}`, JSON.stringify(profile));
+      window.dispatchEvent(new CustomEvent('profile:updated'));
       return profile;
     }
   } catch(e) {
