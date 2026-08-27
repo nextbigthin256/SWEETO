@@ -328,6 +328,9 @@ export async function fetchSettingsFromSupabase() {
 export async function initSupabaseSync() {
   console.log('[Supabase] Connected to live cloud database:', SUPABASE_URL);
   
+  // Start OAuth session listener
+  initSupabaseAuthListener();
+
   Promise.allSettled([
     fetchSettingsFromSupabase(),
     fetchProductsFromSupabase(),
@@ -338,4 +341,90 @@ export async function initSupabaseSync() {
     window.dispatchEvent(new CustomEvent('branding:updated'));
     window.dispatchEvent(new CustomEvent('products:updated'));
   });
+}
+
+// ==========================================
+// 7. GOOGLE OAUTH & AUTH STATE LISTENER
+// ==========================================
+
+export async function signInWithGoogle() {
+  try {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin + window.location.pathname
+      }
+    });
+    if (error) throw error;
+    return data;
+  } catch (err) {
+    console.error('[Supabase Google Auth Error]:', err);
+    throw err;
+  }
+}
+
+export function initSupabaseAuthListener() {
+  try {
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session && session.user) {
+        const u = session.user;
+        const email = (u.email || '').toLowerCase();
+        const meta = u.user_metadata || {};
+        const fullName = meta.full_name || meta.name || `${meta.given_name || ''} ${meta.family_name || ''}`.trim() || 'Google User';
+        const avatarUrl = meta.avatar_url || meta.picture || '';
+
+        const parts = fullName.split(' ');
+        const firstName = parts[0] || 'Client';
+        const lastName = parts.slice(1).join(' ') || '';
+
+        const safeKey = email.replace(/[^a-zA-Z0-9]/g, '_');
+        const existingProfileStr = localStorage.getItem(`SWEETOS_user_profile_${safeKey}`) || localStorage.getItem('SWEETOS_user_profile');
+        let profile = null;
+        if (existingProfileStr) {
+          try { profile = JSON.parse(existingProfileStr); } catch(e) {}
+        }
+
+        if (!profile) {
+          profile = {
+            firstName,
+            lastName,
+            email,
+            phone: meta.phone || '',
+            avatar: avatarUrl,
+            isVerified: true,
+            authProvider: 'google',
+            registrationDate: new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+          };
+        } else {
+          if (!profile.avatar && avatarUrl) profile.avatar = avatarUrl;
+          if (!profile.firstName) profile.firstName = firstName;
+          if (!profile.lastName) profile.lastName = lastName;
+        }
+
+        localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+        localStorage.setItem(`SWEETOS_user_profile_${safeKey}`, JSON.stringify(profile));
+        localStorage.setItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
+        if (session.access_token) {
+          localStorage.setItem('SWEETOS_auth_token', session.access_token);
+        }
+
+        // Sync user profile to Supabase profiles table
+        try {
+          await supabase.from('profiles').upsert({
+            id: u.id,
+            email,
+            first_name: profile.firstName,
+            last_name: profile.lastName,
+            phone: profile.phone || '',
+            avatar_url: avatarUrl,
+            role: 'customer'
+          }, { onConflict: 'email' });
+        } catch(e) {}
+
+        window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: true, email, user: profile } }));
+        window.dispatchEvent(new CustomEvent('auth:login', { detail: profile }));
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: `Bon retour, ${profile.firstName} ! Connecté via Google 🚀` }));
+      }
+    });
+  } catch(e) {}
 }

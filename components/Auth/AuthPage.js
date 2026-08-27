@@ -470,8 +470,19 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
     if (googleOverlay) googleOverlay.style.display = 'none';
   };
 
-  if (googleLoginBtn) googleLoginBtn.addEventListener('click', openGoogleOverlay);
-  if (googleRegisterBtn) googleRegisterBtn.addEventListener('click', openGoogleOverlay);
+  const handleGoogleClick = async () => {
+    try {
+      const { signInWithGoogle } = await import('../../utils/supabase.js');
+      window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Redirection vers Google Auth... 🔒' }));
+      await signInWithGoogle();
+    } catch(err) {
+      console.warn('[Google OAuth Error - Fallback to Modal]:', err.message);
+      openGoogleOverlay();
+    }
+  };
+
+  if (googleLoginBtn) googleLoginBtn.addEventListener('click', handleGoogleClick);
+  if (googleRegisterBtn) googleRegisterBtn.addEventListener('click', handleGoogleClick);
   if (cancelGoogleBtn) cancelGoogleBtn.addEventListener('click', closeGoogleOverlay);
 
   const googleForm = shadow.getElementById('google-oauth-form');
