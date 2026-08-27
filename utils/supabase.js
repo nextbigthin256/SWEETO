@@ -440,22 +440,83 @@ export function initGoogleOneTap() {
 }
 
 export async function signInWithGoogle() {
-  // If Google GIS is available directly, trigger official client prompt
-  if (typeof window.google !== 'undefined' && window.google.accounts && window.google.accounts.id) {
+  // 1. Try direct Google OAuth2 Popup Client (shows "to continue to sweeto.store")
+  if (typeof window !== 'undefined' && window.google && window.google.accounts && window.google.accounts.oauth2) {
     try {
-      window.google.accounts.id.initialize({
+      const client = window.google.accounts.oauth2.initTokenClient({
         client_id: GOOGLE_CLIENT_ID,
-        callback: handleGoogleGISCredential,
-        auto_select: false,
-        cancel_on_tap_outside: true,
-        context: 'signin'
+        scope: 'email profile openid',
+        callback: async (tokenResponse) => {
+          if (tokenResponse && tokenResponse.access_token) {
+            try {
+              const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${tokenResponse.access_token}` }
+              });
+              const u = await res.json();
+              
+              const email = (u.email || '').toLowerCase();
+              const firstName = u.given_name || u.name?.split(' ')[0] || 'Client';
+              const lastName = u.family_name || u.name?.split(' ').slice(1).join(' ') || '';
+              const avatarUrl = u.picture || '';
+
+              const safeKey = email.replace(/[^a-zA-Z0-9]/g, '_');
+              const existingProfileStr = localStorage.getItem(`SWEETOS_user_profile_${safeKey}`) || localStorage.getItem('SWEETOS_user_profile');
+              let profile = null;
+              if (existingProfileStr) {
+                try { profile = JSON.parse(existingProfileStr); } catch(e) {}
+              }
+
+              if (!profile) {
+                profile = {
+                  firstName,
+                  lastName,
+                  email,
+                  phone: '',
+                  avatar: avatarUrl,
+                  isVerified: true,
+                  authProvider: 'google',
+                  registrationDate: new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+                };
+              } else {
+                if (!profile.avatar && avatarUrl) profile.avatar = avatarUrl;
+                if (!profile.firstName) profile.firstName = firstName;
+                if (!profile.lastName) profile.lastName = lastName;
+              }
+
+              localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+              localStorage.setItem(`SWEETOS_user_profile_${safeKey}`, JSON.stringify(profile));
+              localStorage.setItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
+              localStorage.setItem('SWEETOS_auth_token', tokenResponse.access_token);
+
+              // Sync user profile to Supabase profiles table
+              try {
+                await supabase.from('profiles').upsert({
+                  email,
+                  first_name: profile.firstName,
+                  last_name: profile.lastName,
+                  avatar_url: avatarUrl,
+                  role: 'customer'
+                }, { onConflict: 'email' });
+              } catch(e) {}
+
+              window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: true, email, user: profile } }));
+              window.dispatchEvent(new CustomEvent('auth:login', { detail: profile }));
+              window.dispatchEvent(new CustomEvent('toast:show', { detail: `Bon retour, ${profile.firstName} ! Connecté via Google 🚀` }));
+            } catch(fetchErr) {
+              console.error('[Google UserInfo Fetch Error]:', fetchErr);
+            }
+          }
+        }
       });
-      window.google.accounts.id.prompt();
+
+      client.requestAccessToken({ prompt: 'select_account' });
       return;
-    } catch(e) {}
+    } catch(err) {
+      console.warn('[Google Token Client Notice]:', err);
+    }
   }
 
-  // Fallback to Supabase OAuth redirect flow
+  // 2. Fallback to Supabase OAuth redirect flow
   try {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
