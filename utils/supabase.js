@@ -321,6 +321,37 @@ export async function fetchSettingsFromSupabase() {
   return null;
 }
 
+export async function fetchProfileFromSupabase(email) {
+  if (!email) return null;
+  try {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', email.toLowerCase())
+      .maybeSingle();
+
+    if (!error && data) {
+      const profile = {
+        firstName: data.first_name || '',
+        lastName: data.last_name || '',
+        email: data.email,
+        phone: data.phone || '',
+        avatar: data.avatar_url || '',
+        role: data.role || 'customer',
+        loyaltyLevel: data.loyalty_level || 'starter',
+        addresses: data.addresses || []
+      };
+      const safeKey = email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+      localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+      localStorage.setItem(`SWEETOS_user_profile_${safeKey}`, JSON.stringify(profile));
+      return profile;
+    }
+  } catch(e) {
+    console.warn('[Supabase] fetchProfile error:', e);
+  }
+  return null;
+}
+
 // ==========================================
 // 6. GLOBAL INITIALIZATION & REALTIME
 // ==========================================
@@ -330,6 +361,17 @@ export async function initSupabaseSync() {
   
   // Start OAuth session listener
   initSupabaseAuthListener();
+
+  // Sync logged in user profile if available
+  try {
+    const loggedUserStr = localStorage.getItem('SWEETOS_logged_in_user');
+    if (loggedUserStr) {
+      const loggedUser = JSON.parse(loggedUserStr);
+      if (loggedUser && loggedUser.email) {
+        fetchProfileFromSupabase(loggedUser.email);
+      }
+    }
+  } catch(e) {}
 
   Promise.allSettled([
     fetchSettingsFromSupabase(),
