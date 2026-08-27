@@ -347,7 +347,115 @@ export async function initSupabaseSync() {
 // 7. GOOGLE OAUTH & AUTH STATE LISTENER
 // ==========================================
 
+export const GOOGLE_CLIENT_ID = '330785208754-ksheah5kfjp3e2ahjpnh03fko7mvcn7t.apps.googleusercontent.com';
+
+export function parseJwt(token) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+      return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+    }).join(''));
+    return JSON.parse(jsonPayload);
+  } catch(e) {
+    return null;
+  }
+}
+
+export function handleGoogleGISCredential(credentialResponse) {
+  if (!credentialResponse || !credentialResponse.credential) return;
+  const payload = parseJwt(credentialResponse.credential);
+  if (!payload) return;
+
+  const email = (payload.email || '').toLowerCase();
+  const firstName = payload.given_name || payload.name?.split(' ')[0] || 'Client';
+  const lastName = payload.family_name || payload.name?.split(' ').slice(1).join(' ') || '';
+  const avatarUrl = payload.picture || '';
+
+  const safeKey = email.replace(/[^a-zA-Z0-9]/g, '_');
+  const existingProfileStr = localStorage.getItem(`SWEETOS_user_profile_${safeKey}`) || localStorage.getItem('SWEETOS_user_profile');
+  let profile = null;
+  if (existingProfileStr) {
+    try { profile = JSON.parse(existingProfileStr); } catch(e) {}
+  }
+
+  if (!profile) {
+    profile = {
+      firstName,
+      lastName,
+      email,
+      phone: '',
+      avatar: avatarUrl,
+      isVerified: true,
+      authProvider: 'google',
+      registrationDate: new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+    };
+  } else {
+    if (!profile.avatar && avatarUrl) profile.avatar = avatarUrl;
+    if (!profile.firstName) profile.firstName = firstName;
+    if (!profile.lastName) profile.lastName = lastName;
+  }
+
+  localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+  localStorage.setItem(`SWEETOS_user_profile_${safeKey}`, JSON.stringify(profile));
+  localStorage.setItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
+  localStorage.setItem('SWEETOS_auth_token', credentialResponse.credential);
+
+  // Sync to Supabase profiles table
+  try {
+    supabase.from('profiles').upsert({
+      email,
+      first_name: profile.firstName,
+      last_name: profile.lastName,
+      avatar_url: avatarUrl,
+      role: 'customer'
+    }, { onConflict: 'email' });
+  } catch(e) {}
+
+  window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: true, email, user: profile } }));
+  window.dispatchEvent(new CustomEvent('auth:login', { detail: profile }));
+  window.dispatchEvent(new CustomEvent('toast:show', { detail: `Bon retour, ${profile.firstName} ! Connecté via Google 🚀` }));
+}
+
+export function initGoogleOneTap() {
+  if (typeof window === 'undefined') return;
+  if (typeof window.google === 'undefined' || !window.google.accounts || !window.google.accounts.id) {
+    setTimeout(initGoogleOneTap, 600);
+    return;
+  }
+
+  try {
+    window.google.accounts.id.initialize({
+      client_id: GOOGLE_CLIENT_ID,
+      callback: handleGoogleGISCredential,
+      auto_select: false,
+      cancel_on_tap_outside: true,
+      context: 'signin'
+    });
+
+    window.google.accounts.id.prompt();
+  } catch(e) {
+    console.warn('[Google One Tap Init Notice]:', e);
+  }
+}
+
 export async function signInWithGoogle() {
+  // If Google GIS is available directly, trigger official client prompt
+  if (typeof window.google !== 'undefined' && window.google.accounts && window.google.accounts.id) {
+    try {
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: handleGoogleGISCredential,
+        auto_select: false,
+        cancel_on_tap_outside: true,
+        context: 'signin'
+      });
+      window.google.accounts.id.prompt();
+      return;
+    } catch(e) {}
+  }
+
+  // Fallback to Supabase OAuth redirect flow
   try {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -364,6 +472,9 @@ export async function signInWithGoogle() {
 }
 
 export function initSupabaseAuthListener() {
+  // Also initialize Google One Tap on page load
+  initGoogleOneTap();
+
   try {
     supabase.auth.onAuthStateChange(async (event, session) => {
       if (session && session.user) {
