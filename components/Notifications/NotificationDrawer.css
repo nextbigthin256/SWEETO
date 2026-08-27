@@ -234,7 +234,11 @@
 
 :host {
   display: block;
-  height: auto;
+  height: 100%;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
 }
 
 .drawer-swipe-handle {
@@ -250,5 +254,29 @@
     border-radius: 9999px;
     margin: 0 auto 12px auto;
     flex-shrink: 0;
+  }
+}
+
+@media (max-width: 600px) {
+  .notifications-wrapper {
+    padding: 16px 14px;
+  }
+  .notifications-header h3 {
+    font-size: 15px;
+  }
+  .notif-item {
+    padding: 12px 10px;
+    gap: 10px;
+  }
+  .notif-icon-circle {
+    width: 30px;
+    height: 30px;
+    font-size: 13px;
+  }
+  .notif-title-row h4 {
+    font-size: 12.5px;
+  }
+  .notif-desc {
+    font-size: 11px;
   }
 }
