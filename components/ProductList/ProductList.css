@@ -3,6 +3,14 @@
 @import url("https://cdn.jsdelivr.net/fontsource/fonts/fraunces@latest/latin-600-italic.css");
 @import url("https://cdn.jsdelivr.net/fontsource/fonts/fraunces@latest/latin-700-italic.css");
 
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-x: hidden;
+}
+
 .more-to-love-title,
 .more-to-love-heading,
 .section-title.more-to-love-title,

@@ -1,4 +1,11 @@
 /* ================= LUXURY MODERN WEB HEADER ================= */
+:host {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
 .top-nav {
   position: fixed;
   top: 0;
