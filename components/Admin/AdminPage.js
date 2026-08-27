@@ -1026,20 +1026,20 @@ class AdminPage extends HTMLElement {
             <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="var(--primary)" stroke-width="2.5" style="width: 36px; height: 36px; flex-shrink: 0; display: inline-block;">
               <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path>
             </svg>
-            <h2>SWEETOS Admin Panel</h2>
-            <p>Authorized personnel access only</p>
+            <h2>SWEETOS Admin Portal</h2>
+            <p style="color: var(--primary-light, #00b4d8); font-weight: 700; margin-top: 4px;">⚡ Authentification Cloud Supabase</p>
           </div>
           <form id="admin-login-form">
             <div class="form-group">
-              <label>Email Address</label>
-              <input type="email" id="admin-email" value="admin@sweetos.com" required placeholder="admin@sweetos.com" autocomplete="email">
+              <label>Email Admin Supabase</label>
+              <input type="email" id="admin-email" required placeholder="admin@sweetos.store" autocomplete="email">
             </div>
             <div class="form-group">
-              <label>Password</label>
-              <input type="password" id="admin-password" value="admin" required placeholder="••••••••" autocomplete="current-password">
+              <label>Mot de Passe Admin</label>
+              <input type="password" id="admin-password" required placeholder="••••••••" autocomplete="current-password">
             </div>
-            <div id="login-error-msg" class="error-text"></div>
-            <button type="submit" class="admin-btn admin-btn-primary">Authenticate</button>
+            <div id="login-error-msg" class="error-text" style="color: #ef4444; font-size: 13px; font-weight: 650; margin-bottom: 12px;"></div>
+            <button type="submit" id="admin-submit-btn" class="admin-btn admin-btn-primary">Connexion Supabase 🚀</button>
           </form>
         </div>
       </div>
@@ -1110,23 +1110,53 @@ class AdminPage extends HTMLElement {
     if (!this.isAuthenticated) {
       const loginForm = shadow.getElementById('admin-login-form');
       if (loginForm) {
-        loginForm.addEventListener('submit', (e) => {
+        loginForm.addEventListener('submit', async (e) => {
           e.preventDefault();
-          const email = shadow.getElementById('admin-email').value.trim();
-          const pass = shadow.getElementById('admin-password').value.trim();
+          const emailInput = shadow.getElementById('admin-email');
+          const passInput = shadow.getElementById('admin-password');
           const errorMsg = shadow.getElementById('login-error-msg');
-          
-          if (email === 'admin@sweetos.com' && pass === 'admin') {
-            this.isAuthenticated = true;
-            sessionStorage.setItem('SWEETOS_admin_authenticated', 'true');
-            const sessionVersion = localStorage.getItem('SWEETOS_admin_session_version') || Date.now().toString();
-            localStorage.setItem('SWEETOS_admin_session_version', sessionVersion);
-            sessionStorage.setItem('SWEETOS_admin_device_session_version', sessionVersion);
-            this.render();
-            this.attachListeners();
-            window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Welcome back, Admin Manager!' }));
-          } else {
-            errorMsg.textContent = 'Invalid email address or password credentials.';
+          const submitBtn = shadow.getElementById('admin-submit-btn');
+
+          const email = (emailInput?.value || '').trim();
+          const pass = (passInput?.value || '').trim();
+
+          if (errorMsg) errorMsg.textContent = '';
+          if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Vérification Supabase Cloud...';
+          }
+
+          try {
+            const { adminSignInWithSupabase } = await import('../../utils/supabase.js');
+            const result = await adminSignInWithSupabase(email, pass);
+
+            if (result.success) {
+              this.isAuthenticated = true;
+              sessionStorage.setItem('SWEETOS_admin_authenticated', 'true');
+              const sessionVersion = localStorage.getItem('SWEETOS_admin_session_version') || Date.now().toString();
+              localStorage.setItem('SWEETOS_admin_session_version', sessionVersion);
+              sessionStorage.setItem('SWEETOS_admin_device_session_version', sessionVersion);
+              
+              if (result.user && result.user.email) {
+                sessionStorage.setItem('SWEETOS_admin_user', JSON.stringify({ email: result.user.email }));
+              }
+
+              this.render();
+              this.attachListeners();
+              window.dispatchEvent(new CustomEvent('toast:show', { detail: '⚡ Connecté au Portail Admin Supabase Cloud avec succès !' }));
+            } else {
+              if (errorMsg) errorMsg.textContent = result.error || 'Authentification Supabase échouée.';
+              if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Connexion Supabase 🚀';
+              }
+            }
+          } catch (err) {
+            if (errorMsg) errorMsg.textContent = err.message || 'Erreur de connexion Supabase.';
+            if (submitBtn) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Connexion Supabase 🚀';
+            }
           }
         });
       }
