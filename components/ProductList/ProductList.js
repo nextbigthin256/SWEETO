@@ -282,8 +282,16 @@ class ProductList extends HTMLElement {
       }
     });
 
-    window.addEventListener('auth:changed', () => {
-      if (this.currentPage === 'profile') {
+    window.addEventListener('auth:changed', (e) => {
+      const isLoggedIn = localStorage.getItem('SWEETOS_logged_in_user') !== null || (e.detail && e.detail.loggedIn);
+      if (isLoggedIn && (this.currentPage === 'auth' || window.location.hash === '#/auth' || window.location.hash === '#/auth/')) {
+        this.currentPage = 'home';
+        this.currentCategory = 'All';
+        this.updateHashURL();
+        this.renderPageContent();
+        window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'home' } }));
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else if (this.currentPage === 'profile') {
         this.injectProfileTabContent();
       }
     });
@@ -3982,6 +3990,7 @@ class ProductList extends HTMLElement {
         }
       });
 
+      this.updateHashURL();
       this.renderPageContent();
     });
 
@@ -8737,8 +8746,12 @@ class ProductList extends HTMLElement {
 
   attachAuthListeners() {
     attachAuthListeners(this.shadowRoot, () => {
-      this.currentPage = 'profile';
+      this.currentPage = 'home';
+      this.currentCategory = 'All';
+      this.updateHashURL();
       this.renderPageContent();
+      window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'home' } }));
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     });
   }
 }
