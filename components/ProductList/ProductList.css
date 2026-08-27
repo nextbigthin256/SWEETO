@@ -3084,7 +3084,9 @@ input:checked + .toggle-slider:before {
   }
   .profile-page-container {
     flex-direction: column;
-    gap: 20px;
+    gap: 16px;
+    width: 100%;
+    margin-top: 12px;
   }
   .profile-page-container .profile-sidebar-tabs {
     width: 100%;
@@ -3092,40 +3094,113 @@ input:checked + .toggle-slider:before {
     overflow-x: auto;
     padding-bottom: 8px;
     gap: 8px;
+    -webkit-overflow-scrolling: touch;
   }
   .profile-page-container .profile-tab-btn {
     white-space: nowrap;
-    padding: 10px 16px;
+    padding: 10px 14px;
     font-size: 12px;
     flex-shrink: 0;
   }
   .profile-content-panel {
-    padding: 16px;
+    padding: 16px 12px;
     min-height: auto;
+    width: 100%;
+    box-sizing: border-box;
+    border-radius: 16px;
+  }
+}
+
+@media (max-width: 640px) {
+  .profile-overview-hero {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding-bottom: 20px;
+  }
+  .profile-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .stat-card {
+    padding: 12px 10px;
+    gap: 8px;
+  }
+  .stat-icon {
+    width: 34px;
+    height: 34px;
+    font-size: 15px;
+  }
+  .stat-value {
+    font-size: 14px;
+  }
+  .stat-label {
+    font-size: 10px;
+  }
+  .profile-order-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 12px;
+  }
+  .order-info-block {
+    width: 100%;
+  }
+  
+  /* Wishlist Mobile Fixes */
+  .wishlist-container {
+    padding: 0 8px 40px 8px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .page-hero-banner.page-wishlist {
+    padding: 20px 16px !important;
+    border-radius: 18px !important;
+    margin-bottom: 16px !important;
+  }
+  .page-hero-content-wrapper {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 14px !important;
+  }
+  .wishlist-hero-actions {
+    width: 100% !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  .wishlist-hero-actions button {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+  .wishlist-empty-card {
+    padding: 36px 16px !important;
+    margin: 20px auto !important;
   }
 }
 
 @media (max-width: 580px) {
   .home-grid-4 {
     grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
+    gap: 10px;
   }
   .product-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
+    gap: 10px;
   }
   .brands-grid, .collections-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 14px;
+    gap: 10px;
   }
   .section-title {
     font-size: 1.2rem;
   }
   .category-card-wrapper {
-    padding: 16px 20px;
+    padding: 14px 12px;
+    border-radius: 16px;
   }
   .category-quick-row {
-    gap: 24px;
+    gap: 16px;
   }
 }
 
