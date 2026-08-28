@@ -847,14 +847,6 @@ export function attachAdminSettingsListeners(context, shadow) {
         if (digit1) digit1.focus();
       }
     });
-  }
-
-      feedback.style.color = '#16a34a';
-      feedback.textContent = 'Password successfully updated!';
-      window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Admin password updated.' }));
-    });
-  }
-
   // 10. Push All Localhost Data to Cloud (Supabase)
   const pushToSupabaseBtn = shadow.getElementById('push-all-to-supabase-btn');
   if (pushToSupabaseBtn) {
