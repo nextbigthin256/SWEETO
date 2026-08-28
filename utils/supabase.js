@@ -633,6 +633,60 @@ export async function adminSignInWithSupabase(email, password) {
 }
 
 // ==========================================
+// 8. CUSTOMERS & PROFILES CLOUD SYNC
+// ==========================================
+
+export async function fetchCustomersFromSupabase() {
+  try {
+    if (!supabase) return null;
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*');
+
+    if (!error && Array.isArray(data)) {
+      const formatted = data.map(p => ({
+        name: p.full_name || p.name || p.email?.split('@')[0] || 'Client',
+        email: p.email,
+        phone: p.phone || '',
+        addresses: p.address ? [p.address] : [],
+        ordersCount: p.orders_count || 0,
+        totalSpent: p.total_spent || 0,
+        registrationDate: p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR') : '2026',
+        badgeType: p.badge_type || 'none',
+        level: p.level || 'starter',
+        unlockedBadges: p.unlocked_badges || []
+      }));
+      return formatted;
+    }
+  } catch (e) {
+    console.error('[Supabase Customers Fetch Error]:', e);
+  }
+  return null;
+}
+
+export async function saveCustomerToSupabase(customerData) {
+  try {
+    if (!supabase || !customerData.email) return;
+    const record = {
+      email: customerData.email,
+      full_name: customerData.name || customerData.fullname || '',
+      phone: customerData.phone || '',
+      badge_type: customerData.badgeType || 'none',
+      level: customerData.level || 'starter',
+      unlocked_badges: customerData.unlockedBadges || []
+    };
+    await supabase.from('profiles').upsert([record], { onConflict: 'email' });
+  } catch(e) {}
+}
+
+export async function deleteCustomerFromSupabase(email) {
+  try {
+    if (!supabase || !email) return;
+    await supabase.from('profiles').delete().eq('email', email);
+  } catch(e) {}
+}
+
+// ==========================================
 // 9. DYNAMIC 3-DIGIT PIN & MULTI-DEVICE SESSION ENGINE
 // ==========================================
 

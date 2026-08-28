@@ -468,14 +468,16 @@ class AdminPage extends HTMLElement {
       fetchCategoriesFromSupabase, 
       fetchBrandsFromSupabase, 
       fetchOrdersFromSupabase, 
+      fetchCustomersFromSupabase,
       fetchSettingsFromSupabase 
     }) => {
       try {
-        const [cloudProds, cloudCats, cloudBrands, cloudOrders] = await Promise.allSettled([
+        const [cloudProds, cloudCats, cloudBrands, cloudOrders, cloudCusts] = await Promise.allSettled([
           fetchProductsFromSupabase(),
           fetchCategoriesFromSupabase(),
           fetchBrandsFromSupabase(),
           fetchOrdersFromSupabase(),
+          fetchCustomersFromSupabase(),
           fetchSettingsFromSupabase()
         ]);
 
@@ -498,6 +500,11 @@ class AdminPage extends HTMLElement {
         if (cloudOrders.status === 'fulfilled' && Array.isArray(cloudOrders.value)) {
           this.orders = cloudOrders.value;
           localStorage.setItem('SWEETOS_all_orders', JSON.stringify(this.orders));
+          hasCloudUpdates = true;
+        }
+        if (cloudCusts.status === 'fulfilled' && Array.isArray(cloudCusts.value)) {
+          this.customers = cloudCusts.value;
+          localStorage.setItem('SWEETOS_customers', JSON.stringify(this.customers));
           hasCloudUpdates = true;
         }
 
