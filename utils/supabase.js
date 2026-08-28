@@ -596,18 +596,36 @@ export async function adminSignInWithSupabase(email, password) {
       return { success: false, error: 'Client Supabase indisponible.' };
     }
 
-    // 100% Pure Supabase Cloud Auth - Validated live against auth.users & auth.identities
-    const { data, error } = await supabase.auth.signInWithPassword({
+    // 1. Try native Supabase Auth password sign in
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: cleanEmail,
       password: cleanPassword
     });
 
-    if (!error && data && data.user) {
-      console.log('[Supabase Auth] Successfully authenticated user:', cleanEmail);
-      return { success: true, user: data.user, session: data.session };
+    if (!authError && authData && authData.user) {
+      console.log('[Supabase Cloud Auth] Authenticated via Supabase Auth API:', cleanEmail);
+      return { success: true, user: authData.user, session: authData.session };
     }
 
-    return { success: false, error: error ? error.message : 'Email ou mot de passe Supabase incorrect.' };
+    // 2. Dynamic check against site_settings table (admin_email & admin_key)
+    const { data: settings } = await supabase
+      .from('site_settings')
+      .select('key, value')
+      .in('key', ['admin_email', 'admin_key']);
+
+    if (Array.isArray(settings) && settings.length > 0) {
+      const emailSetting = settings.find(s => s.key === 'admin_email')?.value;
+      const keySetting = settings.find(s => s.key === 'admin_key')?.value;
+
+      if (emailSetting && keySetting) {
+        if (cleanEmail === emailSetting.trim().toLowerCase() && cleanPassword === keySetting.trim()) {
+          console.log('[Supabase Cloud Auth] Authenticated via site_settings table:', cleanEmail);
+          return { success: true, user: { email: cleanEmail, role: 'admin' } };
+        }
+      }
+    }
+
+    return { success: false, error: 'Email ou mot de passe Supabase incorrect.' };
   } catch (err) {
     console.error('[Supabase Auth Error]:', err);
     return { success: false, error: err.message || 'Erreur d\'authentification Supabase.' };
