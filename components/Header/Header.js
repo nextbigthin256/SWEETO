@@ -118,7 +118,7 @@ class Header extends HTMLElement {
     const avatarData = getCustomerAvatarStyle(profile, 34);
     const avatarStyle = avatarData.style;
 
-    if (loggedInUser || profileSaved) {
+    if (loggedObj || profileSaved || profile) {
       profilePill.innerHTML = `
         <div style="position: relative; display: inline-flex; align-items: center; justify-content: center;">
           <div class="user-avatar" style="${avatarStyle}">
@@ -126,18 +126,13 @@ class Header extends HTMLElement {
           </div>
           ${renderLevelChevronV(avatarData.level, 15)}
         </div>
-        <span class="user-name" style="display:inline-flex; align-items:center; gap:5px; font-weight: 750;">
+        <span class="user-name" style="display:inline-flex; align-items:center; gap:5px; font-weight: 750; color: #0f172a;">
           ${fullName}
           ${badgeHtml}
         </span>
         <svg class="chevron-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <polyline points="6 9 12 15 18 9"/>
         </svg>
-      `;
-    } else {
-      profilePill.innerHTML = `
-        <div class="user-avatar" style="background: #e2e8f0; color: #475569; font-size: 13px;">👤</div>
-        <span class="user-name" style="font-weight: 750;">Connexion</span>
       `;
     }
   }
