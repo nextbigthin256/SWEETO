@@ -925,28 +925,39 @@ class AdminPage extends HTMLElement {
   initRealTimeNotificationStream() {
     if (this.eventSource) {
       this.eventSource.close();
+      this.eventSource = null;
     }
     
-    this.eventSource = new EventSource('/api/live-alerts');
-    
-    this.eventSource.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        console.log('Real-time notification alert received:', data);
-        
-        // Push desktop-like banner toast using storefront toast dispatcher
-        window.dispatchEvent(new CustomEvent('toast:show', { detail: `🔔 LIVE ALERT: ${data.message}` }));
-        
-        // Dynamically pull latest details
-        this.syncAllDatabasesFromServer();
-      } catch (e) {
-        console.error('Failed to parse SSE event:', e);
-      }
-    };
+    // Check if SSE endpoint is supported on host before initializing EventSource
+    fetch('/api/live-alerts', { method: 'HEAD' })
+      .then(res => {
+        const contentType = res.headers.get('content-type') || '';
+        if (res.ok && contentType.includes('text/event-stream')) {
+          this.eventSource = new EventSource('/api/live-alerts');
+          
+          this.eventSource.onmessage = (event) => {
+            try {
+              const data = JSON.parse(event.data);
+              console.log('Real-time notification alert received:', data);
+              window.dispatchEvent(new CustomEvent('toast:show', { detail: `🔔 LIVE ALERT: ${data.message}` }));
+              this.syncAllDatabasesFromServer();
+            } catch (e) {
+              console.error('Failed to parse SSE event:', e);
+            }
+          };
 
-    this.eventSource.onerror = (err) => {
-      console.warn('Real-time notification stream lost. Reconnecting...', err);
-    };
+          this.eventSource.onerror = () => {
+            // Silently close on static/serverless hosts where SSE is unsupported
+            if (this.eventSource) {
+              this.eventSource.close();
+              this.eventSource = null;
+            }
+          };
+        }
+      })
+      .catch(() => {
+        // Quietly ignore network failures on static deployments
+      });
   }
 
   syncAllDatabasesFromServer() {
