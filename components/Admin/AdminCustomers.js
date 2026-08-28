@@ -441,8 +441,11 @@ export function renderAdminCustomers(context) {
                       <button class="view-customer-profile-btn admin-btn admin-btn-secondary" data-customer-email="${c.email}" style="padding:6px 12px; font-size:12px; font-weight:750;">
                         <span>View Profile</span>
                       </button>
-                      <button class="delete-customer-btn admin-btn admin-btn-danger" data-customer-email="${c.email}" data-customer-name="${c.name}" style="padding:6px 10px; font-size:12px; font-weight:750; background:#dc2626;" title="Permanently delete this account">
-                        <span>🗑️</span>
+                      <button class="revoke-customer-session-btn admin-btn" data-customer-email="${c.email}" data-customer-name="${c.name}" style="padding:6px 10px; font-size:12px; font-weight:750; background:#f59e0b; color:white; border:none; border-radius:8px; cursor:pointer;" title="Déconnecter la session (Conserver les informations du compte)">
+                        <span>🔒 Session</span>
+                      </button>
+                      <button class="delete-customer-btn admin-btn admin-btn-danger" data-customer-email="${c.email}" data-customer-name="${c.name}" style="padding:6px 10px; font-size:12px; font-weight:750; background:#dc2626; border:none; border-radius:8px; cursor:pointer;" title="Supprimer le compte et EFFACER TOUTES les informations définitivement">
+                        <span>🔥 Effacer</span>
                       </button>
                     </div>
                   </td>
@@ -887,7 +890,34 @@ export function attachAdminCustomersListeners(context, shadow) {
     });
   }
 
-  // Single Delete Customer Account Trigger
+  // Single Revoke Customer Session Trigger (Keep saved profile info for next login)
+  shadow.querySelectorAll('.revoke-customer-session-btn').forEach(btn => {
+    btn.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const email = btn.getAttribute('data-customer-email');
+      const name = btn.getAttribute('data-customer-name') || email;
+      if (!email) return;
+
+      const confirmed = await (window.showConfirmModal ? window.showConfirmModal({
+        title: '🔒 Déconnecter la Session',
+        message: `Voulez-vous déconnecter "${name}" (${email}) ? Sa session active sera fermée immédiatement, mais ses informations enregistrées (adresse, niveau, historique) seront conservées pour sa prochaine connexion.`,
+        confirmText: '🔒 Déconnecter la session',
+        cancelText: 'Annuler',
+        type: 'warning',
+        icon: '🔒'
+      }) : Promise.resolve(confirm(`Déconnecter la session pour ${email}? (Données conservées)`)));
+
+      if (confirmed) {
+        import('../../utils/supabase.js').then(async ({ revokeCustomerSessionInSupabase }) => {
+          await revokeCustomerSessionInSupabase(email);
+        }).catch(() => {});
+
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: `🔒 Session de "${name}" déconnectée avec succès (données conservées).` }));
+      }
+    });
+  });
+
+  // Single Permanent Hard Delete Customer Account & All Info
   shadow.querySelectorAll('.delete-customer-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -896,17 +926,17 @@ export function attachAdminCustomersListeners(context, shadow) {
       if (!email) return;
 
       const confirmed = await (window.showConfirmModal ? window.showConfirmModal({
-        title: '🗑️ Delete Customer Account',
-        message: `Are you sure you want to permanently delete the account for "${name}" (${email})?`,
-        confirmText: '🔥 Delete Account Forever',
-        cancelText: 'Cancel',
+        title: '🔥 Supprimer le compte et EFFACER TOUTES les infos',
+        message: `ÊTES-VOUS SÛR DE VOULOIR SUPPRIMER DÉFINITIVEMENT LE COMPTE DE "${name}" (${email}) ?\n\nToutes ses informations (profil, adresses, historique) seront EFFACÉES DE FAÇON PERMANENTE. S'il se réinscrit plus tard, il repartira comme un tout nouveau client sans aucun historique.`,
+        confirmText: '🔥 Effacer Définitivement Compte & Infos',
+        cancelText: 'Annuler',
         type: 'danger',
         icon: '🗑️'
-      }) : Promise.resolve(confirm(`Permanently delete account for ${email}?`)));
+      }) : Promise.resolve(confirm(`Effacer définitivement le compte et TOUTES les données de ${email}?`)));
 
       if (confirmed) {
-        import('../../utils/supabase.js').then(async ({ deleteCustomerFromSupabase }) => {
-          await deleteCustomerFromSupabase(email);
+        import('../../utils/supabase.js').then(async ({ hardDeleteCustomerAndDataInSupabase }) => {
+          await hardDeleteCustomerAndDataInSupabase(email);
         }).catch(() => {});
 
         localStorage.removeItem(getProfileStorageKey(email));
@@ -918,7 +948,7 @@ export function attachAdminCustomersListeners(context, shadow) {
           context.selectedCustomerEmail = null;
         }
 
-        window.dispatchEvent(new CustomEvent('toast:show', { detail: `Account for "${name}" deleted.` }));
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: `🔥 Le compte et TOUTES les informations de "${name}" ont été supprimés définitivement.` }));
         context.render();
         context.attachListeners();
       }

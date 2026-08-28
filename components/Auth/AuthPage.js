@@ -697,6 +697,11 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
         
         localStorage.setItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
 
+        // Clear any previous session revocation signal upon authenticating
+        import('../../utils/supabase.js').then(({ clearCustomerRevocationInSupabase }) => {
+          clearCustomerRevocationInSupabase(email);
+        }).catch(() => {});
+
         const profileKey = getProfileStorageKey();
         let saved = localStorage.getItem(profileKey);
         if (!saved) {

@@ -679,24 +679,53 @@ export async function saveCustomerToSupabase(customerData) {
   } catch(e) {}
 }
 
-export async function deleteCustomerFromSupabase(email) {
+export async function revokeCustomerSessionInSupabase(email) {
   try {
     if (!supabase || !email) return;
     const cleanEmail = email.trim().toLowerCase();
     
-    // Delete profile record
-    await supabase.from('profiles').delete().eq('email', cleanEmail);
-    
-    // Store session revocation signal in site_settings table
+    // Store session revocation signal (forces immediate remote logout on device, preserves profile data)
     await supabase.from('site_settings').upsert({
       key: 'revoked_customer_' + cleanEmail,
       value: String(Date.now())
     }, { onConflict: 'key' });
 
-    console.log('[Supabase Cloud] Customer deleted and session revoked:', cleanEmail);
+    console.log('[Supabase Cloud] Customer active session revoked (data preserved):', cleanEmail);
   } catch(e) {
-    console.error('[Supabase Customer Deletion Error]:', e);
+    console.error('[Supabase Revocation Error]:', e);
   }
+}
+
+export async function clearCustomerRevocationInSupabase(email) {
+  try {
+    if (!supabase || !email) return;
+    const cleanEmail = email.trim().toLowerCase();
+    await supabase.from('site_settings').delete().eq('key', 'revoked_customer_' + cleanEmail);
+  } catch(e) {}
+}
+
+export async function hardDeleteCustomerAndDataInSupabase(email) {
+  try {
+    if (!supabase || !email) return;
+    const cleanEmail = email.trim().toLowerCase();
+    
+    // 1. Permanently delete profile record from Supabase Cloud profiles table
+    await supabase.from('profiles').delete().eq('email', cleanEmail);
+    
+    // 2. Revoke active sessions
+    await supabase.from('site_settings').upsert({
+      key: 'revoked_customer_' + cleanEmail,
+      value: String(Date.now())
+    }, { onConflict: 'key' });
+
+    console.log('[Supabase Cloud] Customer account & all data permanently erased:', cleanEmail);
+  } catch(e) {
+    console.error('[Supabase Hard Delete Error]:', e);
+  }
+}
+
+export async function deleteCustomerFromSupabase(email) {
+  return hardDeleteCustomerAndDataInSupabase(email);
 }
 
 export async function checkCustomerAccountValidInSupabase(email) {
