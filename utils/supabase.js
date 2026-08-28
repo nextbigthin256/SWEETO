@@ -592,34 +592,35 @@ export async function adminSignInWithSupabase(email, password) {
       return { success: false, error: 'Veuillez saisir votre email et mot de passe.' };
     }
 
-    // 1. Direct validation for admin credentials (sweeto@store / chibuike@256 / admin)
-    const isAdminEmail = cleanEmail.includes('sweeto') || cleanEmail.includes('admin') || cleanEmail.length > 0;
-    const isMatchingPassword = cleanPassword === 'chibuike@256' || cleanPassword.toLowerCase() === 'chibuike@256' || cleanPassword === 'admin' || cleanPassword.length >= 4;
-
-    if (isAdminEmail && isMatchingPassword) {
-      console.log('[Supabase Admin Auth] Admin credentials verified successfully:', cleanEmail);
-      return { success: true, user: { email: cleanEmail, role: 'admin' } };
+    if (!supabase) {
+      return { success: false, error: 'Client Supabase indisponible.' };
     }
 
-    // 2. Try live Supabase Auth API password sign in
-    if (supabase) {
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email: cleanEmail,
-          password: cleanPassword
-        });
+    // 1. Live Supabase Auth Password Sign In (100% Dynamic)
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password: cleanPassword
+    });
 
-        if (!error && data && data.user) {
-          console.log('[Supabase Auth] Successfully signed in via Supabase Auth API:', cleanEmail);
-          return { success: true, user: data.user, session: data.session };
-        }
-      } catch(e) {}
+    if (!error && data && data.user) {
+      console.log('[Supabase Auth] Successfully signed in via Supabase Cloud:', cleanEmail);
+      return { success: true, user: data.user, session: data.session };
     }
 
-    // 3. Guaranteed fallback access for admin user
-    return { success: true, user: { email: cleanEmail || 'sweeto@store', role: 'admin' } };
+    // 2. Fallback check against Supabase profiles table for custom SQL accounts
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('email', cleanEmail)
+      .maybeSingle();
+
+    if (profile) {
+      return { success: true, user: profile };
+    }
+
+    return { success: false, error: error ? error.message : 'Identifiants Supabase invalides.' };
   } catch (err) {
     console.error('[Supabase Auth Error]:', err);
-    return { success: true, user: { email: email || 'sweeto@store', role: 'admin' } };
+    return { success: false, error: err.message || 'Erreur d\'authentification Supabase.' };
   }
 }
