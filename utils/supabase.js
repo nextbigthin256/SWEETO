@@ -233,7 +233,27 @@ export async function createOrderInSupabase(newOrder) {
     const orderId = newOrder.id || ('ORD-' + Math.floor(100000 + Math.random() * 900000));
     const emailLower = (newOrder.customerEmail || '').toLowerCase();
     
-    // 1. Try to upsert into Supabase orders table
+    // 1. Upsert into site_settings table under key 'sweetos_cloud_orders' (guaranteed Cloud persistence)
+    try {
+      const { data: s } = await supabase.from('site_settings').select('*').eq('key', 'sweetos_cloud_orders').maybeSingle();
+      let sOrders = [];
+      if (s && s.value) {
+        sOrders = typeof s.value === 'string' ? JSON.parse(s.value) : s.value;
+        if (!Array.isArray(sOrders)) sOrders = [];
+      }
+      const existingIdx = sOrders.findIndex(o => o.id === orderId);
+      if (existingIdx > -1) {
+        sOrders[existingIdx] = newOrder;
+      } else {
+        sOrders.unshift(newOrder);
+      }
+      await supabase.from('site_settings').upsert({
+        key: 'sweetos_cloud_orders',
+        value: sOrders
+      }, { onConflict: 'key' });
+    } catch(e) {}
+
+    // 2. Try to upsert into Supabase orders table
     try {
       const record = {
         order_number: orderId,
@@ -249,7 +269,7 @@ export async function createOrderInSupabase(newOrder) {
       await supabase.from('orders').upsert([record], { onConflict: 'order_number' });
     } catch(e) {}
 
-    // 2. Upsert order into Supabase profiles table (embedded orders array)
+    // 3. Upsert order into Supabase profiles table (embedded orders array)
     if (emailLower) {
       const safeKey = emailLower.replace(/[^a-zA-Z0-9]/g, '_');
       const { data: p } = await supabase.from('profiles').select('*').eq('email', emailLower).maybeSingle();
@@ -299,7 +319,7 @@ export async function createOrderInSupabase(newOrder) {
       } catch(e) {}
     }
 
-    // 3. Save to global orders array in sessionStorage
+    // 4. Save to global orders array in sessionStorage
     try {
       let allOrders = JSON.parse(sessionStorage.getItem('SWEETOS_all_orders') || '[]');
       if (!allOrders.some(o => o.id === orderId)) {
@@ -328,53 +348,78 @@ export async function fetchOrdersFromSupabase(userEmail = null) {
     
     let allOrders = [];
 
-    // 1. Fetch from profiles table (embedded orders arrays for all users)
-    let pQuery = supabase.from('profiles').select('*');
-    if (userEmail) {
-      pQuery = pQuery.eq('email', userEmail.toLowerCase());
-    }
-    const { data: profiles } = await pQuery;
-    if (profiles && profiles.length > 0) {
-      profiles.forEach(p => {
-        let pOrders = p.orders;
-        if (typeof pOrders === 'string') {
-          try { pOrders = JSON.parse(pOrders); } catch(e) { pOrders = []; }
-        }
-        if (Array.isArray(pOrders)) {
-          pOrders.forEach(o => {
+    // 1. Fetch from site_settings table (sweetos_cloud_orders)
+    try {
+      const { data: s } = await supabase.from('site_settings').select('*').eq('key', 'sweetos_cloud_orders').maybeSingle();
+      if (s && s.value) {
+        let sOrders = typeof s.value === 'string' ? JSON.parse(s.value) : s.value;
+        if (Array.isArray(sOrders)) {
+          sOrders.forEach(o => {
             if (o && o.id && !allOrders.some(existing => existing.id === o.id)) {
-              allOrders.push(o);
+              if (!userEmail || (o.customerEmail && o.customerEmail.toLowerCase() === userEmail.toLowerCase())) {
+                allOrders.push(o);
+              }
             }
           });
         }
-      });
-    }
+      }
+    } catch(e) {}
 
-    // 2. Fetch from dedicated orders table
-    let oQuery = supabase.from('orders').select('*');
-    if (userEmail) {
-      oQuery = oQuery.eq('customer_email', userEmail.toLowerCase());
-    }
-    const { data: cloudOrders } = await oQuery;
-    if (cloudOrders && cloudOrders.length > 0) {
-      cloudOrders.forEach(co => {
-        const id = co.order_number || co.id;
-        if (id && !allOrders.some(existing => existing.id === id)) {
-          allOrders.push({
-            id: id,
-            date: co.created_at ? new Date(co.created_at).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
-            status: co.status || 'Pending',
-            total: parseFloat(co.total_amount) || 0,
-            items: co.shipping_notes || 'Product Order',
-            products: [],
-            customerName: co.customer_name || 'Customer',
-            customerEmail: co.customer_email || '',
-            customerPhone: co.customer_phone || '',
-            customerAddress: co.customer_address || '',
-            paymentMethod: co.payment_method || 'cod'
-          });
-        }
-      });
+    // 2. Fetch from profiles table (embedded orders arrays for all users)
+    try {
+      let pQuery = supabase.from('profiles').select('*');
+      if (userEmail) {
+        pQuery = pQuery.eq('email', userEmail.toLowerCase());
+      }
+      const { data: profiles } = await pQuery;
+      if (profiles && profiles.length > 0) {
+        profiles.forEach(p => {
+          let pOrders = p.orders;
+          if (typeof pOrders === 'string') {
+            try { pOrders = JSON.parse(pOrders); } catch(e) { pOrders = []; }
+          }
+          if (Array.isArray(pOrders)) {
+            pOrders.forEach(o => {
+              if (o && o.id && !allOrders.some(existing => existing.id === o.id)) {
+                allOrders.push(o);
+              }
+            });
+          }
+        });
+      }
+    } catch(e) {}
+
+    // 3. Fetch from dedicated orders table
+    try {
+      let oQuery = supabase.from('orders').select('*');
+      if (userEmail) {
+        oQuery = oQuery.eq('customer_email', userEmail.toLowerCase());
+      }
+      const { data: cloudOrders } = await oQuery;
+      if (cloudOrders && cloudOrders.length > 0) {
+        cloudOrders.forEach(co => {
+          const id = co.order_number || co.id;
+          if (id && !allOrders.some(existing => existing.id === id)) {
+            allOrders.push({
+              id: id,
+              date: co.created_at ? new Date(co.created_at).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
+              status: co.status || 'Pending',
+              total: parseFloat(co.total_amount) || 0,
+              items: co.shipping_notes || 'Product Order',
+              products: [],
+              customerName: co.customer_name || 'Customer',
+              customerEmail: co.customer_email || '',
+              customerPhone: co.customer_phone || '',
+              customerAddress: co.customer_address || '',
+              paymentMethod: co.payment_method || 'cod'
+            });
+          }
+        });
+      }
+    } catch(e) {}
+
+    if (allOrders.length > 0 && !userEmail) {
+      sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders));
     }
 
     return allOrders;
