@@ -429,30 +429,128 @@
   box-shadow: 0 0 10px rgba(255, 255, 255, 0.6);
 }
 
-/* Responsive configurations */
+/* Responsive configurations for Mobile & Tablet */
 @media (max-width: 992px) {
-  .slide-card {
-    flex-direction: column;
-    padding: 36px 28px 48px 28px;
-    gap: 24px;
+  .hero-carousel,
+  .slides-wrapper {
+    min-height: auto;
+    height: auto;
+    overflow: hidden;
   }
+  
+  .slide {
+    position: relative;
+    inset: auto;
+    height: 0;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.5s ease, visibility 0.5s ease;
+  }
+  
+  .slide.active {
+    height: auto;
+    overflow: visible;
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .slide-card {
+    min-height: auto;
+    flex-direction: column;
+    padding: 32px 24px 44px 24px;
+    gap: 22px;
+  }
+
+  .hero-content {
+    max-width: 100%;
+  }
+
   .hero-visual {
     width: 100%;
-    max-width: 420px;
+    max-width: 100%;
   }
+
   .hero-title {
-    font-size: 32px;
+    font-size: 28px;
+    line-height: 1.25;
   }
+
   .dot-indicators {
-    left: 28px;
-    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: 14px;
   }
 }
 
 @media (max-width: 600px) {
-  .hero-title {
-    font-size: 26px;
+  .hero-carousel {
+    border-radius: 18px;
+    margin-bottom: 24px;
+    border: 1px solid rgba(255, 255, 255, 0.15);
   }
+
+  .slide-card {
+    padding: 22px 16px 36px 16px;
+    gap: 18px;
+  }
+
+  .hero-tag {
+    font-size: 11px;
+    padding: 5px 12px;
+  }
+
+  .hero-title {
+    font-size: 22px;
+    line-height: 1.28;
+    letter-spacing: -0.3px;
+  }
+
+  .hero-subtitle {
+    font-size: 13px;
+    line-height: 1.45;
+  }
+
+  .hero-perks-row {
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+
+  .hero-perk-item {
+    font-size: 11.5px;
+  }
+
+  .hero-cta-group {
+    display: flex;
+    flex-direction: row;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .shop-btn {
+    flex: 1;
+    padding: 12px 14px;
+    font-size: 13px;
+    justify-content: center;
+  }
+
+  .shop-btn-secondary {
+    flex: 1;
+    padding: 12px 14px;
+    font-size: 13px;
+    justify-content: center;
+  }
+
+  .hero-visual {
+    padding: 14px;
+    border-radius: 16px;
+    gap: 10px;
+  }
+
+  .hero-card-img-box {
+    height: 170px;
+  }
+
   .hero-nav-arrow {
     display: none;
   }
