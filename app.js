@@ -53,6 +53,27 @@ document.addEventListener('DOMContentLoaded', () => {
   // Initialize Supabase Live Backend Sync
   initSupabaseSync();
 
+  // Live Background Customer Revocation Guard (Every 6 seconds)
+  setInterval(async () => {
+    const loggedUserStr = localStorage.getItem('SWEETOS_logged_in_user');
+    if (loggedUserStr) {
+      try {
+        const loggedUser = JSON.parse(loggedUserStr);
+        if (loggedUser && loggedUser.email) {
+          const { checkCustomerAccountValidInSupabase } = await import('./utils/supabase.js');
+          const res = await checkCustomerAccountValidInSupabase(loggedUser.email);
+          if (res && res.valid === false) {
+            localStorage.removeItem('SWEETOS_logged_in_user');
+            localStorage.removeItem('SWEETOS_user_profile');
+            window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: false } }));
+            window.dispatchEvent(new CustomEvent('toast:show', { detail: '⚠️ Votre compte a été supprimé par l\'administrateur. Déconnexion...' }));
+            window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'home' } }));
+          }
+        }
+      } catch(e) {}
+    }
+  }, 6000);
+
   // Apply dynamic store configurations (theme, brand colors, font family)
   const applyBrandingSettings = () => {
     const primaryColor = localStorage.getItem('SWEETOS_brand_color_primary') || '#0052cc';

@@ -682,8 +682,54 @@ export async function saveCustomerToSupabase(customerData) {
 export async function deleteCustomerFromSupabase(email) {
   try {
     if (!supabase || !email) return;
-    await supabase.from('profiles').delete().eq('email', email);
-  } catch(e) {}
+    const cleanEmail = email.trim().toLowerCase();
+    
+    // Delete profile record
+    await supabase.from('profiles').delete().eq('email', cleanEmail);
+    
+    // Store session revocation signal in site_settings table
+    await supabase.from('site_settings').upsert({
+      key: 'revoked_customer_' + cleanEmail,
+      value: String(Date.now())
+    }, { onConflict: 'key' });
+
+    console.log('[Supabase Cloud] Customer deleted and session revoked:', cleanEmail);
+  } catch(e) {
+    console.error('[Supabase Customer Deletion Error]:', e);
+  }
+}
+
+export async function checkCustomerAccountValidInSupabase(email) {
+  try {
+    if (!supabase || !email) return { valid: true };
+    const cleanEmail = email.trim().toLowerCase();
+
+    // 1. Check if explicitly revoked in site_settings
+    const { data: revoked } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', 'revoked_customer_' + cleanEmail)
+      .maybeSingle();
+
+    if (revoked && revoked.value) {
+      return { valid: false, reason: 'Account revoked by Admin' };
+    }
+
+    // 2. Check if profile still exists in profiles table
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('id, email')
+      .eq('email', cleanEmail)
+      .maybeSingle();
+
+    if (!error && !profile) {
+      return { valid: false, reason: 'Account deleted by Admin' };
+    }
+
+    return { valid: true };
+  } catch (e) {
+    return { valid: true };
+  }
 }
 
 // ==========================================

@@ -864,12 +864,10 @@ export function attachAdminCustomersListeners(context, shadow) {
       if (confirmed) {
         const emailsArray = Array.from(selectedCustomerEmails);
 
-        // Delete from Supabase
-        import('../../utils/supabase.js').then(async ({ supabase }) => {
-          if (supabase) {
-            for (const email of emailsArray) {
-              await supabase.from('profiles').delete().eq('email', email);
-            }
+        // Delete from Supabase & Revoke active sessions live
+        import('../../utils/supabase.js').then(async ({ deleteCustomerFromSupabase }) => {
+          for (const email of emailsArray) {
+            await deleteCustomerFromSupabase(email);
           }
         }).catch(() => {});
 
@@ -907,10 +905,8 @@ export function attachAdminCustomersListeners(context, shadow) {
       }) : Promise.resolve(confirm(`Permanently delete account for ${email}?`)));
 
       if (confirmed) {
-        import('../../utils/supabase.js').then(async ({ supabase }) => {
-          if (supabase) {
-            await supabase.from('profiles').delete().eq('email', email);
-          }
+        import('../../utils/supabase.js').then(async ({ deleteCustomerFromSupabase }) => {
+          await deleteCustomerFromSupabase(email);
         }).catch(() => {});
 
         localStorage.removeItem(getProfileStorageKey(email));
