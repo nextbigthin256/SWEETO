@@ -38,9 +38,9 @@ class Hero extends HTMLElement {
           tag: `✨ ${storeName.toUpperCase()} OFFICIAL STORE`,
           title: heroTitle.includes('<br>') ? heroTitle : heroTitle.replace('\n', '<br>'),
           subtitle: heroSubtitle,
-          bg: "linear-gradient(135deg, #09111e 0%, #0d2149 50%, #0052cc 100%)",
-          glow1: "rgba(0, 82, 204, 0.5)",
-          glow2: "rgba(0, 180, 216, 0.35)",
+          bg: "linear-gradient(135deg, rgba(9, 17, 30, 0.65) 0%, rgba(13, 33, 73, 0.55) 50%, rgba(0, 82, 204, 0.45) 100%)",
+          glow1: "rgba(0, 82, 204, 0.35)",
+          glow2: "rgba(0, 180, 216, 0.25)",
           product: null,
           bannerImage: entranceImg,
           perks: ["Authentic Guaranteed", "Fast Delivery", "Official Warranty"],
@@ -53,10 +53,10 @@ class Hero extends HTMLElement {
 
     // Dynamic slides generated purely from REAL products in catalog
     const gradients = [
-      { bg: "linear-gradient(135deg, #09111e 0%, #0d2149 50%, #0052cc 100%)", glow1: "rgba(0, 82, 204, 0.5)", glow2: "rgba(0, 180, 216, 0.35)" },
-      { bg: "linear-gradient(135deg, #0b0f19 0%, #17172c 50%, #31104e 100%)", glow1: "rgba(147, 51, 234, 0.5)", glow2: "rgba(0, 180, 216, 0.3)" },
-      { bg: "linear-gradient(135deg, #15002b 0%, #290849 50%, #5b0e8c 100%)", glow1: "rgba(217, 70, 239, 0.5)", glow2: "rgba(99, 102, 241, 0.35)" },
-      { bg: "linear-gradient(135deg, #18120b 0%, #301f10 50%, #543818 100%)", glow1: "rgba(245, 158, 11, 0.5)", glow2: "rgba(217, 119, 6, 0.35)" }
+      { bg: "linear-gradient(135deg, rgba(9, 17, 30, 0.65) 0%, rgba(13, 33, 73, 0.55) 50%, rgba(0, 82, 204, 0.45) 100%)", glow1: "rgba(0, 82, 204, 0.35)", glow2: "rgba(0, 180, 216, 0.25)" },
+      { bg: "linear-gradient(135deg, rgba(11, 15, 25, 0.65) 0%, rgba(23, 23, 44, 0.55) 50%, rgba(49, 16, 78, 0.45) 100%)", glow1: "rgba(147, 51, 234, 0.35)", glow2: "rgba(0, 180, 216, 0.25)" },
+      { bg: "linear-gradient(135deg, rgba(21, 0, 43, 0.65) 0%, rgba(41, 8, 73, 0.55) 50%, rgba(91, 14, 140, 0.45) 100%)", glow1: "rgba(217, 70, 239, 0.35)", glow2: "rgba(99, 102, 241, 0.25)" },
+      { bg: "linear-gradient(135deg, rgba(24, 18, 11, 0.65) 0%, rgba(48, 31, 16, 0.55) 50%, rgba(84, 56, 24, 0.45) 100%)", glow1: "rgba(245, 158, 11, 0.35)", glow2: "rgba(217, 119, 6, 0.25)" }
     ];
 
     this.slides = allProds.slice(0, 4).map((p, idx) => {
