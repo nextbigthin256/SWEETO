@@ -592,29 +592,25 @@ export async function adminSignInWithSupabase(email, password) {
       return { success: false, error: 'Veuillez saisir votre email et mot de passe.' };
     }
 
-    // 1. Strict verification for password 'admin' or 'chibuike@256'
-    if (cleanPassword === 'admin' || cleanPassword === 'chibuike@256') {
-      console.log('[Supabase Admin Auth] Admin password verified:', cleanEmail);
-      return { success: true, user: { email: cleanEmail, role: 'admin' } };
+    if (!supabase) {
+      return { success: false, error: 'Client Supabase indisponible.' };
     }
 
-    // 2. Check Supabase Auth Cloud API
-    if (supabase) {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: cleanEmail,
-        password: cleanPassword
-      });
+    // 100% Pure Supabase Cloud Auth - Validated live against auth.users & auth.identities
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: cleanEmail,
+      password: cleanPassword
+    });
 
-      if (!error && data && data.user) {
-        console.log('[Supabase Auth] Successfully signed in via Supabase Cloud:', cleanEmail);
-        return { success: true, user: data.user, session: data.session };
-      }
+    if (!error && data && data.user) {
+      console.log('[Supabase Auth] Successfully authenticated user:', cleanEmail);
+      return { success: true, user: data.user, session: data.session };
     }
 
-    return { success: false, error: 'Mot de passe ou email incorrect.' };
+    return { success: false, error: error ? error.message : 'Email ou mot de passe Supabase incorrect.' };
   } catch (err) {
     console.error('[Supabase Auth Error]:', err);
-    return { success: false, error: 'Mot de passe ou email incorrect.' };
+    return { success: false, error: err.message || 'Erreur d\'authentification Supabase.' };
   }
 }
 
