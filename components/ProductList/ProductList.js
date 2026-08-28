@@ -2,7 +2,7 @@ import products from '../../data/products.js';
 import { showEditAddressModal } from '../Modals/EditAddressModal.js';
 import { showCancelOrderModal } from '../Modals/CancelOrderModal.js';
 import { getAuthPageHTML, attachAuthListeners } from '../Auth/AuthPage.js';
-import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getScratchcardsStorageKey, formatPrice, formatTimeAgo, syncDeliveredNotifications, getAllOrdersFromStorage, saveAllOrdersToStorage } from '../../utils/storage.js';
+import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getScratchcardsStorageKey, formatPrice, formatTimeAgo, syncDeliveredNotifications, getAllOrdersFromStorage, saveAllOrdersToStorage, getStorageItem, saveStorageItem } from '../../utils/storage.js';
 
 import { CUSTOMER_LEVELS, VERIFIED_BADGES, renderVerificationBadge, renderLevelPill, getCustomerLevel, getCustomerBadge, getBadgeRewardCoupon, getCustomerAvatarStyle, renderLevelChevronV, scratchBadgeReward, isBadgeRewardScratched } from '../../utils/badges.js';
 import { getTodaysDealsConfig, isTodaysDealsActive, getTimeRemaining, awardMysteryBoxForDeliveredOrder, getTodaysDealsTheme, DEAL_BANNER_THEMES } from '../../utils/todaysDeals.js';
@@ -245,13 +245,15 @@ class ProductList extends HTMLElement {
     this._storageListener = (e) => {
       if (e.key === 'SWEETOS_products') {
         try {
-          this.products = JSON.parse(e.newValue || '[]');
-          this.renderPageContent();
+          const stored = getStorageItem('SWEETOS_products');
+          if (stored) this.products = JSON.parse(stored);
         } catch (err) {}
+        this.renderPageContent();
       } else if (e.key === 'SWEETOS_categories' || e.key === 'SWEETOS_brands') {
         this.renderPageContent();
       } else if (e.key === 'SWEETOS_all_orders' || e.key === 'SWEETOS_customers' || (e.key && e.key.startsWith('SWEETOS_user_profile'))) {
-        if (this.currentPage === 'profile') {
+        this.renderPageContent();
+        if (this.currentPage === 'profile' || this.currentPage === 'orders') {
           this.injectProfileTabContent();
         }
       }
@@ -260,7 +262,8 @@ class ProductList extends HTMLElement {
 
     // Live Order Updates Listener
     this._ordersUpdatedHandler = () => {
-      if (this.currentPage === 'profile') {
+      this.renderPageContent();
+      if (this.currentPage === 'profile' || this.currentPage === 'orders') {
         this.injectProfileTabContent();
       }
     };
@@ -269,7 +272,7 @@ class ProductList extends HTMLElement {
     // Listen to live Supabase and product updates
     this._productsUpdatedHandler = (e) => {
       try {
-        const stored = sessionStorage.getItem('SWEETOS_products');
+        const stored = getStorageItem('SWEETOS_products');
         if (stored) {
           this.products = JSON.parse(stored);
         } else if (e.detail && Array.isArray(e.detail)) {

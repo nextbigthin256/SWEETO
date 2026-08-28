@@ -1,4 +1,4 @@
-import { formatPrice, getAllOrdersFromStorage, saveAllOrdersToStorage, isLocalDevHost } from '../../utils/storage.js';
+import { formatPrice, getAllOrdersFromStorage, saveAllOrdersToStorage, isLocalDevHost, saveStorageItem, getStorageItem } from '../../utils/storage.js';
 import '../../utils/modal.js';
 
 import products from '../../data/products.js';
@@ -655,7 +655,7 @@ class AdminPage extends HTMLElement {
     const isFirstTime = sessionStorage.getItem('SWEETOS_db_initialized') === null && sessionStorage.getItem('SWEETOS_products') === null;
 
     // 1. Product Catalog
-    const storedProds = sessionStorage.getItem('SWEETOS_products');
+    const storedProds = getStorageItem('SWEETOS_products');
     if (storedProds !== null) {
       try {
         this.products = JSON.parse(storedProds);
@@ -664,7 +664,7 @@ class AdminPage extends HTMLElement {
       }
     } else {
       this.products = isFirstTime ? products : [];
-      sessionStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
+      saveStorageItem('SWEETOS_products', this.products);
     }
     
     // 2. Orders Pipeline
@@ -699,7 +699,7 @@ class AdminPage extends HTMLElement {
     saveAllOrdersToStorage(this.orders, true);
     
     // 3. Category Settings
-    const storedCats = sessionStorage.getItem('SWEETOS_categories');
+    const storedCats = getStorageItem('SWEETOS_categories');
     if (storedCats !== null) {
       try {
         this.categories = JSON.parse(storedCats);
@@ -708,11 +708,11 @@ class AdminPage extends HTMLElement {
       }
     } else {
       this.categories = isFirstTime ? categories : [];
-      sessionStorage.setItem('SWEETOS_categories', JSON.stringify(this.categories));
+      saveStorageItem('SWEETOS_categories', this.categories);
     }
     
     // 4. Coupon Database
-    const storedCoupons = sessionStorage.getItem('SWEETOS_coupons');
+    const storedCoupons = getStorageItem('SWEETOS_coupons');
     if (storedCoupons !== null) {
       try {
         this.coupons = JSON.parse(storedCoupons);
@@ -724,7 +724,7 @@ class AdminPage extends HTMLElement {
         { code: "SWEETWELCOME", type: "percentage", value: 10, minOrder: 15000, limit: 100, used: 24, expiry: "2026-12-31", status: "active" },
         { code: "DESKSETUP", type: "fixed", value: 5000, minOrder: 45000, limit: 50, used: 12, expiry: "2026-10-15", status: "active" }
       ] : [];
-      sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(this.coupons));
+      saveStorageItem('SWEETOS_coupons', this.coupons);
     }
 
     // 5. Stock Adjustments logs
@@ -771,7 +771,7 @@ class AdminPage extends HTMLElement {
     this.homepageSections = parsedSections;
 
     // 8. Brand settings Directory
-    const storedBrands = sessionStorage.getItem('SWEETOS_brands');
+    const storedBrands = getStorageItem('SWEETOS_brands');
     if (storedBrands !== null) {
       try {
         this.brands = JSON.parse(storedBrands);
@@ -780,7 +780,7 @@ class AdminPage extends HTMLElement {
       }
     } else {
       this.brands = isFirstTime ? brands : [];
-      sessionStorage.setItem('SWEETOS_brands', JSON.stringify(this.brands));
+      saveStorageItem('SWEETOS_brands', this.brands);
     }
 
     // 9. Review settings Directory
@@ -849,31 +849,31 @@ class AdminPage extends HTMLElement {
 
   saveDatabase(type) {
     if (type === 'products') {
-      sessionStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
+      saveStorageItem('SWEETOS_products', this.products);
       window.dispatchEvent(new CustomEvent('products:updated', { detail: this.products }));
       this.syncProductsToServer();
     } else if (type === 'orders') {
       saveAllOrdersToStorage(this.orders);
       this.syncOrdersToServer();
     } else if (type === 'coupons') {
-      sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(this.coupons));
+      saveStorageItem('SWEETOS_coupons', this.coupons);
       this.syncCouponsToServer();
       import('../../utils/supabase.js').then(m => m.syncCouponsToSupabase(this.coupons));
     } else if (type === 'categories') {
-      sessionStorage.setItem('SWEETOS_categories', JSON.stringify(this.categories));
+      saveStorageItem('SWEETOS_categories', this.categories);
       this.syncCategoriesToServer();
     } else if (type === 'inventory') {
-      sessionStorage.setItem('SWEETOS_inventory_logs', JSON.stringify(this.inventoryLogs));
+      saveStorageItem('SWEETOS_inventory_logs', this.inventoryLogs);
       import('../../utils/supabase.js').then(m => m.syncInventoryLogsToSupabase(this.inventoryLogs));
     } else if (type === 'sections') {
-      sessionStorage.setItem('SWEETOS_homepage_sections', JSON.stringify(this.homepageSections));
+      saveStorageItem('SWEETOS_homepage_sections', this.homepageSections);
       import('../../utils/supabase.js').then(m => m.syncSectionsToSupabase(this.homepageSections));
     } else if (type === 'brands') {
-      sessionStorage.setItem('SWEETOS_brands', JSON.stringify(this.brands));
+      saveStorageItem('SWEETOS_brands', this.brands);
       window.dispatchEvent(new CustomEvent('brands:updated', { detail: this.brands }));
       this.syncBrandsToServer();
     } else if (type === 'reviews') {
-      sessionStorage.setItem('SWEETOS_reviews_all', JSON.stringify(this.reviews));
+      saveStorageItem('SWEETOS_reviews_all', this.reviews);
       this.syncReviewsToServer();
       import('../../utils/supabase.js').then(m => m.syncReviewsToSupabase(this.reviews));
     }

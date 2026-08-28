@@ -1,3 +1,25 @@
+export function saveStorageItem(key, val) {
+  if (val === null || val === undefined) {
+    try { localStorage.removeItem(key); } catch(e) {}
+    try { sessionStorage.removeItem(key); } catch(e) {}
+    return;
+  }
+  const str = typeof val === 'string' ? val : JSON.stringify(val);
+  try { localStorage.setItem(key, str); } catch(e) {}
+  try { sessionStorage.setItem(key, str); } catch(e) {}
+}
+
+export function getStorageItem(key) {
+  try {
+    const localVal = localStorage.getItem(key);
+    if (localVal !== null) return localVal;
+  } catch(e) {}
+  try {
+    return sessionStorage.getItem(key);
+  } catch(e) {}
+  return null;
+}
+
 export function getCartStorageKey() {
   const userJson = sessionStorage.getItem('SWEETOS_logged_in_user');
   if (userJson) {
