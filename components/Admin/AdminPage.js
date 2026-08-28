@@ -498,7 +498,13 @@ class AdminPage extends HTMLElement {
           hasCloudUpdates = true;
         }
         if (cloudOrders.status === 'fulfilled' && Array.isArray(cloudOrders.value)) {
-          this.orders = cloudOrders.value;
+          const mergedOrders = [...cloudOrders.value];
+          (this.orders || []).forEach(localO => {
+            if (localO && localO.id && !mergedOrders.some(o => o.id === localO.id)) {
+              mergedOrders.push(localO);
+            }
+          });
+          this.orders = mergedOrders;
           localStorage.setItem('SWEETOS_all_orders', JSON.stringify(this.orders));
           hasCloudUpdates = true;
         }
@@ -515,13 +521,15 @@ class AdminPage extends HTMLElement {
       } catch(e) {}
     }).catch(() => {});
 
-    // Listen to live database sync signals
+    // Listen to live database sync & order update signals
     this._supabaseListener = () => {
       this.loadDatabase();
       this.render();
       this.attachListeners();
     };
     window.addEventListener('supabase:ready', this._supabaseListener);
+    window.addEventListener('orders:updated', this._supabaseListener);
+    window.addEventListener('storage', this._supabaseListener);
 
     // Fallback local API fetch
     Promise.all([

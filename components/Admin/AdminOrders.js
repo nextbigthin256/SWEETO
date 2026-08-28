@@ -26,7 +26,7 @@ export function renderAdminOrders(context) {
   // 2. Search query filter
   if (context.searchQuery) {
     const q = context.searchQuery.toLowerCase().trim();
-    list = list.filter(o => 
+    const matches = list.filter(o => 
       (o.id && o.id.toLowerCase().includes(q)) || 
       (o.customerName && o.customerName.toLowerCase().includes(q)) ||
       (o.customerEmail && o.customerEmail.toLowerCase().includes(q)) ||
@@ -34,6 +34,10 @@ export function renderAdminOrders(context) {
       (o.items && o.items.toLowerCase().includes(q)) ||
       (o.products && o.products.some(p => p.name && p.name.toLowerCase().includes(q)))
     );
+    // If query contains @ (autofilled email) and returns 0 matches, keep full order list
+    if (matches.length > 0 || !q.includes('@')) {
+      list = matches;
+    }
   }
 
   // 3. Status tab filter
