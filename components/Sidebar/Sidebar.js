@@ -1,4 +1,5 @@
-import { getScratchcardsStorageKey } from '../../utils/storage.js';
+import { getScratchcardsStorageKey, getAllOrdersFromStorage } from '../../utils/storage.js';
+
 
 class Sidebar extends HTMLElement {
   constructor() {
@@ -60,7 +61,7 @@ class Sidebar extends HTMLElement {
       if (loggedIn) {
         try {
           const userEmail = JSON.parse(loggedIn).email;
-          const allOrders = JSON.parse(sessionStorage.getItem('SWEETOS_all_orders') || '[]');
+          const allOrders = getAllOrdersFromStorage();
           userOrders = allOrders.filter(o => o.customerEmail === userEmail && (o.status || '').toLowerCase() !== 'deleted');
         } catch(e) {}
       }

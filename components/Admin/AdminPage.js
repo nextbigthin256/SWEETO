@@ -1,5 +1,6 @@
-import { formatPrice } from '../../utils/storage.js';
+import { formatPrice, getAllOrdersFromStorage, saveAllOrdersToStorage } from '../../utils/storage.js';
 import '../../utils/modal.js';
+
 import products from '../../data/products.js';
 import categories from '../../data/categories.js';
 import brands from '../../data/brands.js';
@@ -546,7 +547,7 @@ class AdminPage extends HTMLElement {
             }
           });
           this.orders = mergedOrders;
-          sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(this.orders));
+          saveAllOrdersToStorage(this.orders);
           hasCloudUpdates = true;
         }
         if (cloudCusts.status === 'fulfilled' && Array.isArray(cloudCusts.value)) {
@@ -604,7 +605,7 @@ class AdminPage extends HTMLElement {
       }
       if (Array.isArray(orders) && orders.length > 0) {
         this.orders = orders;
-        sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(orders));
+        saveAllOrdersToStorage(orders);
         needsRender = true;
       }
       if (Array.isArray(coupons) && coupons.length > 0) {
@@ -639,38 +640,35 @@ class AdminPage extends HTMLElement {
     }
     
     // 2. Orders Pipeline
-    const storedOrders = sessionStorage.getItem('SWEETOS_all_orders');
-    let loadedOrders = [];
-    if (storedOrders !== null) {
-      try {
-        loadedOrders = JSON.parse(storedOrders);
-      } catch (e) {
-        loadedOrders = [];
-      }
-    }
+    let loadedOrders = getAllOrdersFromStorage();
     if (!Array.isArray(loadedOrders) || loadedOrders.length === 0) {
       loadedOrders = [...orders];
     }
 
-    // Scan all sessionStorage profile keys to extract any customer orders
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const key = sessionStorage.key(i);
-      if (key && key.startsWith('SWEETOS_user_profile_')) {
-        try {
-          const prof = JSON.parse(sessionStorage.getItem(key));
-          if (prof && Array.isArray(prof.orders)) {
-            prof.orders.forEach(o => {
-              if (o && o.id && !loadedOrders.some(existing => existing.id === o.id)) {
-                loadedOrders.unshift(o);
+    // Scan all sessionStorage & localStorage profile keys to extract any customer orders
+    const storageSources = [sessionStorage, localStorage];
+    storageSources.forEach(store => {
+      try {
+        for (let i = 0; i < store.length; i++) {
+          const key = store.key(i);
+          if (key && key.startsWith('SWEETOS_user_profile_')) {
+            try {
+              const prof = JSON.parse(store.getItem(key));
+              if (prof && Array.isArray(prof.orders)) {
+                prof.orders.forEach(o => {
+                  if (o && o.id && !loadedOrders.some(existing => existing.id === o.id)) {
+                    loadedOrders.unshift(o);
+                  }
+                });
               }
-            });
+            } catch(e) {}
           }
-        } catch(e) {}
-      }
-    }
+        }
+      } catch(e) {}
+    });
 
     this.orders = loadedOrders;
-    sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(this.orders));
+    saveAllOrdersToStorage(this.orders);
     
     // 3. Category Settings
     const storedCats = sessionStorage.getItem('SWEETOS_categories');
@@ -827,7 +825,7 @@ class AdminPage extends HTMLElement {
       window.dispatchEvent(new CustomEvent('products:updated', { detail: this.products }));
       this.syncProductsToServer();
     } else if (type === 'orders') {
-      sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(this.orders));
+      saveAllOrdersToStorage(this.orders);
       this.syncOrdersToServer();
     } else if (type === 'coupons') {
       sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(this.coupons));
@@ -1048,7 +1046,7 @@ class AdminPage extends HTMLElement {
       }
       if (orders) {
         this.orders = orders;
-        sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(orders));
+        saveAllOrdersToStorage(orders);
       }
       if (coupons) {
         this.coupons = coupons;

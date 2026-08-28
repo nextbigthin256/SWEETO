@@ -2,7 +2,8 @@ import products from '../../data/products.js';
 import { showEditAddressModal } from '../Modals/EditAddressModal.js';
 import { showCancelOrderModal } from '../Modals/CancelOrderModal.js';
 import { getAuthPageHTML, attachAuthListeners } from '../Auth/AuthPage.js';
-import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getScratchcardsStorageKey, formatPrice, formatTimeAgo, syncDeliveredNotifications } from '../../utils/storage.js';
+import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getScratchcardsStorageKey, formatPrice, formatTimeAgo, syncDeliveredNotifications, getAllOrdersFromStorage, saveAllOrdersToStorage } from '../../utils/storage.js';
+
 import { CUSTOMER_LEVELS, VERIFIED_BADGES, renderVerificationBadge, renderLevelPill, getCustomerLevel, getCustomerBadge, getBadgeRewardCoupon, getCustomerAvatarStyle, renderLevelChevronV, scratchBadgeReward, isBadgeRewardScratched } from '../../utils/badges.js';
 import { getTodaysDealsConfig, isTodaysDealsActive, getTimeRemaining, awardMysteryBoxForDeliveredOrder, getTodaysDealsTheme, DEAL_BANNER_THEMES } from '../../utils/todaysDeals.js';
 import { getMoreToLoveConfig } from '../../utils/moreToLove.js';
@@ -472,7 +473,7 @@ class ProductList extends HTMLElement {
 
     // Pull real orders from SWEETOS_all_orders to calculate live gross spend & orders count
     try {
-      const allOrders = JSON.parse(sessionStorage.getItem('SWEETOS_all_orders') || '[]');
+      const allOrders = getAllOrdersFromStorage();
       const userOrders = allOrders.filter(o => o.customerEmail && o.customerEmail.toLowerCase() === currentEmail && (o.status || '').toLowerCase() !== 'deleted');
       if (userOrders.length > 0) {
         profile.orders = userOrders;
@@ -8283,7 +8284,7 @@ class ProductList extends HTMLElement {
                 if (globalOrder) {
                   globalOrder.customerAddress = newAddress;
                 }
-                sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders));
+                saveAllOrdersToStorage(allOrders);
 
                 return fetch('/api/orders', {
                   method: 'POST',
@@ -8327,7 +8328,7 @@ class ProductList extends HTMLElement {
                 if (globalOrder) {
                   globalOrder.status = 'Cancelled';
                 }
-                sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders));
+                saveAllOrdersToStorage(allOrders);
 
                 return fetch('/api/orders', {
                   method: 'POST',
@@ -8368,7 +8369,7 @@ class ProductList extends HTMLElement {
                if (globalOrder) {
                  globalOrder.status = 'Deleted';
                }
-               sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders));
+               saveAllOrdersToStorage(allOrders);
 
                return fetch('/api/orders', {
                  method: 'POST',
@@ -8409,7 +8410,7 @@ class ProductList extends HTMLElement {
               if (globalOrder) {
                 globalOrder.status = 'Done';
               }
-              sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders));
+              saveAllOrdersToStorage(allOrders);
 
               return fetch('/api/orders', {
                 method: 'POST',

@@ -1,4 +1,4 @@
-import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, formatPrice } from '../../utils/storage.js';
+import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, formatPrice, getAllOrdersFromStorage, saveAllOrdersToStorage } from '../../utils/storage.js';
 import { consumeBadgeRewardUse } from '../../utils/badges.js';
 import { getTodaysDealsConfig, isTodaysDealsActive, claimTodaysDealsCoupon } from '../../utils/todaysDeals.js';
 
@@ -879,14 +879,12 @@ class CheckoutModal extends HTMLElement {
           await createOrderInSupabase(newOrder);
         }).catch(() => {});
 
-        let localOrders = [];
-        try {
-          localOrders = JSON.parse(sessionStorage.getItem('SWEETOS_all_orders') || '[]');
-        } catch(e) {}
+        let localOrders = getAllOrdersFromStorage();
         if (!localOrders.some(o => o.id === newOrder.id)) {
           localOrders.unshift(newOrder);
         }
-        sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(localOrders));
+        saveAllOrdersToStorage(localOrders);
+
 
         // Deduct coupon usage if applied
         try {

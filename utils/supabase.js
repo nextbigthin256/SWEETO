@@ -1,6 +1,8 @@
 // Supabase Client & Backend Synchronization Engine
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
 import initialProducts from '../data/products.js';
+import { getAllOrdersFromStorage, saveAllOrdersToStorage } from './storage.js';
+
 
 export const SUPABASE_URL = 'https://euuzsxjsmsktegilbqpv.supabase.co';
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1dXpzeGpzbXNrdGVnaWxicXB2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc4MzIyMzcsImV4cCI6MjEwMzQwODIzN30.BJtkw4BBkAytc5vDSr8a0dOmUyGk_1xfpdHK3sEHwHs';
@@ -319,16 +321,16 @@ export async function createOrderInSupabase(newOrder) {
       } catch(e) {}
     }
 
-    // 4. Save to global orders array in sessionStorage
+    // 4. Save to global orders array in storage
     try {
-      let allOrders = JSON.parse(sessionStorage.getItem('SWEETOS_all_orders') || '[]');
+      let allOrders = getAllOrdersFromStorage();
       if (!allOrders.some(o => o.id === orderId)) {
         allOrders.unshift(newOrder);
       } else {
         const idx = allOrders.findIndex(o => o.id === orderId);
         allOrders[idx] = newOrder;
       }
-      sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders));
+      saveAllOrdersToStorage(allOrders);
     } catch(e) {}
 
     window.dispatchEvent(new CustomEvent('orders:updated', { detail: newOrder }));
@@ -419,7 +421,7 @@ export async function fetchOrdersFromSupabase(userEmail = null) {
     } catch(e) {}
 
     if (allOrders.length > 0 && !userEmail) {
-      sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders));
+      saveAllOrdersToStorage(allOrders);
     }
 
     return allOrders;

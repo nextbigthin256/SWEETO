@@ -1,4 +1,5 @@
-import { getProfileStorageKey, formatPrice } from '../../utils/storage.js';
+import { getProfileStorageKey, formatPrice, getAllOrdersFromStorage } from '../../utils/storage.js';
+
 
 class AccountModal extends HTMLElement {
   constructor() {
@@ -40,7 +41,7 @@ class AccountModal extends HTMLElement {
 
         // Also merge any matching orders from global SWEETOS_all_orders
         try {
-          const globalOrders = JSON.parse(sessionStorage.getItem('SWEETOS_all_orders') || '[]');
+          const globalOrders = getAllOrdersFromStorage();
           const userGlobalOrders = globalOrders.filter(o => o.customerEmail && o.customerEmail.toLowerCase() === email);
           userGlobalOrders.forEach(go => {
             if (!ordersList.some(o => o.id === go.id)) {

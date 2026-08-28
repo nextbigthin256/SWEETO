@@ -214,3 +214,35 @@ export function formatTimeAgo(dateOrTimestamp) {
   return new Date(timeMs).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
+export function getAllOrdersFromStorage() {
+  let orders = [];
+  try {
+    const localStr = localStorage.getItem('SWEETOS_all_orders');
+    if (localStr) orders = JSON.parse(localStr);
+  } catch(e) {}
+  
+  if (!Array.isArray(orders) || orders.length === 0) {
+    try {
+      const sessionStr = sessionStorage.getItem('SWEETOS_all_orders');
+      if (sessionStr) orders = JSON.parse(sessionStr);
+    } catch(e) {}
+  }
+  
+  return Array.isArray(orders) ? orders : [];
+}
+
+export function saveAllOrdersToStorage(orders) {
+  if (!Array.isArray(orders)) return;
+  const jsonStr = JSON.stringify(orders);
+  try { localStorage.setItem('SWEETOS_all_orders', jsonStr); } catch(e) {}
+  try { sessionStorage.setItem('SWEETOS_all_orders', jsonStr); } catch(e) {}
+  
+  // Persist to local server disk asynchronously
+  fetch('/api/orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: jsonStr
+  }).catch(() => {});
+}
+
+

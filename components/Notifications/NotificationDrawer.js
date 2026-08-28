@@ -1,4 +1,5 @@
-import { getNotificationsStorageKey, getScratchcardsStorageKey, formatTimeAgo } from '../../utils/storage.js';
+import { getNotificationsStorageKey, getScratchcardsStorageKey, formatTimeAgo, getAllOrdersFromStorage } from '../../utils/storage.js';
+
 
 class NotificationDrawer extends HTMLElement {
   constructor() {
@@ -418,10 +419,7 @@ class NotificationDrawer extends HTMLElement {
   }
 
   handleOpenEmailModal(orderId) {
-    let orders = [];
-    try {
-      orders = JSON.parse(sessionStorage.getItem('SWEETOS_all_orders') || '[]');
-    } catch(e) {}
+    let orders = getAllOrdersFromStorage();
     const order = orders.find(o => o.id === orderId);
     if (!order) {
       window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Détails de commande introuvables.' }));
@@ -438,10 +436,7 @@ class NotificationDrawer extends HTMLElement {
   }
 
   downloadReceipt(orderId) {
-    let orders = [];
-    try {
-      orders = JSON.parse(sessionStorage.getItem('SWEETOS_all_orders') || '[]');
-    } catch(e) {}
+    let orders = getAllOrdersFromStorage();
     const order = orders.find(o => o.id === orderId);
     if (!order) {
       window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Commande introuvable !' }));

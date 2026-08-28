@@ -1,5 +1,6 @@
 import products from '../../data/products.js';
-import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, formatPrice } from '../../utils/storage.js';
+import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, formatPrice, getAllOrdersFromStorage } from '../../utils/storage.js';
+
 import { renderVerificationBadge, getCustomerBadge, getCustomerLevel, getCustomerAvatarStyle, renderLevelChevronV } from '../../utils/badges.js';
 
 class Header extends HTMLElement {
@@ -99,7 +100,7 @@ class Header extends HTMLElement {
 
     // Calculate customer total spent to compute dynamic level and 500k+ badge if not manually overridden
     try {
-      const allOrders = JSON.parse(sessionStorage.getItem('SWEETOS_all_orders') || '[]');
+      const allOrders = getAllOrdersFromStorage();
       const userOrders = allOrders.filter(o => o.customerEmail && o.customerEmail.toLowerCase() === curEmail && (o.status || '').toLowerCase() !== 'deleted');
       const totalSpent = userOrders.filter(o => (o.status || '').toLowerCase() !== 'cancelled').reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
 

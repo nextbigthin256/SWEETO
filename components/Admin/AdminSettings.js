@@ -1021,6 +1021,7 @@ export function attachAdminSettingsListeners(context, shadow) {
       if (confirmed) {
         sessionStorage.setItem('SWEETOS_products', JSON.stringify([]));
         sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify([]));
+        localStorage.setItem('SWEETOS_all_orders', JSON.stringify([]));
         sessionStorage.setItem('SWEETOS_categories', JSON.stringify([]));
         sessionStorage.setItem('SWEETOS_brands', JSON.stringify([]));
         sessionStorage.setItem('SWEETOS_reviews_all', JSON.stringify([]));
@@ -1075,6 +1076,7 @@ export function attachAdminSettingsListeners(context, shadow) {
       if (confirmed) {
         sessionStorage.removeItem('SWEETOS_products');
         sessionStorage.removeItem('SWEETOS_all_orders');
+        localStorage.removeItem('SWEETOS_all_orders');
         sessionStorage.removeItem('SWEETOS_categories');
         sessionStorage.removeItem('SWEETOS_brands');
         sessionStorage.removeItem('SWEETOS_reviews_all');
