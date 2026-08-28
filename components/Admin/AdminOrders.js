@@ -1,4 +1,4 @@
-import { formatPrice } from '../../utils/storage.js';
+import { formatPrice, getOrderCategory } from '../../utils/storage.js';
 import { awardMysteryBoxForDeliveredOrder } from '../../utils/todaysDeals.js';
 
 // Global internal state helpers for filters & selection
@@ -38,17 +38,7 @@ export function renderAdminOrders(context) {
 
   // 3. Status tab filter
   if (context.statusFilter && context.statusFilter !== 'All' && context.statusFilter !== 'Deleted') {
-    list = list.filter(o => {
-      const s = (o.status || '').toLowerCase();
-      const target = context.statusFilter.toLowerCase();
-      if (target === 'placed' || target === 'pending') return s === 'placed' || s === 'pending';
-      if (target === 'confirm' || target === 'confirmed') return s === 'confirm' || s === 'confirmé' || s === 'confirmed';
-      if (target === 'processing') return s === 'processing' || s === 'en cours';
-      if (target === 'shipping' || target === 'shipped') return s === 'shipping' || s === 'shipped';
-      if (target === 'done' || target === 'delivered') return s === 'done' || s === 'livré' || s === 'delivered';
-      if (target === 'cancelled') return s === 'cancelled' || s === 'annulé';
-      return s === target;
-    });
+    list = list.filter(o => getOrderCategory(o.status) === context.statusFilter);
   }
 
   // 4. Date filter
@@ -96,25 +86,20 @@ export function renderAdminOrders(context) {
   });
 
   // Calculate Metrics
-  const totalCount = rawOrders.length;
-  const totalRevenue = rawOrders
-    .filter(o => (o.status || '').toLowerCase() !== 'cancelled' && (o.status || '').toLowerCase() !== 'deleted')
+  const activeOrdersList = rawOrders.filter(o => getOrderCategory(o.status) !== 'Deleted');
+  const totalCount = activeOrdersList.length;
+  const totalRevenue = activeOrdersList
+    .filter(o => getOrderCategory(o.status) !== 'Cancelled')
     .reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
 
-  const pendingCount = rawOrders.filter(o => {
-    const s = (o.status || '').toLowerCase();
-    return s === 'placed' || s === 'pending';
+  const pendingCount = activeOrdersList.filter(o => getOrderCategory(o.status) === 'Placed').length;
+
+  const activeCount = activeOrdersList.filter(o => {
+    const cat = getOrderCategory(o.status);
+    return cat === 'Confirm' || cat === 'Processing' || cat === 'Shipping';
   }).length;
 
-  const activeCount = rawOrders.filter(o => {
-    const s = (o.status || '').toLowerCase();
-    return s === 'confirm' || s === 'confirmé' || s === 'confirmed' || s === 'processing' || s === 'en cours' || s === 'shipping' || s === 'shipped';
-  }).length;
-
-  const completedCount = rawOrders.filter(o => {
-    const s = (o.status || '').toLowerCase();
-    return s === 'done' || s === 'livré' || s === 'delivered';
-  }).length;
+  const completedCount = activeOrdersList.filter(o => getOrderCategory(o.status) === 'Done').length;
 
   const totalItems = list.length;
   const itemsPerPage = context.itemsPerPage || 10;
@@ -457,13 +442,13 @@ export function renderAdminOrders(context) {
     <!-- 2. Status Pill Filters Row -->
     <div class="status-pill-list">
       ${[
-        { key: 'All', label: 'All Orders', count: rawOrders.length },
-        { key: 'Placed', label: 'Pending', count: rawOrders.filter(o => ['placed', 'pending'].includes((o.status || '').toLowerCase())).length },
-        { key: 'Confirm', label: 'Confirmed', count: rawOrders.filter(o => ['confirm', 'confirmé', 'confirmed'].includes((o.status || '').toLowerCase())).length },
-        { key: 'Processing', label: 'Processing', count: rawOrders.filter(o => ['processing', 'en cours'].includes((o.status || '').toLowerCase())).length },
-        { key: 'Shipping', label: 'Shipping', count: rawOrders.filter(o => ['shipping', 'shipped'].includes((o.status || '').toLowerCase())).length },
-        { key: 'Done', label: 'Delivered', count: rawOrders.filter(o => ['done', 'livré', 'delivered'].includes((o.status || '').toLowerCase())).length },
-        { key: 'Cancelled', label: 'Cancelled', count: rawOrders.filter(o => ['cancelled', 'annulé'].includes((o.status || '').toLowerCase())).length }
+        { key: 'All', label: 'All Orders', count: rawOrders.filter(o => getOrderCategory(o.status) !== 'Deleted').length },
+        { key: 'Placed', label: 'Pending', count: rawOrders.filter(o => getOrderCategory(o.status) === 'Placed').length },
+        { key: 'Confirm', label: 'Confirmed', count: rawOrders.filter(o => getOrderCategory(o.status) === 'Confirm').length },
+        { key: 'Processing', label: 'Processing', count: rawOrders.filter(o => getOrderCategory(o.status) === 'Processing').length },
+        { key: 'Shipping', label: 'Shipping', count: rawOrders.filter(o => getOrderCategory(o.status) === 'Shipping').length },
+        { key: 'Done', label: 'Delivered', count: rawOrders.filter(o => getOrderCategory(o.status) === 'Done').length },
+        { key: 'Cancelled', label: 'Cancelled', count: rawOrders.filter(o => getOrderCategory(o.status) === 'Cancelled').length }
       ].map(tab => `
         <button class="status-pill-tab ${context.statusFilter === tab.key ? 'active' : ''}" data-status="${tab.key}">
           <span>${tab.label}</span>

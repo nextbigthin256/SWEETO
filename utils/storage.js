@@ -245,4 +245,17 @@ export function saveAllOrdersToStorage(orders) {
   }).catch(() => {});
 }
 
+export function getOrderCategory(statusStr) {
+  if (!statusStr) return 'Placed';
+  const s = String(statusStr).toLowerCase().trim();
+  if (s === 'deleted') return 'Deleted';
+  if (s.includes('cancel') || s.includes('annul') || s.includes('refus')) return 'Cancelled';
+  if (s.includes('done') || s.includes('livr') || s.includes('deliver') || s.includes('complet')) return 'Done';
+  if (s.includes('ship') || s.includes('expéd') || s.includes('transit')) return 'Shipping';
+  if (s.includes('process') || s.includes('cours') || s.includes('traitement') || s.includes('prep')) return 'Processing';
+  if (s.includes('confirm') || s.includes('valid')) return 'Confirm';
+  return 'Placed';
+}
+
+
 
