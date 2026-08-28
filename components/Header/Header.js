@@ -1,5 +1,5 @@
 import products from '../../data/products.js';
-import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, formatPrice, getAllOrdersFromStorage } from '../../utils/storage.js';
+import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getNotificationsFromStorage, formatPrice, getAllOrdersFromStorage } from '../../utils/storage.js';
 
 import { renderVerificationBadge, getCustomerBadge, getCustomerLevel, getCustomerAvatarStyle, renderLevelChevronV } from '../../utils/badges.js';
 
@@ -154,17 +154,8 @@ class Header extends HTMLElement {
   }
 
   syncNotificationBadge() {
-    const key = getNotificationsStorageKey();
-    const saved = sessionStorage.getItem(key);
-    let count = 0;
-    if (saved) {
-      try {
-        const notifs = JSON.parse(saved);
-        count = notifs.filter(n => n.unread).length;
-      } catch (e) {}
-    } else {
-      count = 1;
-    }
+    const notifs = getNotificationsFromStorage();
+    const count = notifs.length > 0 ? notifs.filter(n => n.unread).length : 1;
     const badge = this.shadowRoot.getElementById('notificationBadge');
     if (badge) {
       if (count > 0) {
@@ -626,8 +617,7 @@ class Header extends HTMLElement {
     });
 
     window.addEventListener('storage', (e) => {
-      const key = getNotificationsStorageKey();
-      if (e.key === key) {
+      if (e.key && e.key.startsWith('SWEETOS_notifications')) {
         this.syncNotificationBadge();
       }
       if (e.key === 'SWEETOS_customers' || (e.key && e.key.startsWith('SWEETOS_user_profile')) || e.key === 'SWEETOS_logged_in_user') {

@@ -30,19 +30,51 @@ export function getProfileStorageKey(email = null) {
   return 'SWEETOS_user_profile_guest';
 }
 
-export function getNotificationsStorageKey() {
-  const userJson = sessionStorage.getItem('SWEETOS_logged_in_user');
-  if (userJson) {
-    try {
-      const user = JSON.parse(userJson);
-      if (user && user.email) {
-        const safeKey = user.email.replace(/[^a-zA-Z0-9]/g, '_');
-        return `SWEETOS_notifications_${safeKey}`;
-      }
-    } catch (e) {}
+export function getNotificationsStorageKey(targetEmail) {
+  let email = targetEmail;
+  if (!email) {
+    const userJson = sessionStorage.getItem('SWEETOS_logged_in_user');
+    if (userJson) {
+      try {
+        const user = JSON.parse(userJson);
+        email = user?.email;
+      } catch (e) {}
+    }
+  }
+  if (email) {
+    const safeKey = String(email).toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+    return `SWEETOS_notifications_${safeKey}`;
   }
   return 'SWEETOS_notifications_guest';
 }
+
+export function getNotificationsFromStorage(targetEmail) {
+  const key = getNotificationsStorageKey(targetEmail);
+  let notifs = [];
+  try {
+    const localStr = localStorage.getItem(key);
+    if (localStr) notifs = JSON.parse(localStr);
+  } catch(e) {}
+  
+  if (!Array.isArray(notifs) || notifs.length === 0) {
+    try {
+      const sessionStr = sessionStorage.getItem(key);
+      if (sessionStr) notifs = JSON.parse(sessionStr);
+    } catch(e) {}
+  }
+  
+  return Array.isArray(notifs) ? notifs : [];
+}
+
+export function saveNotificationsToStorage(notifs, targetEmail) {
+  if (!Array.isArray(notifs)) return;
+  const key = getNotificationsStorageKey(targetEmail);
+  const jsonStr = JSON.stringify(notifs);
+  try { localStorage.setItem(key, jsonStr); } catch(e) {}
+  try { sessionStorage.setItem(key, jsonStr); } catch(e) {}
+  window.dispatchEvent(new CustomEvent('notifications:updated'));
+}
+
 
 export function getScratchcardsStorageKey() {
   const userJson = sessionStorage.getItem('SWEETOS_logged_in_user');

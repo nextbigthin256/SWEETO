@@ -1,4 +1,4 @@
-import { formatPrice, getOrderCategory } from '../../utils/storage.js';
+import { formatPrice, getOrderCategory, getNotificationsFromStorage, saveNotificationsToStorage } from '../../utils/storage.js';
 import { awardMysteryBoxForDeliveredOrder } from '../../utils/todaysDeals.js';
 
 // Global internal state helpers for filters & selection
@@ -1323,13 +1323,7 @@ function updateOrderStatus(context, orderId, nextStatus, trackingNum, shadow) {
   // Customer Notification Sync
   const clientEmail = order.customerEmail || order.email;
   if (clientEmail) {
-    const safeKey = clientEmail.replace(/[^a-zA-Z0-9]/g, '_');
-    const notifKey = `SWEETOS_notifications_${safeKey}`;
-    
-    let customerNotifs = [];
-    try {
-      customerNotifs = JSON.parse(sessionStorage.getItem(notifKey) || '[]');
-    } catch(e) {}
+    let customerNotifs = getNotificationsFromStorage(clientEmail);
 
     let icon = '📦';
     let title = `Mise à jour commande #${order.id}`;
@@ -1359,8 +1353,7 @@ function updateOrderStatus(context, orderId, nextStatus, trackingNum, shadow) {
       unread: true
     });
 
-    sessionStorage.setItem(notifKey, JSON.stringify(customerNotifs));
-    window.dispatchEvent(new CustomEvent('notifications:updated'));
+    saveNotificationsToStorage(customerNotifs, clientEmail);
   }
 
   // Restock if Cancelled

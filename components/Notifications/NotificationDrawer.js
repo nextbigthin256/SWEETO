@@ -1,4 +1,4 @@
-import { getNotificationsStorageKey, getScratchcardsStorageKey, formatTimeAgo, getAllOrdersFromStorage } from '../../utils/storage.js';
+import { getNotificationsStorageKey, getNotificationsFromStorage, saveNotificationsToStorage, getScratchcardsStorageKey, formatTimeAgo, getAllOrdersFromStorage } from '../../utils/storage.js';
 
 
 class NotificationDrawer extends HTMLElement {
@@ -15,6 +15,20 @@ class NotificationDrawer extends HTMLElement {
     this.render();
     this.setupEventListeners();
     
+    // Live notification update listener (e.g. when admin changes order status)
+    this._notifUpdatedHandler = () => {
+      this.loadNotifications();
+      this.render();
+      window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: this.notifications.filter(n => n.unread).length }));
+    };
+    window.addEventListener('notifications:updated', this._notifUpdatedHandler);
+    this._storageNotifListener = (e) => {
+      if (e.key && e.key.startsWith('SWEETOS_notifications')) {
+        this._notifUpdatedHandler();
+      }
+    };
+    window.addEventListener('storage', this._storageNotifListener);
+
     // Auto-refresh relative timestamps every 30 seconds
     if (!this.liveTimer) {
       this.liveTimer = setInterval(() => {
@@ -27,6 +41,12 @@ class NotificationDrawer extends HTMLElement {
     if (this.liveTimer) {
       clearInterval(this.liveTimer);
       this.liveTimer = null;
+    }
+    if (this._notifUpdatedHandler) {
+      window.removeEventListener('notifications:updated', this._notifUpdatedHandler);
+    }
+    if (this._storageNotifListener) {
+      window.removeEventListener('storage', this._storageNotifListener);
     }
   }
 
@@ -41,15 +61,8 @@ class NotificationDrawer extends HTMLElement {
   }
 
   loadNotifications() {
-    const key = getNotificationsStorageKey();
-    const saved = sessionStorage.getItem(key);
-    if (saved) {
-      try {
-        this.notifications = JSON.parse(saved);
-      } catch (e) {
-        this.notifications = [];
-      }
-    } else {
+    this.notifications = getNotificationsFromStorage();
+    if (!Array.isArray(this.notifications) || this.notifications.length === 0) {
       // Default Welcome Notification
       this.notifications = [
         {
@@ -62,7 +75,7 @@ class NotificationDrawer extends HTMLElement {
           unread: true
         }
       ];
-      sessionStorage.setItem(key, JSON.stringify(this.notifications));
+      saveNotificationsToStorage(this.notifications);
     }
 
     // Ensure all existing notifications have a numeric createdAt timestamp
@@ -153,8 +166,7 @@ class NotificationDrawer extends HTMLElement {
   }
 
   saveNotifications() {
-    const key = getNotificationsStorageKey();
-    sessionStorage.setItem(key, JSON.stringify(this.notifications));
+    saveNotificationsToStorage(this.notifications);
   }
 
   render() {
