@@ -312,7 +312,7 @@ export function renderAdminCustomers(context) {
         <!-- Live Instant Search -->
         <div class="clean-search-box">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="customer-search-input" placeholder="Search customer name, email, phone, city..." value="${context.searchQuery || ''}">
+          <input type="text" id="customer-search-input" name="cust_search_query" placeholder="Search customer name, email, phone, city..." value="${context.searchQuery || ''}" autocomplete="off" spellcheck="false">
         </div>
 
         <!-- Tier Filter -->
