@@ -1034,7 +1034,7 @@ class AdminPage extends HTMLElement {
           <form id="admin-login-form">
             <div class="form-group">
               <label>Email Admin Supabase</label>
-              <input type="email" id="admin-email" required placeholder="sweeto@store" autocomplete="email">
+              <input type="text" id="admin-email" required value="sweeto@store" placeholder="Entrez votre email admin" autocomplete="username">
             </div>
             <div class="form-group">
               <label>Mot de Passe Admin</label>
