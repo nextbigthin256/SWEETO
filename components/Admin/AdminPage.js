@@ -506,10 +506,16 @@ class AdminPage extends HTMLElement {
 
     // Live order updates across tabs & local checkout actions
     this._ordersUpdatedHandler = () => {
+      const prevJson = JSON.stringify(this.orders || []);
       this.loadDatabase();
-      if (['orders', 'dashboard', 'analytics', 'customers', 'loyalty'].includes(this.currentTab)) {
-        this.render();
-        this.attachListeners();
+      const newJson = JSON.stringify(this.orders || []);
+      
+      // Only re-render if order data actually changed
+      if (prevJson !== newJson) {
+        if (['orders', 'dashboard', 'analytics', 'customers', 'loyalty'].includes(this.currentTab)) {
+          this.render();
+          this.attachListeners();
+        }
       }
     };
     window.addEventListener('orders:updated', this._ordersUpdatedHandler);
@@ -690,7 +696,7 @@ class AdminPage extends HTMLElement {
     });
 
     this.orders = loadedOrders;
-    saveAllOrdersToStorage(this.orders);
+    saveAllOrdersToStorage(this.orders, true);
     
     // 3. Category Settings
     const storedCats = sessionStorage.getItem('SWEETOS_categories');

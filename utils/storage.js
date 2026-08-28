@@ -272,12 +272,14 @@ export function isLocalDevHost() {
   return host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.endsWith('.local');
 }
 
-export function saveAllOrdersToStorage(orders) {
+export function saveAllOrdersToStorage(orders, silent = false) {
   if (!Array.isArray(orders)) return;
   const jsonStr = JSON.stringify(orders);
   try { localStorage.setItem('SWEETOS_all_orders', jsonStr); } catch(e) {}
   try { sessionStorage.setItem('SWEETOS_all_orders', jsonStr); } catch(e) {}
-  window.dispatchEvent(new CustomEvent('orders:updated', { detail: orders }));
+  if (!silent) {
+    window.dispatchEvent(new CustomEvent('orders:updated', { detail: orders }));
+  }
   
   // Persist to local Node server disk asynchronously only in local dev environment
   if (isLocalDevHost()) {
