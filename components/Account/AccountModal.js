@@ -24,61 +24,41 @@ class AccountModal extends HTMLElement {
   }
 
   loadUserData() {
-    const loggedIn = sessionStorage.getItem('SWEETOS_logged_in_user');
+    const loggedIn = getStorageItem('SWEETOS_logged_in_user') || sessionStorage.getItem('SWEETOS_logged_in_user');
     if (loggedIn) {
       try {
         const session = JSON.parse(loggedIn);
-        const email = (session.email || '').toLowerCase();
+        const email = (session.email || '').toLowerCase().trim();
+        if (!email) return;
+
         const profileKey = getProfileStorageKey(email);
-        let profile = sessionStorage.getItem(profileKey);
-        
-        if (!profile) {
-          profile = sessionStorage.getItem('SWEETOS_user_profile');
+        let profileStr = getStorageItem(profileKey) || sessionStorage.getItem(profileKey);
+        let parsed = null;
+        if (profileStr) {
+          try {
+            parsed = JSON.parse(profileStr);
+            if (parsed && (parsed.email || '').toLowerCase().trim() !== email) {
+              parsed = null;
+            }
+          } catch(e) {}
         }
-        
-        const parsed = profile ? JSON.parse(profile) : null;
-        let ordersList = parsed?.orders || [];
 
-        // Merge and update matching orders from global SWEETOS_all_orders
-        try {
-          const globalOrders = getAllOrdersFromStorage();
-          const userGlobalOrders = globalOrders.filter(o => {
-            const oEmail = (o.customerEmail || o.email || o.userEmail || '').toLowerCase().trim();
-            return oEmail === email && (o.status || '').toLowerCase() !== 'deleted';
-          });
-
-          if (!Array.isArray(ordersList)) ordersList = [];
-
-          // 1. Update status of existing orders from latest global orders
-          ordersList.forEach(po => {
-            const latest = userGlobalOrders.find(go => go.id === po.id);
-            if (latest) {
-              po.status = latest.status;
-              po.trackingNumber = latest.trackingNumber;
-              po.customerAddress = latest.customerAddress || po.customerAddress;
-            }
-          });
-
-          // 2. Add missing global orders
-          userGlobalOrders.forEach(go => {
-            if (!ordersList.some(o => o.id === go.id)) {
-              ordersList.unshift(go);
-            }
-          });
-
-          // 3. Filter out deleted orders
-          ordersList = ordersList.filter(o => (o.status || '').toLowerCase() !== 'deleted');
-        } catch(e) {}
+        // Strictly filter orders matching THIS user's email only
+        const globalOrders = getAllOrdersFromStorage();
+        const userOrders = globalOrders.filter(o => {
+          const oEmail = (o.customerEmail || o.email || o.userEmail || '').toLowerCase().trim();
+          return oEmail === email && (o.status || '').toLowerCase() !== 'deleted';
+        });
 
         this.user = {
-          name: parsed ? `${parsed.firstName || ''} ${parsed.lastName || ''}`.trim() : (session.name || 'SWEETOS Member'),
+          name: parsed ? `${parsed.firstName || ''} ${parsed.lastName || ''}`.trim() : (session.name || session.fullname || 'SWEETOS Member'),
           email: email,
-          phone: parsed?.phone || "+225 05 00 61 99 23",
-          memberSince: "October 2025",
-          address: parsed?.address || "Ivory Coast",
+          phone: parsed?.phone || session.phone || "",
+          memberSince: parsed?.registrationDate || "October 2025",
+          address: parsed?.address || (parsed?.addresses && parsed.addresses[0]) || "",
           avatar: (parsed && parsed.firstName && parsed.lastName) ? `${parsed.firstName.charAt(0).toUpperCase()}${parsed.lastName.charAt(0).toUpperCase()}` : 'US'
         };
-        this.orders = ordersList;
+        this.orders = userOrders;
 
         // Async sync from Supabase Cloud
         import('../../utils/supabase.js').then(({ fetchProfileFromSupabase }) => {

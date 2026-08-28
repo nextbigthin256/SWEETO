@@ -418,7 +418,7 @@ class ProductList extends HTMLElement {
 
   // --- Functional User Profile Utility Methods ---
   loadUserProfile() {
-    const loggedInUserStr = sessionStorage.getItem('SWEETOS_logged_in_user');
+    const loggedInUserStr = getStorageItem('SWEETOS_logged_in_user') || sessionStorage.getItem('SWEETOS_logged_in_user');
     if (!loggedInUserStr) {
       return null;
     }
@@ -432,12 +432,16 @@ class ProductList extends HTMLElement {
       return null;
     }
 
-    const profileKey = getProfileStorageKey();
-    const saved = sessionStorage.getItem(profileKey);
+    const currentEmail = loggedUser.email.toLowerCase().trim();
+    const profileKey = getProfileStorageKey(currentEmail);
+    const saved = getStorageItem(profileKey) || sessionStorage.getItem(profileKey);
     let profile = null;
     if (saved) {
       try {
         profile = JSON.parse(saved);
+        if (profile && (profile.email || '').toLowerCase().trim() !== currentEmail) {
+          profile = null;
+        }
       } catch (e) {}
     }
 
