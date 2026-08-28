@@ -465,7 +465,6 @@ class ProductList extends HTMLElement {
       };
     }
 
-    const currentEmail = (loggedUser?.email || profile.email || '').toLowerCase();
     let hasAdminBadgeOverride = false;
     let hasAdminLevelOverride = false;
 
