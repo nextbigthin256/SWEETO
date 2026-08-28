@@ -2006,4 +2006,98 @@ textarea.admin-input {
   border-left: 4px solid #ef4444;
 }
 
+/* ================= 3-DIGIT PIN SECURITY MODAL & DEVICE MANAGEMENT ================= */
+.pin-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 0;
+  pointer-events: none;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.pin-modal-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.pin-modal-card {
+  width: 100%;
+  max-width: 420px;
+  background: rgba(13, 22, 38, 0.94);
+  border: 1.5px solid rgba(255, 255, 255, 0.16);
+  border-radius: 28px;
+  padding: 36px 32px;
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  text-align: center;
+  transform: scale(0.92) translateY(10px);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  color: white;
+}
+
+.pin-modal-overlay.active .pin-modal-card {
+  transform: scale(1) translateY(0);
+}
+
+.pin-modal-icon {
+  width: 60px;
+  height: 60px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #0052cc 0%, #00b4d8 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  margin: 0 auto 16px auto;
+  box-shadow: 0 8px 25px rgba(0, 82, 204, 0.5);
+}
+
+.pin-inputs-row {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  margin: 24px 0 16px 0;
+}
+
+.pin-digit-box {
+  width: 64px;
+  height: 72px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 2px solid rgba(255, 255, 255, 0.18);
+  font-size: 32px;
+  font-weight: 900;
+  color: #38bdf8;
+  text-align: center;
+  outline: none;
+  transition: all 0.25s ease;
+  font-family: monospace;
+}
+
+.pin-digit-box:focus {
+  border-color: #0052cc;
+  background: rgba(0, 82, 204, 0.2);
+  box-shadow: 0 0 0 4px rgba(0, 82, 204, 0.35), 0 8px 25px rgba(0, 82, 204, 0.3);
+}
+
+.device-badge-active {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  background: rgba(16, 185, 129, 0.15);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  color: #34d399;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 750;
+}
+
 

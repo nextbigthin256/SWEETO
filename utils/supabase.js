@@ -624,3 +624,112 @@ export async function adminSignInWithSupabase(email, password) {
     return { success: false, error: err.message || 'Erreur d\'authentification Supabase.' };
   }
 }
+
+// ==========================================
+// 9. DYNAMIC 3-DIGIT PIN & MULTI-DEVICE SESSION ENGINE
+// ==========================================
+
+/**
+ * Retrieves the 3-Digit Security PIN dynamically from Supabase Cloud site_settings.
+ * Default initial PIN if not yet configured in DB: '256'
+ */
+export async function getAdminSecurityPinFromSupabase() {
+  try {
+    if (!supabase) return localStorage.getItem('SWEETOS_admin_security_pin') || '256';
+
+    const { data } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', 'admin_security_pin')
+      .maybeSingle();
+
+    if (data && data.value) {
+      localStorage.setItem('SWEETOS_admin_security_pin', data.value);
+      return data.value;
+    }
+  } catch (err) {
+    console.warn('[Supabase PIN Fetch Notice]:', err);
+  }
+  return localStorage.getItem('SWEETOS_admin_security_pin') || '256';
+}
+
+/**
+ * Updates the 3-Digit Security PIN in Supabase Cloud database.
+ */
+export async function updateAdminSecurityPinInSupabase(newPin) {
+  const cleanPin = (newPin || '').toString().trim();
+  if (!/^\d{3}$/.test(cleanPin)) {
+    return { success: false, error: 'Le code PIN doit comporter exactement 3 chiffres (ex: 256).' };
+  }
+
+  try {
+    localStorage.setItem('SWEETOS_admin_security_pin', cleanPin);
+
+    if (supabase) {
+      await supabase
+        .from('site_settings')
+        .upsert({ key: 'admin_security_pin', value: cleanPin, updated_at: new Date().toISOString() });
+    }
+    return { success: true, pin: cleanPin };
+  } catch (err) {
+    console.error('[Supabase PIN Update Error]:', err);
+    return { success: false, error: err.message || 'Erreur lors de la mise à jour du PIN.' };
+  }
+}
+
+/**
+ * Revokes all other active Admin sessions across devices using 3-Digit PIN verification.
+ */
+export async function revokeOtherAdminDevicesInSupabase(inputPin, deviceId) {
+  try {
+    const cleanPin = (inputPin || '').toString().trim();
+    const currentPin = await getAdminSecurityPinFromSupabase();
+
+    if (cleanPin !== currentPin) {
+      return { success: false, error: 'Code PIN à 3 chiffres incorrect. Accès refusé.' };
+    }
+
+    const newSessionVersion = Date.now().toString();
+    const currentDeviceId = deviceId || ('device_' + Math.random().toString(36).substring(2, 9));
+
+    // Save locally
+    localStorage.setItem('SWEETOS_admin_session_version', newSessionVersion);
+    sessionStorage.setItem('SWEETOS_admin_device_session_version', newSessionVersion);
+    localStorage.setItem('SWEETOS_admin_primary_device_id', currentDeviceId);
+
+    // Save to Supabase Cloud
+    if (supabase) {
+      await supabase.from('site_settings').upsert([
+        { key: 'admin_session_version', value: newSessionVersion, updated_at: new Date().toISOString() },
+        { key: 'primary_notification_device', value: currentDeviceId, updated_at: new Date().toISOString() }
+      ]);
+    }
+
+    return { success: true, version: newSessionVersion, deviceId: currentDeviceId };
+  } catch (err) {
+    console.error('[Supabase Device Revoke Error]:', err);
+    return { success: false, error: err.message || 'Erreur lors de la révocation des appareils.' };
+  }
+}
+
+/**
+ * Checks if the local session version matches the cloud session version.
+ */
+export async function checkAdminSessionVersionInSupabase(localVersion) {
+  try {
+    if (!supabase || !localVersion) return { valid: true };
+
+    const { data } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', 'admin_session_version')
+      .maybeSingle();
+
+    if (data && data.value && data.value !== localVersion) {
+      return { valid: false, cloudVersion: data.value };
+    }
+  } catch (err) {
+    console.warn('[Supabase Session Version Check Notice]:', err);
+  }
+  return { valid: true };
+}

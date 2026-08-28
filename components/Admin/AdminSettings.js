@@ -541,33 +541,40 @@ function renderSettingsSubtabContent(context, subtab) {
     case 'user':
       return `
         <div style="margin-bottom: 20px; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px;">
-          <h3 style="margin:0; font-size:17px; font-weight:850; color:#0f172a;">Admin Security & Password</h3>
-          <p style="margin:3px 0 0 0; font-size:12.5px; color:#64748b;">Update management credentials and revoke active login sessions</p>
+          <h3 style="margin:0; font-size:17px; font-weight:850; color:#0f172a;">Admin Security & 3-Digit PIN Code</h3>
+          <p style="margin:3px 0 0 0; font-size:12.5px; color:#64748b;">Manage security PIN code, active devices, and revoke remote sessions via Supabase Cloud.</p>
         </div>
 
-        <form id="settings-user-form">
-          <div class="settings-form-group">
-            <label>Admin Login Email</label>
-            <input type="email" id="set-admin-email" class="settings-input" value="admin@sweetos.com" readonly style="background:#f1f5f9; cursor:not-allowed;">
+        <!-- 1. 3-Digit Security PIN Management -->
+        <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 20px; margin-bottom: 20px;">
+          <h4 style="margin:0 0 6px 0; font-size:14.5px; font-weight:800; color:#0f172a;">🔑 Code PIN de Sécurité (3 Chiffres)</h4>
+          <p style="margin:0 0 14px 0; font-size:12px; color:#64748b;">Ce code PIN à 3 chiffres est stocké sur Supabase Cloud et est requis pour déconnecter à distance tous les autres appareils.</p>
+
+          <form id="settings-change-pin-form" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <input type="password" id="set-new-pin-input" class="settings-input" maxlength="3" placeholder="Ex: 256" style="width:120px; text-align:center; font-size:18px; font-weight:900; letter-spacing:4px;" required>
+            <button type="submit" class="admin-btn admin-btn-primary" style="padding:10px 18px; font-weight:800; font-size:13px;">
+              💾 Mettre à jour PIN Cloud
+            </button>
+          </form>
+          <div id="pin-change-feedback" style="font-size:12.5px; font-weight:700; margin-top:8px;"></div>
+        </div>
+
+        <!-- 2. Remote Session Revocation & Primary Device -->
+        <div style="background: linear-gradient(135deg, rgba(0,82,204,0.04) 0%, rgba(0,180,216,0.04) 100%); border: 1.5px solid rgba(0,82,204,0.2); border-radius: 14px; padding: 20px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+            <div>
+              <strong style="font-size:14px; color:#0052cc; display:block;">📱 Appareils Actifs & Notifications Live</strong>
+              <small style="color:#64748b; font-size:12px;">Déconnectez immédiatement tous les autres appareils enregistrés via votre code PIN.</small>
+            </div>
+            <span class="device-badge-active" style="background:#ecfdf5; border:1px solid #a7f3d0; color:#059669; font-weight:800; font-size:11.5px; padding:5px 12px; border-radius:20px;">
+              ● Cet Appareil - Principal
+            </span>
           </div>
 
-          <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
-            <div class="settings-form-group">
-              <label>Current Password</label>
-              <input type="password" id="set-admin-current-pass" class="settings-input" placeholder="••••••••" required>
-            </div>
-            <div class="settings-form-group">
-              <label>New Password</label>
-              <input type="password" id="set-admin-new-pass" class="settings-input" placeholder="Enter new password" required>
-            </div>
-          </div>
-
-          <div id="pass-feedback-msg" style="font-size:12.5px; font-weight:700; margin-bottom:10px;"></div>
-
-          <button type="submit" class="admin-btn admin-btn-primary" style="padding:12px 24px; font-weight:800; font-size:13.5px;">
-            🔒 Update Admin Password
+          <button type="button" class="admin-btn admin-btn-danger" id="btn-trigger-pin-modal" style="padding:12px 20px; font-weight:800; font-size:13px; background:#dc2626; box-shadow:0 4px 14px rgba(220,38,38,0.3);">
+            🔒 Déconnecter Tous les Autres Appareils (Requis PIN)
           </button>
-        </form>
+        </div>
       `;
 
     case 'reset':
@@ -782,26 +789,65 @@ export function attachAdminSettingsListeners(context, shadow) {
     });
   }
 
-  // 9. Security Password Form Submit
-  const userForm = shadow.getElementById('settings-user-form');
-  if (userForm) {
-    userForm.addEventListener('submit', (e) => {
+  // 9. 3-Digit PIN & Device Security Listeners
+  const changePinForm = shadow.getElementById('settings-change-pin-form');
+  if (changePinForm) {
+    changePinForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const currPass = shadow.getElementById('set-admin-current-pass').value;
-      const newPass = shadow.getElementById('set-admin-new-pass').value;
-      const feedback = shadow.getElementById('pass-feedback-msg');
+      const pinInput = shadow.getElementById('set-new-pin-input');
+      const feedback = shadow.getElementById('pin-change-feedback');
+      const newPin = (pinInput?.value || '').trim();
 
-      if (currPass !== 'admin') {
-        feedback.style.color = '#ef4444';
-        feedback.textContent = 'Current password is incorrect (Default: "admin").';
+      if (!/^\d{3}$/.test(newPin)) {
+        if (feedback) {
+          feedback.style.color = '#ef4444';
+          feedback.textContent = '❌ Le code PIN doit comporter exactement 3 chiffres.';
+        }
         return;
       }
 
-      if (newPass.length < 4) {
-        feedback.style.color = '#ef4444';
-        feedback.textContent = 'New password must be at least 4 characters.';
-        return;
+      if (feedback) {
+        feedback.style.color = '#0052cc';
+        feedback.textContent = 'Enregistrement sur Supabase Cloud...';
       }
+
+      try {
+        const { updateAdminSecurityPinInSupabase } = await import('../../utils/supabase.js');
+        const res = await updateAdminSecurityPinInSupabase(newPin);
+        if (res.success) {
+          if (feedback) {
+            feedback.style.color = '#10b981';
+            feedback.textContent = '✅ Code PIN à 3 chiffres mis à jour sur Supabase Cloud !';
+          }
+          if (pinInput) pinInput.value = '';
+          window.dispatchEvent(new CustomEvent('toast:show', { detail: '🔑 Code PIN à 3 chiffres mis à jour !' }));
+        } else {
+          if (feedback) {
+            feedback.style.color = '#ef4444';
+            feedback.textContent = res.error || 'Erreur lors de la mise à jour.';
+          }
+        }
+      } catch (err) {
+        if (feedback) {
+          feedback.style.color = '#ef4444';
+          feedback.textContent = 'Erreur lors de la mise à jour.';
+        }
+      }
+    });
+  }
+
+  // Trigger PIN Modal
+  const triggerPinBtn = shadow.getElementById('btn-trigger-pin-modal');
+  if (triggerPinBtn) {
+    triggerPinBtn.addEventListener('click', () => {
+      const pinModal = shadow.getElementById('pin-modal-overlay');
+      if (pinModal) {
+        pinModal.classList.add('active');
+        const digit1 = shadow.getElementById('pin-digit-1');
+        if (digit1) digit1.focus();
+      }
+    });
+  }
 
       feedback.style.color = '#16a34a';
       feedback.textContent = 'Password successfully updated!';

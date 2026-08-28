@@ -1064,6 +1064,33 @@ class AdminPage extends HTMLElement {
             ${this.renderTabContent()}
           </div>
         </main>
+
+        <!-- 3-Digit PIN Security Modal -->
+        <div class="pin-modal-overlay" id="pin-modal-overlay">
+          <div class="pin-modal-card">
+            <div class="pin-modal-icon">
+              <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+              </svg>
+            </div>
+            <h3 style="font-size: 20px; font-weight: 850; margin: 0 0 6px 0; color: #ffffff;">Sécurité PIN Admin</h3>
+            <p style="font-size: 12.5px; color: #94a3b8; margin: 0;">Entrez le code PIN à 3 chiffres pour déconnecter les autres appareils</p>
+            
+            <div class="pin-inputs-row">
+              <input type="password" maxlength="1" class="pin-digit-box" id="pin-digit-1" autocomplete="off">
+              <input type="password" maxlength="1" class="pin-digit-box" id="pin-digit-2" autocomplete="off">
+              <input type="password" maxlength="1" class="pin-digit-box" id="pin-digit-3" autocomplete="off">
+            </div>
+
+            <div id="pin-modal-error" style="color: #f87171; font-size: 12.5px; font-weight: 700; margin-bottom: 16px; min-height: 18px;"></div>
+
+            <div style="display: flex; gap: 12px;">
+              <button class="admin-btn admin-btn-secondary" id="btn-cancel-pin" style="flex: 1; justify-content: center;">Annuler</button>
+              <button class="admin-btn admin-btn-primary" id="btn-confirm-pin" style="flex: 1; justify-content: center; background: linear-gradient(135deg, #0052cc 0%, #0066ff 100%);">Confirmer PIN 🔒</button>
+            </div>
+          </div>
+        </div>
       </div>
     `;
   }
@@ -1225,6 +1252,74 @@ class AdminPage extends HTMLElement {
         attachAdminReviewsListeners(this, shadow);
         break;
     }
+
+    // 3-Digit PIN Digit Auto-Advance & Confirmation
+    const digit1 = shadow.getElementById('pin-digit-1');
+    const digit2 = shadow.getElementById('pin-digit-2');
+    const digit3 = shadow.getElementById('pin-digit-3');
+    const pinOverlay = shadow.getElementById('pin-modal-overlay');
+    const cancelPinBtn = shadow.getElementById('btn-cancel-pin');
+    const confirmPinBtn = shadow.getElementById('btn-confirm-pin');
+    const pinError = shadow.getElementById('pin-modal-error');
+
+    if (digit1 && digit2 && digit3) {
+      digit1.addEventListener('input', () => { if (digit1.value) digit2.focus(); });
+      digit2.addEventListener('input', () => { if (digit2.value) digit3.focus(); });
+      digit3.addEventListener('input', () => { if (digit3.value && confirmPinBtn) confirmPinBtn.focus(); });
+
+      digit2.addEventListener('keydown', (e) => { if (e.key === 'Backspace' && !digit2.value) digit1.focus(); });
+      digit3.addEventListener('keydown', (e) => { if (e.key === 'Backspace' && !digit3.value) digit2.focus(); });
+    }
+
+    if (cancelPinBtn && pinOverlay) {
+      cancelPinBtn.addEventListener('click', () => {
+        pinOverlay.classList.remove('active');
+        if (digit1) digit1.value = '';
+        if (digit2) digit2.value = '';
+        if (digit3) digit3.value = '';
+        if (pinError) pinError.textContent = '';
+      });
+    }
+
+    if (confirmPinBtn) {
+      confirmPinBtn.addEventListener('click', async () => {
+        const pin = ((digit1?.value || '') + (digit2?.value || '') + (digit3?.value || '')).trim();
+        if (pin.length !== 3) {
+          if (pinError) pinError.textContent = 'Veuillez saisir les 3 chiffres du code PIN.';
+          return;
+        }
+
+        if (confirmPinBtn) {
+          confirmPinBtn.disabled = true;
+          confirmPinBtn.textContent = 'Vérification...';
+        }
+
+        try {
+          const { revokeOtherAdminDevicesInSupabase } = await import('../../utils/supabase.js');
+          const deviceId = localStorage.getItem('SWEETOS_admin_primary_device_id') || ('dev_' + Math.random().toString(36).substr(2, 7));
+          const res = await revokeOtherAdminDevicesInSupabase(pin, deviceId);
+
+          if (res.success) {
+            if (pinOverlay) pinOverlay.classList.remove('active');
+            if (digit1) digit1.value = '';
+            if (digit2) digit2.value = '';
+            if (digit3) digit3.value = '';
+            if (pinError) pinError.textContent = '';
+
+            window.dispatchEvent(new CustomEvent('toast:show', { detail: '🔒 Tous les autres appareils ont été déconnectés avec succès !' }));
+          } else {
+            if (pinError) pinError.textContent = res.error || 'Code PIN incorrect.';
+          }
+        } catch (err) {
+          if (pinError) pinError.textContent = 'Erreur lors de la révocation.';
+        } finally {
+          if (confirmPinBtn) {
+            confirmPinBtn.disabled = false;
+            confirmPinBtn.textContent = 'Confirmer PIN 🔒';
+          }
+        }
+      });
+    }
   }
 
   disconnectedCallback() {
@@ -1233,6 +1328,9 @@ class AdminPage extends HTMLElement {
     }
     if (this._toastListener) {
       window.removeEventListener('toast:show', this._toastListener);
+    }
+    if (this._sessionGuardTimer) {
+      clearInterval(this._sessionGuardTimer);
     }
   }
 
