@@ -887,6 +887,13 @@ class CheckoutModal extends HTMLElement {
           localOrders.unshift(newOrder);
         }
         localStorage.setItem('SWEETOS_all_orders', JSON.stringify(localOrders));
+        
+        // Sync orders to server API so admin panel can fetch them
+        fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(localOrders)
+        }).catch(() => {});
 
         // Deduct coupon usage if applied
         try {
