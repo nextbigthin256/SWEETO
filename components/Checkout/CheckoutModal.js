@@ -873,28 +873,20 @@ class CheckoutModal extends HTMLElement {
         localStorage.setItem(profileKey, JSON.stringify(profile));
         localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
 
-        // Save into global orders database
-        fetch('/api/orders')
-          .then(res => res.json())
-          .then(serverOrders => {
-            let allOrders = Array.isArray(serverOrders) ? serverOrders : [];
-            allOrders.unshift(newOrder);
-            localStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders));
+        // Save order to Supabase Cloud Database & local store
+        import('../../utils/supabase.js').then(async ({ createOrderInSupabase, saveCustomerToSupabase }) => {
+          await saveCustomerToSupabase(profile);
+          await createOrderInSupabase(newOrder);
+        }).catch(() => {});
 
-            return fetch('/api/orders', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(allOrders)
-            });
-          })
-          .catch(() => {
-            let localOrders = [];
-            try {
-              localOrders = JSON.parse(localStorage.getItem('SWEETOS_all_orders') || '[]');
-            } catch(e) {}
-            localOrders.unshift(newOrder);
-            localStorage.setItem('SWEETOS_all_orders', JSON.stringify(localOrders));
-          });
+        let localOrders = [];
+        try {
+          localOrders = JSON.parse(localStorage.getItem('SWEETOS_all_orders') || '[]');
+        } catch(e) {}
+        if (!localOrders.some(o => o.id === newOrder.id)) {
+          localOrders.unshift(newOrder);
+        }
+        localStorage.setItem('SWEETOS_all_orders', JSON.stringify(localOrders));
 
         // Deduct coupon usage if applied
         try {

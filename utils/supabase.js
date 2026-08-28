@@ -227,70 +227,122 @@ export async function fetchBrandsFromSupabase() {
 // 4. ORDERS CREATION & SYNC
 // ==========================================
 
-export async function createOrderInSupabase(orderData) {
+export async function createOrderInSupabase(newOrder) {
   try {
-    const orderRecord = {
-      order_number: orderData.orderNumber || 'SW-' + Math.floor(100000 + Math.random() * 900000),
-      customer_name: orderData.customerName || orderData.customer?.name || 'Customer',
-      customer_email: orderData.customerEmail || orderData.customer?.email || '',
-      customer_phone: orderData.customerPhone || orderData.customer?.phone || '',
-      customer_address: orderData.address || orderData.shippingAddress || {},
-      total_amount: orderData.totalAmount || orderData.total || 0,
-      currency: orderData.currency || 'FCFA',
-      discount_amount: orderData.discount || 0,
-      coupon_code: orderData.coupon || '',
-      status: 'pending',
-      payment_method: orderData.paymentMethod || 'cash_on_delivery',
-      payment_status: orderData.paymentStatus || 'unpaid',
-      shipping_notes: orderData.notes || ''
-    };
+    if (!supabase || !newOrder) return null;
+    const orderId = newOrder.id || ('ORD-' + Math.floor(100000 + Math.random() * 900000));
+    
+    // 1. Try to upsert into Supabase orders table
+    try {
+      const record = {
+        order_number: orderId,
+        customer_name: newOrder.customerName || 'Customer',
+        customer_email: (newOrder.customerEmail || '').toLowerCase(),
+        customer_phone: newOrder.customerPhone || '',
+        customer_address: newOrder.customerAddress || '',
+        total_amount: parseFloat(newOrder.total) || 0,
+        status: newOrder.status || 'Pending',
+        payment_method: newOrder.paymentMethod || 'cod',
+        shipping_notes: newOrder.items || ''
+      };
+      await supabase.from('orders').upsert([record], { onConflict: 'order_number' });
+    } catch(e) {}
 
-    const { data: insertedOrder, error: orderErr } = await supabase
-      .from('orders')
-      .insert([orderRecord])
-      .select();
+    // 2. Upsert order into Supabase profiles table (embedded orders array)
+    if (newOrder.customerEmail) {
+      const emailLower = newOrder.customerEmail.toLowerCase();
+      const { data: p } = await supabase.from('profiles').select('*').eq('email', emailLower).maybeSingle();
+      
+      let pOrders = [];
+      if (p && p.orders) {
+        pOrders = Array.isArray(p.orders) ? p.orders : (typeof p.orders === 'string' ? JSON.parse(p.orders) : []);
+      }
+      
+      const existingIdx = pOrders.findIndex(o => o.id === orderId);
+      if (existingIdx > -1) {
+        pOrders[existingIdx] = newOrder;
+      } else {
+        pOrders.unshift(newOrder);
+      }
 
-    if (orderErr) throw orderErr;
-
-    const orderId = insertedOrder?.[0]?.id;
-
-    if (orderId && Array.isArray(orderData.items) && orderData.items.length > 0) {
-      const itemRecords = orderData.items.map(item => ({
-        order_id: orderId,
-        product_name: item.name || item.title || 'Product',
-        unit_price: item.price || 0,
-        quantity: item.quantity || 1,
-        selected_color: item.selectedColor || item.color || '',
-        item_image: item.image || '',
-        total_price: (item.price || 0) * (item.quantity || 1)
-      }));
-
-      await supabase.from('order_items').insert(itemRecords);
+      const totalSpent = pOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+      
+      await supabase.from('profiles').upsert([{
+        email: emailLower,
+        full_name: newOrder.customerName || p?.full_name || '',
+        phone: newOrder.customerPhone || p?.phone || '',
+        orders_count: pOrders.length,
+        total_spent: totalSpent,
+        orders: pOrders
+      }], { onConflict: 'email' });
     }
 
-    return insertedOrder?.[0];
+    console.log('[Supabase Cloud] Order created & synced successfully:', orderId);
+    return newOrder;
   } catch (err) {
-    console.error('[Supabase] createOrder error:', err);
+    console.error('[Supabase Cloud] createOrder error:', err);
     return null;
   }
 }
 
 export async function fetchOrdersFromSupabase(userEmail = null) {
   try {
-    let query = supabase
-      .from('orders')
-      .select('*, order_items(*)')
-      .order('created_at', { ascending: false });
+    if (!supabase) return [];
+    
+    let allOrders = [];
 
+    // 1. Fetch from profiles table (embedded orders arrays for all users)
+    let pQuery = supabase.from('profiles').select('*');
     if (userEmail) {
-      query = query.eq('customer_email', userEmail);
+      pQuery = pQuery.eq('email', userEmail.toLowerCase());
+    }
+    const { data: profiles } = await pQuery;
+    if (profiles && profiles.length > 0) {
+      profiles.forEach(p => {
+        let pOrders = p.orders;
+        if (typeof pOrders === 'string') {
+          try { pOrders = JSON.parse(pOrders); } catch(e) { pOrders = []; }
+        }
+        if (Array.isArray(pOrders)) {
+          pOrders.forEach(o => {
+            if (o && o.id && !allOrders.some(existing => existing.id === o.id)) {
+              allOrders.push(o);
+            }
+          });
+        }
+      });
     }
 
-    const { data, error } = await query;
-    if (error) throw error;
-    return data || [];
+    // 2. Fetch from dedicated orders table
+    let oQuery = supabase.from('orders').select('*');
+    if (userEmail) {
+      oQuery = oQuery.eq('customer_email', userEmail.toLowerCase());
+    }
+    const { data: cloudOrders } = await oQuery;
+    if (cloudOrders && cloudOrders.length > 0) {
+      cloudOrders.forEach(co => {
+        const id = co.order_number || co.id;
+        if (id && !allOrders.some(existing => existing.id === id)) {
+          allOrders.push({
+            id: id,
+            date: co.created_at ? new Date(co.created_at).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
+            status: co.status || 'Pending',
+            total: parseFloat(co.total_amount) || 0,
+            items: co.shipping_notes || 'Product Order',
+            products: [],
+            customerName: co.customer_name || 'Customer',
+            customerEmail: co.customer_email || '',
+            customerPhone: co.customer_phone || '',
+            customerAddress: co.customer_address || '',
+            paymentMethod: co.payment_method || 'cod'
+          });
+        }
+      });
+    }
+
+    return allOrders;
   } catch (err) {
-    console.error('[Supabase] fetchOrders error:', err);
+    console.error('[Supabase Cloud] fetchOrders error:', err);
     return [];
   }
 }
