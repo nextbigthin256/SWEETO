@@ -250,13 +250,21 @@ class ProductList extends HTMLElement {
         } catch (err) {}
       } else if (e.key === 'SWEETOS_categories' || e.key === 'SWEETOS_brands') {
         this.renderPageContent();
-      } else if (e.key === 'SWEETOS_customers' || (e.key && e.key.startsWith('SWEETOS_user_profile'))) {
+      } else if (e.key === 'SWEETOS_all_orders' || e.key === 'SWEETOS_customers' || (e.key && e.key.startsWith('SWEETOS_user_profile'))) {
         if (this.currentPage === 'profile') {
           this.injectProfileTabContent();
         }
       }
     };
     window.addEventListener('storage', this._storageListener);
+
+    // Live Order Updates Listener
+    this._ordersUpdatedHandler = () => {
+      if (this.currentPage === 'profile') {
+        this.injectProfileTabContent();
+      }
+    };
+    window.addEventListener('orders:updated', this._ordersUpdatedHandler);
 
     // Listen to live Supabase and product updates
     this._productsUpdatedHandler = (e) => {
@@ -350,6 +358,9 @@ class ProductList extends HTMLElement {
     }
     if (this._storageListener) {
       window.removeEventListener('storage', this._storageListener);
+    }
+    if (this._ordersUpdatedHandler) {
+      window.removeEventListener('orders:updated', this._ordersUpdatedHandler);
     }
     if (this._productsUpdatedHandler) {
       window.removeEventListener('products:updated', this._productsUpdatedHandler);

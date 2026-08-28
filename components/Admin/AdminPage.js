@@ -504,6 +504,23 @@ class AdminPage extends HTMLElement {
     };
     window.addEventListener('failed_searches:updated', this._failedSearchesListener);
 
+    // Live order updates across tabs & local checkout actions
+    this._ordersUpdatedHandler = () => {
+      this.loadDatabase();
+      if (['orders', 'dashboard', 'analytics', 'customers', 'loyalty'].includes(this.currentTab)) {
+        this.render();
+        this.attachListeners();
+      }
+    };
+    window.addEventListener('orders:updated', this._ordersUpdatedHandler);
+
+    this._storageOrdersListener = (e) => {
+      if (e.key === 'SWEETOS_all_orders' || (e.key && e.key.startsWith('SWEETOS_user_profile_'))) {
+        this._ordersUpdatedHandler();
+      }
+    };
+    window.addEventListener('storage', this._storageOrdersListener);
+
     // Fetch all database sources concurrently from local API & Supabase Cloud
     import('../../utils/supabase.js').then(async ({ 
       fetchProductsFromSupabase, 
@@ -1413,6 +1430,12 @@ class AdminPage extends HTMLElement {
     }
     if (this._sessionGuardTimer) {
       clearInterval(this._sessionGuardTimer);
+    }
+    if (this._ordersUpdatedHandler) {
+      window.removeEventListener('orders:updated', this._ordersUpdatedHandler);
+    }
+    if (this._storageOrdersListener) {
+      window.removeEventListener('storage', this._storageOrdersListener);
     }
   }
 

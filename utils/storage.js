@@ -268,6 +268,7 @@ export function saveAllOrdersToStorage(orders) {
   const jsonStr = JSON.stringify(orders);
   try { localStorage.setItem('SWEETOS_all_orders', jsonStr); } catch(e) {}
   try { sessionStorage.setItem('SWEETOS_all_orders', jsonStr); } catch(e) {}
+  window.dispatchEvent(new CustomEvent('orders:updated', { detail: orders }));
   
   // Persist to local server disk asynchronously
   fetch('/api/orders', {
