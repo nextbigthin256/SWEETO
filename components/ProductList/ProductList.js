@@ -485,10 +485,32 @@ class ProductList extends HTMLElement {
     // Pull real orders from SWEETOS_all_orders to calculate live gross spend & orders count
     try {
       const allOrders = getAllOrdersFromStorage();
-      const userOrders = allOrders.filter(o => o.customerEmail && o.customerEmail.toLowerCase() === currentEmail && (o.status || '').toLowerCase() !== 'deleted');
-      if (userOrders.length > 0) {
-        profile.orders = userOrders;
-      }
+      const userGlobalOrders = allOrders.filter(o => {
+        const oEmail = (o.customerEmail || o.email || o.userEmail || '').toLowerCase().trim();
+        return oEmail === currentEmail && (o.status || '').toLowerCase() !== 'deleted';
+      });
+
+      if (!Array.isArray(profile.orders)) profile.orders = [];
+
+      // 1. Update status & attributes of existing profile orders from latest global orders
+      profile.orders.forEach(po => {
+        const latest = userGlobalOrders.find(go => go.id === po.id);
+        if (latest) {
+          po.status = latest.status;
+          po.trackingNumber = latest.trackingNumber;
+          po.customerAddress = latest.customerAddress || po.customerAddress;
+        }
+      });
+
+      // 2. Add missing global orders
+      userGlobalOrders.forEach(go => {
+        if (!profile.orders.some(po => po.id === go.id)) {
+          profile.orders.unshift(go);
+        }
+      });
+
+      // 3. Filter out deleted orders
+      profile.orders = profile.orders.filter(po => (po.status || '').toLowerCase() !== 'deleted');
     } catch(e) {}
 
     if (!Array.isArray(profile.orders)) {
@@ -7327,7 +7349,8 @@ class ProductList extends HTMLElement {
           
           // 2. Fetch missing orders that belong to this customer
           serverOrders.forEach(so => {
-            if (so.customerEmail === userEmail && (so.status || '').toLowerCase() !== 'deleted') {
+            const soEmail = (so.customerEmail || so.email || so.userEmail || '').toLowerCase().trim();
+            if (soEmail === userEmail && (so.status || '').toLowerCase() !== 'deleted') {
               if (!profile.orders.some(po => po.id === so.id)) {
                 profile.orders.unshift(so);
                 profileChanged = true;

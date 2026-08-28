@@ -39,15 +39,35 @@ class AccountModal extends HTMLElement {
         const parsed = profile ? JSON.parse(profile) : null;
         let ordersList = parsed?.orders || [];
 
-        // Also merge any matching orders from global SWEETOS_all_orders
+        // Merge and update matching orders from global SWEETOS_all_orders
         try {
           const globalOrders = getAllOrdersFromStorage();
-          const userGlobalOrders = globalOrders.filter(o => o.customerEmail && o.customerEmail.toLowerCase() === email);
+          const userGlobalOrders = globalOrders.filter(o => {
+            const oEmail = (o.customerEmail || o.email || o.userEmail || '').toLowerCase().trim();
+            return oEmail === email && (o.status || '').toLowerCase() !== 'deleted';
+          });
+
+          if (!Array.isArray(ordersList)) ordersList = [];
+
+          // 1. Update status of existing orders from latest global orders
+          ordersList.forEach(po => {
+            const latest = userGlobalOrders.find(go => go.id === po.id);
+            if (latest) {
+              po.status = latest.status;
+              po.trackingNumber = latest.trackingNumber;
+              po.customerAddress = latest.customerAddress || po.customerAddress;
+            }
+          });
+
+          // 2. Add missing global orders
           userGlobalOrders.forEach(go => {
             if (!ordersList.some(o => o.id === go.id)) {
               ordersList.unshift(go);
             }
           });
+
+          // 3. Filter out deleted orders
+          ordersList = ordersList.filter(o => (o.status || '').toLowerCase() !== 'deleted');
         } catch(e) {}
 
         this.user = {
