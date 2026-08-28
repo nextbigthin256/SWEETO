@@ -477,8 +477,14 @@ class ProductList extends HTMLElement {
       if (userOrders.length > 0) {
         profile.orders = userOrders;
       }
-      
-      const totalSpent = (profile.orders || []).filter(o => (o.status || '').toLowerCase() !== 'cancelled').reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+    } catch(e) {}
+
+    if (!Array.isArray(profile.orders)) {
+      profile.orders = [];
+    }
+
+    try {
+      const totalSpent = profile.orders.filter(o => (o.status || '').toLowerCase() !== 'cancelled').reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
       
       // Auto-compute level from spend if not manually overridden by admin
       if (!hasAdminLevelOverride) {
@@ -6750,14 +6756,14 @@ class ProductList extends HTMLElement {
             <div class="stat-card">
               <div class="stat-icon cart">🛒</div>
               <div class="stat-nums">
-                <span class="stat-value">${profile.orders.length}</span>
+                <span class="stat-value">${(profile.orders || []).length}</span>
                 <span class="stat-label">Orders Placed</span>
               </div>
             </div>
             <div class="stat-card">
               <div class="stat-icon dollar">💵</div>
               <div class="stat-nums">
-                <span class="stat-value">${formatPrice(profile.orders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0))}</span>
+                <span class="stat-value">${formatPrice((profile.orders || []).reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0))}</span>
                 <span class="stat-label">Total Spent</span>
               </div>
             </div>
@@ -6780,11 +6786,11 @@ class ProductList extends HTMLElement {
           <div class="profile-orders-list-panel">
             <h4 class="profile-section-title">Order History & Tracking</h4>
             <div class="orders-list-wrapper">
-              ${profile.orders.length === 0 ? `
+              ${(profile.orders || []).length === 0 ? `
                 <div style="padding: 30px; text-align: center; color: var(--text-gray);">
                   <span>📦 Aucune commande enregistrée pour le moment.</span>
                 </div>
-              ` : profile.orders.map(o => `
+              ` : (profile.orders || []).map(o => `
                 <div class="profile-order-row">
                   <div class="order-info-block">
                     <span class="order-id-label">${o.id}</span>
