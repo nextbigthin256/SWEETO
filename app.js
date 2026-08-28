@@ -9,12 +9,12 @@ if (window.location.pathname !== '/' && window.location.pathname !== '/index.htm
 // Store Purification Sanitizer: Clear old mock sessions and legacy fake user accounts
 (function purifyStoreSessions() {
   try {
-    if (!localStorage.getItem('SWEETOS_v3_purified')) {
+    if (!localStorage.getItem('SWEETOS_v4_purified')) {
       const loggedUser = localStorage.getItem('SWEETOS_logged_in_user');
       if (loggedUser) {
         try {
           const parsed = JSON.parse(loggedUser);
-          if (!parsed.email || parsed.email.includes('customer@sweetos.com') || parsed.email.includes('guest@') || parsed.email.includes('john@doe.com')) {
+          if (!parsed.email || parsed.email.includes('customer@sweetos.com') || parsed.email.includes('developer.') || parsed.email.includes('guest@') || parsed.email.includes('john@doe.com')) {
             localStorage.removeItem('SWEETOS_logged_in_user');
             localStorage.removeItem('SWEETOS_user_profile');
           }
@@ -24,7 +24,8 @@ if (window.location.pathname !== '/' && window.location.pathname !== '/index.htm
         }
       }
       localStorage.removeItem('SWEETOS_user_profile_guest');
-      localStorage.setItem('SWEETOS_v3_purified', 'true');
+      localStorage.removeItem('SWEETOS_user_profile');
+      localStorage.setItem('SWEETOS_v4_purified', 'true');
     }
   } catch(e) {}
 })();

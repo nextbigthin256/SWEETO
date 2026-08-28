@@ -404,15 +404,21 @@ class ProductList extends HTMLElement {
   // --- Functional User Profile Utility Methods ---
   loadUserProfile() {
     const loggedInUserStr = localStorage.getItem('SWEETOS_logged_in_user');
+    if (!loggedInUserStr) {
+      return null;
+    }
+
     let loggedUser = null;
-    if (loggedInUserStr) {
-      try {
-        loggedUser = JSON.parse(loggedInUserStr);
-      } catch(e) {}
+    try {
+      loggedUser = JSON.parse(loggedInUserStr);
+    } catch(e) {}
+
+    if (!loggedUser || !loggedUser.email) {
+      return null;
     }
 
     const profileKey = getProfileStorageKey();
-    const saved = localStorage.getItem(profileKey) || localStorage.getItem('SWEETOS_user_profile');
+    const saved = localStorage.getItem(profileKey);
     let profile = null;
     if (saved) {
       try {
@@ -421,16 +427,17 @@ class ProductList extends HTMLElement {
     }
 
     if (!profile) {
+      const emailName = loggedUser.email.split('@')[0];
       profile = {
-        firstName: loggedUser?.fullname ? loggedUser.fullname.split(' ')[0] : "Client",
-        lastName: loggedUser?.fullname ? loggedUser.fullname.split(' ').slice(1).join(' ') : "SWEETOS",
-        email: loggedUser?.email || "customer@sweetos.com",
-        phone: "+225 07 00 00 00 00",
-        bio: "Passionné d'accessoires tech et de setups minimalistes.",
+        firstName: loggedUser.fullname ? loggedUser.fullname.split(' ')[0] : emailName,
+        lastName: loggedUser.fullname ? loggedUser.fullname.split(' ').slice(1).join(' ') : "",
+        email: loggedUser.email,
+        phone: loggedUser.phone || "",
+        bio: "Client SWEETOS Côte d'Ivoire.",
         theme: "Ice Blue",
         avatar: "",
-        level: "bronze",
-        badgeType: "blue_verified",
+        level: "starter",
+        badgeType: "none",
         twoFactor: false,
         marketingEmails: true,
         smsUpdates: false,
@@ -6662,6 +6669,26 @@ class ProductList extends HTMLElement {
     const tabArea = this.shadowRoot.getElementById('profile-tab-content');
     if (!tabArea) return;
     const profile = this.loadUserProfile();
+    
+    if (!profile) {
+      tabArea.innerHTML = `
+        <div class="profile-overview-tab animate-in" style="padding: 60px 20px; text-align: center;">
+          <div style="font-size: 48px; margin-bottom: 12px;">🔒</div>
+          <h3 style="font-size: 22px; font-weight: 850; margin: 0 0 8px 0; color: var(--text-dark);">Connexion Requise</h3>
+          <p style="font-size: 14px; color: var(--text-gray); margin: 0 0 20px 0;">Veuillez vous connecter pour accéder à votre profil et suivre vos commandes.</p>
+          <button id="goto-auth-btn-profile" class="shop-now-btn" style="padding: 12px 24px; font-size: 14px; font-weight: 800; border-radius: 12px; background: var(--primary); color: white; border: none; cursor: pointer;">
+            Se connecter / S'inscrire &rarr;
+          </button>
+        </div>
+      `;
+      const btn = tabArea.querySelector('#goto-auth-btn-profile');
+      if (btn) {
+        btn.addEventListener('click', () => {
+          window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'auth' } }));
+        });
+      }
+      return;
+    }
     
     if (this.activeProfileTab === 'overview') {
       const wishlist = this.loadWishlistFromStorage();
