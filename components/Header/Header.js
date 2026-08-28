@@ -235,7 +235,7 @@ class Header extends HTMLElement {
           <div class="search-divider"></div>
 
           <!-- Text Input -->
-          <input type="text" id="header-search-input" placeholder="Rechercher un produit, marque, setup..." autocomplete="off">
+          <input type="text" id="header-search-input" name="header_search_query_no_autofill" placeholder="Rechercher un produit, marque, setup..." autocomplete="new-password" aria-autocomplete="none" spellcheck="false">
           
           <!-- Actions Cluster -->
           <div class="search-actions-cluster">
@@ -383,6 +383,17 @@ class Header extends HTMLElement {
       debounceSearch = setTimeout(() => {
         triggerSearch();
       }, 250);
+    });
+
+    if (searchInput.value.includes('@')) {
+      searchInput.value = '';
+      updateClearBtnVisibility();
+    }
+    searchInput.addEventListener('focus', () => {
+      if (searchInput.value.includes('@')) {
+        searchInput.value = '';
+        updateClearBtnVisibility();
+      }
     });
 
     searchBtn.addEventListener('click', () => {

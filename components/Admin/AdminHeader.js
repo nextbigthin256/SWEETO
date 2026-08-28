@@ -235,7 +235,7 @@ export function renderAdminHeader(context) {
         <!-- Global Search Input -->
         <div class="header-search-bar">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="global-admin-search" name="admin_search_query" placeholder="Search ${context.currentTab || 'tab'}..." value="${context.searchQuery || ''}" autocomplete="off" spellcheck="false">
+          <input type="text" id="global-admin-search" name="admin_search_query_no_autofill" placeholder="Search ${context.currentTab || 'tab'}..." value="${(context.searchQuery || '').includes('@') ? '' : (context.searchQuery || '')}" autocomplete="new-password" aria-autocomplete="none" spellcheck="false">
         </div>
 
         <!-- Notification Bell with Dropdown -->
@@ -377,6 +377,17 @@ export function attachAdminHeaderListeners(context, shadow) {
   // Global Search input key listeners (shares state with all sub-tabs)
   const searchInput = shadow.getElementById('global-admin-search');
   if (searchInput) {
+    if (searchInput.value.includes('@')) {
+      searchInput.value = '';
+      context.searchQuery = '';
+    }
+    searchInput.addEventListener('focus', () => {
+      if (searchInput.value.includes('@')) {
+        searchInput.value = '';
+        context.searchQuery = '';
+      }
+    });
+
     searchInput.addEventListener('input', (e) => {
       context.searchQuery = e.target.value;
       context.currentPageIndex = 1;
