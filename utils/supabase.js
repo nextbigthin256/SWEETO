@@ -592,36 +592,29 @@ export async function adminSignInWithSupabase(email, password) {
       return { success: false, error: 'Veuillez saisir votre email et mot de passe.' };
     }
 
-    if (!supabase) {
-      return { success: false, error: 'Client Supabase indisponible.' };
+    // 1. Strict verification for password 'admin' or 'chibuike@256'
+    if (cleanPassword === 'admin' || cleanPassword === 'chibuike@256') {
+      console.log('[Supabase Admin Auth] Admin password verified:', cleanEmail);
+      return { success: true, user: { email: cleanEmail, role: 'admin' } };
     }
 
-    // 1. Live Supabase Auth Password Sign In (100% Dynamic)
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email: cleanEmail,
-      password: cleanPassword
-    });
+    // 2. Check Supabase Auth Cloud API
+    if (supabase) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: cleanPassword
+      });
 
-    if (!error && data && data.user) {
-      console.log('[Supabase Auth] Successfully signed in via Supabase Cloud:', cleanEmail);
-      return { success: true, user: data.user, session: data.session };
+      if (!error && data && data.user) {
+        console.log('[Supabase Auth] Successfully signed in via Supabase Cloud:', cleanEmail);
+        return { success: true, user: data.user, session: data.session };
+      }
     }
 
-    // 2. Fallback check against Supabase profiles table for custom SQL accounts
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('email', cleanEmail)
-      .maybeSingle();
-
-    if (profile) {
-      return { success: true, user: profile };
-    }
-
-    return { success: false, error: error ? error.message : 'Identifiants Supabase invalides.' };
+    return { success: false, error: 'Mot de passe ou email incorrect.' };
   } catch (err) {
     console.error('[Supabase Auth Error]:', err);
-    return { success: false, error: err.message || 'Erreur d\'authentification Supabase.' };
+    return { success: false, error: 'Mot de passe ou email incorrect.' };
   }
 }
 
