@@ -640,16 +640,37 @@ class AdminPage extends HTMLElement {
     
     // 2. Orders Pipeline
     const storedOrders = sessionStorage.getItem('SWEETOS_all_orders');
+    let loadedOrders = [];
     if (storedOrders !== null) {
       try {
-        this.orders = JSON.parse(storedOrders);
+        loadedOrders = JSON.parse(storedOrders);
       } catch (e) {
-        this.orders = [];
+        loadedOrders = [];
       }
-    } else {
-      this.orders = isFirstTime ? orders : [];
-      sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(this.orders));
     }
+    if (!Array.isArray(loadedOrders) || loadedOrders.length === 0) {
+      loadedOrders = [...orders];
+    }
+
+    // Scan all sessionStorage profile keys to extract any customer orders
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const key = sessionStorage.key(i);
+      if (key && key.startsWith('SWEETOS_user_profile_')) {
+        try {
+          const prof = JSON.parse(sessionStorage.getItem(key));
+          if (prof && Array.isArray(prof.orders)) {
+            prof.orders.forEach(o => {
+              if (o && o.id && !loadedOrders.some(existing => existing.id === o.id)) {
+                loadedOrders.unshift(o);
+              }
+            });
+          }
+        } catch(e) {}
+      }
+    }
+
+    this.orders = loadedOrders;
+    sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(this.orders));
     
     // 3. Category Settings
     const storedCats = sessionStorage.getItem('SWEETOS_categories');

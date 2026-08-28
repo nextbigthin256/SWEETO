@@ -231,32 +231,45 @@ export async function createOrderInSupabase(newOrder) {
   try {
     if (!supabase || !newOrder) return null;
     const orderId = newOrder.id || ('ORD-' + Math.floor(100000 + Math.random() * 900000));
+    const emailLower = (newOrder.customerEmail || '').toLowerCase();
     
     // 1. Try to upsert into Supabase orders table
     try {
       const record = {
         order_number: orderId,
         customer_name: newOrder.customerName || 'Customer',
-        customer_email: (newOrder.customerEmail || '').toLowerCase(),
+        customer_email: emailLower,
         customer_phone: newOrder.customerPhone || '',
-        customer_address: newOrder.customerAddress || '',
+        customer_address: typeof newOrder.customerAddress === 'string' ? newOrder.customerAddress : (newOrder.customerAddress?.street || ''),
         total_amount: parseFloat(newOrder.total) || 0,
         status: newOrder.status || 'Pending',
         payment_method: newOrder.paymentMethod || 'cod',
-        shipping_notes: newOrder.items || ''
+        shipping_notes: newOrder.items || (newOrder.products || []).map(p => `${p.name} (x${p.quantity || 1})`).join(', ') || 'Product Order'
       };
       await supabase.from('orders').upsert([record], { onConflict: 'order_number' });
     } catch(e) {}
 
     // 2. Upsert order into Supabase profiles table (embedded orders array)
-    if (newOrder.customerEmail) {
-      const emailLower = newOrder.customerEmail.toLowerCase();
+    if (emailLower) {
+      const safeKey = emailLower.replace(/[^a-zA-Z0-9]/g, '_');
       const { data: p } = await supabase.from('profiles').select('*').eq('email', emailLower).maybeSingle();
       
       let pOrders = [];
       if (p && p.orders) {
         pOrders = Array.isArray(p.orders) ? p.orders : (typeof p.orders === 'string' ? JSON.parse(p.orders) : []);
       }
+      
+      // Merge with any session profile orders
+      try {
+        const localProf = JSON.parse(sessionStorage.getItem(`SWEETOS_user_profile_${safeKey}`) || sessionStorage.getItem('SWEETOS_user_profile') || '{}');
+        if (localProf && Array.isArray(localProf.orders)) {
+          localProf.orders.forEach(lo => {
+            if (lo && lo.id && !pOrders.some(o => o.id === lo.id)) {
+              pOrders.push(lo);
+            }
+          });
+        }
+      } catch(e) {}
       
       const existingIdx = pOrders.findIndex(o => o.id === orderId);
       if (existingIdx > -1) {
@@ -275,7 +288,31 @@ export async function createOrderInSupabase(newOrder) {
         total_spent: totalSpent,
         orders: pOrders
       }], { onConflict: 'email' });
+
+      // Save to sessionStorage user profile so it is available locally immediately
+      try {
+        const pKey = `SWEETOS_user_profile_${safeKey}`;
+        let profObj = JSON.parse(sessionStorage.getItem(pKey) || sessionStorage.getItem('SWEETOS_user_profile') || '{}');
+        profObj.orders = pOrders;
+        sessionStorage.setItem(pKey, JSON.stringify(profObj));
+        sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profObj));
+      } catch(e) {}
     }
+
+    // 3. Save to global orders array in sessionStorage
+    try {
+      let allOrders = JSON.parse(sessionStorage.getItem('SWEETOS_all_orders') || '[]');
+      if (!allOrders.some(o => o.id === orderId)) {
+        allOrders.unshift(newOrder);
+      } else {
+        const idx = allOrders.findIndex(o => o.id === orderId);
+        allOrders[idx] = newOrder;
+      }
+      sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders));
+    } catch(e) {}
+
+    window.dispatchEvent(new CustomEvent('orders:updated', { detail: newOrder }));
+    window.dispatchEvent(new CustomEvent('profile:updated'));
 
     console.log('[Supabase Cloud] Order created & synced successfully:', orderId);
     return newOrder;
@@ -736,15 +773,24 @@ export async function fetchCustomersFromSupabase() {
 
 export async function saveCustomerToSupabase(customerData) {
   try {
-    if (!supabase || !customerData.email) return;
+    if (!supabase || !customerData || !customerData.email) return;
+    const emailLower = customerData.email.trim().toLowerCase();
     const record = {
-      email: customerData.email,
-      full_name: customerData.name || customerData.fullname || '',
+      email: emailLower,
+      full_name: customerData.name || customerData.fullname || `${customerData.firstName || ''} ${customerData.lastName || ''}`.trim() || 'Client',
       phone: customerData.phone || '',
       badge_type: customerData.badgeType || 'none',
-      level: customerData.level || 'starter',
+      level: customerData.level || customerData.loyaltyLevel || 'starter',
       unlocked_badges: customerData.unlockedBadges || []
     };
+    if (customerData.orders && Array.isArray(customerData.orders)) {
+      record.orders = customerData.orders;
+      record.orders_count = customerData.orders.length;
+      record.total_spent = customerData.orders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+    }
+    if (customerData.addresses && Array.isArray(customerData.addresses)) {
+      record.addresses = customerData.addresses;
+    }
     await supabase.from('profiles').upsert([record], { onConflict: 'email' });
   } catch(e) {}
 }
