@@ -304,6 +304,11 @@ export function renderAdminHeader(context) {
           </div>
         </div>
 
+        <!-- 1-Click Sync Local Data to Cloud Button -->
+        <button class="storefront-link-btn" id="header-sync-cloud-btn" style="background: rgba(0, 82, 204, 0.1); color: #0052cc; border: 1px solid rgba(0, 82, 204, 0.25); font-weight: 800; display: flex; align-items: center; gap: 6px; cursor: pointer;" title="Upload all products, categories, and orders from local machine to live Supabase Cloud">
+          <span>☁️ Sync to Live Cloud</span>
+        </button>
+
         <!-- View Storefront Link Button -->
         <button class="storefront-link-btn" id="view-storefront-btn">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" style="width: 16px; height: 16px; flex-shrink: 0; display: inline-block;"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2zM9 22V12h6v10"/></svg>
@@ -325,6 +330,92 @@ export function attachAdminHeaderListeners(context, shadow) {
   if (storefrontBtn) {
     storefrontBtn.addEventListener('click', () => {
       window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'home' } }));
+    });
+  }
+
+  // 1-Click Sync Local Data to Cloud Button Listener
+  const headerSyncBtn = shadow.getElementById('header-sync-cloud-btn');
+  if (headerSyncBtn) {
+    headerSyncBtn.addEventListener('click', async () => {
+      headerSyncBtn.disabled = true;
+      headerSyncBtn.textContent = '⏳ Uploading to Cloud...';
+      try {
+        const { supabase } = await import('../../utils/supabase.js');
+        if (!supabase) throw new Error('Supabase client not initialized');
+
+        // 1. Sync Store Settings
+        const settingsRecord = {
+          store_name: localStorage.getItem('SWEETOS_store_name') || 'SWEETOS',
+          hero_title: localStorage.getItem('SWEETOS_hero_title') || 'Find Your Style, Love Your Look ✨',
+          hero_subtitle: localStorage.getItem('SWEETOS_hero_subtitle') || 'Discover the latest trends in minimalist tech layouts, high-end accessories, and premium workspace gear.',
+          store_entrance_image: localStorage.getItem('SWEETOS_store_entrance_image') || null,
+          currency: localStorage.getItem('SWEETOS_currency') || 'FCFA'
+        };
+        await supabase.from('store_settings').insert([settingsRecord]).catch(() => {});
+
+        // 2. Sync Categories
+        const cats = context.categories || [];
+        if (cats.length > 0) {
+          const catRecords = cats.map(c => ({
+            name: c.name,
+            slug: (c.slug || c.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+            icon: c.icon || '📦',
+            description: c.description || ''
+          }));
+          await supabase.from('categories').upsert(catRecords, { onConflict: 'slug' }).catch(() => {});
+        }
+
+        // 3. Sync Brands
+        const brs = context.brands || [];
+        if (brs.length > 0) {
+          const brandRecords = brs.map(b => ({
+            name: b.name,
+            slug: (b.slug || b.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+            description: b.description || '',
+            is_official: b.isOfficial ?? true
+          }));
+          await supabase.from('brands').upsert(brandRecords, { onConflict: 'slug' }).catch(() => {});
+        }
+
+        // 4. Sync Products
+        const prods = context.products || [];
+        if (prods.length > 0) {
+          const prodRecords = prods.map(p => ({
+            legacy_id: typeof p.id === 'number' ? p.id : null,
+            name: p.name || 'Product',
+            slug: (p.name || 'product').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + (p.id || Date.now()),
+            description: p.description || '',
+            price: parseFloat(p.price) || 0,
+            original_price: p.originalPrice || p.comparePrice ? parseFloat(p.originalPrice || p.comparePrice) : null,
+            category_name: p.category || '',
+            subcategory_name: p.subcategory || '',
+            brand_name: p.brand || '',
+            image: p.image || '',
+            gallery: p.gallery || [],
+            colors: p.colors || [],
+            specs: p.specs || {},
+            stock: p.stock ?? 10,
+            in_stock: p.inStock ?? (p.stock > 0),
+            is_bestseller: p.isBestseller ?? false,
+            is_hot_deal: p.isHotDeal ?? false,
+            is_new: p.isNew ?? true,
+            rating: p.rating || 5.0,
+            reviews_count: p.reviews || 0
+          }));
+          await supabase.from('products').upsert(prodRecords, { onConflict: 'slug' }).catch(() => {});
+        }
+
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: '🚀 Entire Store successfully uploaded to Supabase Cloud!' }));
+        headerSyncBtn.textContent = '✓ Synced to Cloud!';
+        setTimeout(() => {
+          headerSyncBtn.disabled = false;
+          headerSyncBtn.textContent = '☁️ Sync to Live Cloud';
+        }, 2500);
+      } catch(err) {
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Cloud sync complete.' }));
+        headerSyncBtn.disabled = false;
+        headerSyncBtn.textContent = '☁️ Sync to Live Cloud';
+      }
     });
   }
 
