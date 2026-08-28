@@ -603,6 +603,17 @@ class Header extends HTMLElement {
       this.updateUserPill();
     });
 
+    window.addEventListener('auth:changed', () => {
+      this.updateUserPill();
+      this.syncCartBadge();
+      this.syncNotificationBadge();
+      this.syncWishlistBadge();
+    });
+
+    window.addEventListener('profile:updated', () => {
+      this.updateUserPill();
+    });
+
     window.addEventListener('notifications:updated', () => {
       this.syncNotificationBadge();
     });

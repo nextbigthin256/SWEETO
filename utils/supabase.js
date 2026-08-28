@@ -785,7 +785,7 @@ export async function checkCustomerAccountValidInSupabase(email) {
     if (!supabase || !email) return { valid: true };
     const cleanEmail = email.trim().toLowerCase();
 
-    // 1. Check if explicitly revoked in site_settings
+    // Check if explicitly revoked in site_settings by Admin action
     const { data: revoked } = await supabase
       .from('site_settings')
       .select('value')
@@ -793,18 +793,7 @@ export async function checkCustomerAccountValidInSupabase(email) {
       .maybeSingle();
 
     if (revoked && revoked.value) {
-      return { valid: false, reason: 'Account revoked by Admin' };
-    }
-
-    // 2. Check if profile still exists in profiles table
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('id, email')
-      .eq('email', cleanEmail)
-      .maybeSingle();
-
-    if (!error && !profile) {
-      return { valid: false, reason: 'Account deleted by Admin' };
+      return { valid: false, reason: 'Account revoked or deleted by Admin' };
     }
 
     return { valid: true };
