@@ -65,8 +65,10 @@ document.addEventListener('DOMContentLoaded', () => {
           if (res && res.valid === false) {
             localStorage.removeItem('SWEETOS_logged_in_user');
             localStorage.removeItem('SWEETOS_user_profile');
+            const { clearCustomerRevocationInSupabase } = await import('./utils/supabase.js');
+            await clearCustomerRevocationInSupabase(loggedUser.email);
             window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: false } }));
-            window.dispatchEvent(new CustomEvent('toast:show', { detail: '⚠️ Votre compte a été supprimé par l\'administrateur. Déconnexion...' }));
+            window.dispatchEvent(new CustomEvent('toast:show', { detail: '⚠️ Votre session a été fermée par l\'administrateur. Déconnexion...' }));
             window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'home' } }));
           }
         }

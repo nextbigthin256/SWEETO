@@ -798,8 +798,9 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
 
         const joinedDate = new Date().toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 
-        // Save to Supabase Cloud Database (profiles table)
-        import('../../utils/supabase.js').then(({ saveCustomerToSupabase, supabase }) => {
+        // Save to Supabase Cloud Database (profiles table) & clear revocation
+        import('../../utils/supabase.js').then(({ saveCustomerToSupabase, clearCustomerRevocationInSupabase, supabase }) => {
+          clearCustomerRevocationInSupabase(email);
           saveCustomerToSupabase({
             name: fullName,
             email: email,
