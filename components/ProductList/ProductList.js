@@ -2,7 +2,7 @@ import products from '../../data/products.js';
 import { showEditAddressModal } from '../Modals/EditAddressModal.js';
 import { showCancelOrderModal } from '../Modals/CancelOrderModal.js';
 import { getAuthPageHTML, attachAuthListeners } from '../Auth/AuthPage.js';
-import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, formatPrice, formatTimeAgo, syncDeliveredNotifications } from '../../utils/storage.js';
+import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getScratchcardsStorageKey, formatPrice, formatTimeAgo, syncDeliveredNotifications } from '../../utils/storage.js';
 import { CUSTOMER_LEVELS, VERIFIED_BADGES, renderVerificationBadge, renderLevelPill, getCustomerLevel, getCustomerBadge, getBadgeRewardCoupon, getCustomerAvatarStyle, renderLevelChevronV, scratchBadgeReward, isBadgeRewardScratched } from '../../utils/badges.js';
 import { getTodaysDealsConfig, isTodaysDealsActive, getTimeRemaining, awardMysteryBoxForDeliveredOrder, getTodaysDealsTheme, DEAL_BANNER_THEMES } from '../../utils/todaysDeals.js';
 import { getMoreToLoveConfig } from '../../utils/moreToLove.js';
@@ -1711,28 +1711,29 @@ class ProductList extends HTMLElement {
     } else if (this.currentPage === 'coupons') {
       let scratchcardsList = [];
       try {
-        const stored = localStorage.getItem('SWEETOS_user_scratchcards');
-        let rawList = stored ? JSON.parse(stored) : [];
-        const now = Date.now();
-
         const loggedInUserStr = localStorage.getItem('SWEETOS_logged_in_user');
-        let userEmail = '';
         if (loggedInUserStr) {
+          const scratchKey = getScratchcardsStorageKey();
+          const stored = localStorage.getItem(scratchKey);
+          let rawList = stored ? JSON.parse(stored) : [];
+          const now = Date.now();
+
+          let userEmail = '';
           try {
             userEmail = JSON.parse(loggedInUserStr).email?.toLowerCase().trim() || '';
           } catch(e) {}
-        }
 
-        // Filter cards for current user or guest, and exclude expired unscratched cards
-        scratchcardsList = rawList.filter(card => {
-          if (!card.scratched && card.expiresAt && now > card.expiresAt) {
-            return false;
-          }
-          if (userEmail && card.email && card.email.toLowerCase().trim() !== userEmail) {
-            return false;
-          }
-          return true;
-        });
+          // Filter cards for current user, and exclude expired unscratched cards
+          scratchcardsList = rawList.filter(card => {
+            if (!card.scratched && card.expiresAt && now > card.expiresAt) {
+              return false;
+            }
+            if (userEmail && card.email && card.email.toLowerCase().trim() !== userEmail) {
+              return false;
+            }
+            return true;
+          });
+        }
       } catch(e) {}
       
       if (this.currentCouponCode) {
@@ -6316,7 +6317,8 @@ class ProductList extends HTMLElement {
           canvas.style.pointerEvents = 'none';
           
           try {
-            let scratchcards = JSON.parse(localStorage.getItem('SWEETOS_user_scratchcards') || '[]');
+            const scratchKey = getScratchcardsStorageKey();
+            let scratchcards = JSON.parse(localStorage.getItem(scratchKey) || '[]');
             const rawCardId = canvas.getAttribute('data-scratchcard-id');
             const idx = scratchcards.findIndex(sc => String(sc.id) === String(rawCardId));
             if (idx > -1 && !scratchcards[idx].scratched) {
@@ -6351,7 +6353,7 @@ class ProductList extends HTMLElement {
                   status: 'active',
                   description: `5% de réduction (${uses}/${wonReward?.totalUses || uses} utilisations)`
                 };
-                localStorage.setItem('SWEETOS_user_scratchcards', JSON.stringify(scratchcards));
+                localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
                 window.dispatchEvent(new CustomEvent('toast:show', { 
                   detail: `🎉 FÉLICITATIONS ! Badge gratté avec succès ! Coupon de 5% OFF débloqué (Code: ${rewardCode}) disponible dans votre panier ! 🎟️✨` 
                 }));
@@ -6389,7 +6391,7 @@ class ProductList extends HTMLElement {
 
                   scratchcards[idx].scratched = true;
                   scratchcards[idx].couponWon = dealCoupon;
-                  localStorage.setItem('SWEETOS_user_scratchcards', JSON.stringify(scratchcards));
+                  localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
 
                   window.dispatchEvent(new CustomEvent('toast:show', { 
                     detail: `🎉 FÉLICITATIONS ! Palier Offre du Jour atteint ! Coupon de ${dealCoupon.value}% OFF débloqué (Code: ${code}) ! 🎟️✨` 
@@ -6400,7 +6402,7 @@ class ProductList extends HTMLElement {
                   scratchcards[idx].couponWon = 'lost';
                   const emptyMessage = `Oups ! Bonne chance pour la prochaine fois ! 🍀 (Pour débloquer ce coupon, achetez pour au moins ${requiredDealSpend.toLocaleString()} FCFA dans les Offres du Jour).`;
                   scratchcards[idx].emptyMessage = emptyMessage;
-                  localStorage.setItem('SWEETOS_user_scratchcards', JSON.stringify(scratchcards));
+                  localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
                   window.dispatchEvent(new CustomEvent('toast:show', { detail: `📦 ${emptyMessage}` }));
                 }
               }
@@ -6443,11 +6445,11 @@ class ProductList extends HTMLElement {
                 scratchcards[idx].couponWon = 'lost';
                 const emptyMessage = 'Oops! Good luck next time! / Oups ! Bonne chance pour la prochaine fois ! 🍀✨';
                 scratchcards[idx].emptyMessage = emptyMessage;
-                localStorage.setItem('SWEETOS_user_scratchcards', JSON.stringify(scratchcards));
+                localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
                 window.dispatchEvent(new CustomEvent('toast:show', { detail: `📦 ${emptyMessage}` }));
               }
 
-              localStorage.setItem('SWEETOS_user_scratchcards', JSON.stringify(scratchcards));
+              localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
               
               setTimeout(() => {
                 this.renderPageContent();
@@ -7219,7 +7221,11 @@ class ProductList extends HTMLElement {
     if (signOutBtn) {
       signOutBtn.addEventListener('click', () => {
         localStorage.removeItem('SWEETOS_logged_in_user');
+        localStorage.removeItem('SWEETOS_user_profile');
+        sessionStorage.clear();
         window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: false } }));
+        window.dispatchEvent(new CustomEvent('notifications:updated'));
+        window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: 0 }));
         window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Signed out successfully. 🔓' }));
         this.currentPage = 'home';
         this.renderPageContent();

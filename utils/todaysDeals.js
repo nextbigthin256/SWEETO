@@ -7,6 +7,8 @@
  * - Auto-hide on expiration & Admin On/Off switch
  */
 
+import { getNotificationsStorageKey, getScratchcardsStorageKey } from './storage.js';
+
 const STORAGE_KEY = 'SWEETOS_todays_deals';
 
 export const DEAL_BANNER_THEMES = {
@@ -351,9 +353,10 @@ export function awardMysteryBoxForDeliveredOrder(order) {
   const orderId = order.id;
   const boxId = `box-order-${orderId}`;
 
+  const scratchKey = getScratchcardsStorageKey();
   let scratchcards = [];
   try {
-    scratchcards = JSON.parse(localStorage.getItem('SWEETOS_user_scratchcards') || '[]');
+    scratchcards = JSON.parse(localStorage.getItem(scratchKey) || '[]');
   } catch (e) {}
 
   // Prevent duplicate mystery boxes for the same order
@@ -382,10 +385,10 @@ export function awardMysteryBoxForDeliveredOrder(order) {
     expiresAt: Date.now() + 14 * 24 * 60 * 60 * 1000
   });
 
-  localStorage.setItem('SWEETOS_user_scratchcards', JSON.stringify(scratchcards));
+  localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
 
-  // Push customer delivered notification with mystery box alert
-  const notifKey = 'SWEETOS_notifications';
+  // Push customer delivered notification with mystery box alert to user-scoped notification store
+  const notifKey = getNotificationsStorageKey();
   let notifs = [];
   try {
     notifs = JSON.parse(localStorage.getItem(notifKey) || '[]');

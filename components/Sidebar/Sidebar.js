@@ -1,3 +1,5 @@
+import { getScratchcardsStorageKey } from '../../utils/storage.js';
+
 class Sidebar extends HTMLElement {
   constructor() {
     super();
@@ -109,10 +111,14 @@ class Sidebar extends HTMLElement {
 
       // A. Real Unscratched Mystery Scratchcards owned by user
       let unscratchedCount = 0;
-      try {
-        const scratchcards = JSON.parse(localStorage.getItem('SWEETOS_user_scratchcards') || '[]');
-        unscratchedCount = scratchcards.filter(sc => !sc.scratched && (!sc.expiresAt || sc.expiresAt > now)).length;
-      } catch(e) {}
+      const loggedInStr = localStorage.getItem('SWEETOS_logged_in_user');
+      if (loggedInStr) {
+        try {
+          const scratchKey = getScratchcardsStorageKey();
+          const scratchcards = JSON.parse(localStorage.getItem(scratchKey) || '[]');
+          unscratchedCount = scratchcards.filter(sc => !sc.scratched && (!sc.expiresAt || sc.expiresAt > now)).length;
+        } catch(e) {}
+      }
 
       // B. Real Active Won Coupons owned by user (e.g. LOYAL or SAVE codes)
       let wonCouponsCount = 0;

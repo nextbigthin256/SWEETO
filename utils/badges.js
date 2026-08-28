@@ -1,3 +1,5 @@
+import { getScratchcardsStorageKey } from './storage.js';
+
 export const CUSTOMER_LEVELS = {
   starter: { id: 'starter', levelNum: 0, label: 'Nouveau Client', icon: '🥉', color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', minSpent: 0, rewardDiscount: 0 },
   bronze: { id: 'starter', levelNum: 0, label: 'Nouveau Client', icon: '🥉', color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', minSpent: 0, rewardDiscount: 0 },
@@ -333,7 +335,8 @@ export function scratchBadgeReward(email) {
       localStorage.setItem('SWEETOS_badge_rewards', JSON.stringify(rewards));
 
       // Also mark in scratchcards
-      let scratchcards = JSON.parse(localStorage.getItem('SWEETOS_user_scratchcards') || '[]');
+      const scratchKey = getScratchcardsStorageKey();
+      let scratchcards = JSON.parse(localStorage.getItem(scratchKey) || '[]');
       let updatedCards = false;
       scratchcards.forEach(sc => {
         if (sc.email && sc.email.toLowerCase() === safeEmail && (sc.badgeReward || (sc.rewardCode === userReward.code))) {
@@ -354,7 +357,7 @@ export function scratchBadgeReward(email) {
         }
       });
       if (updatedCards) {
-        localStorage.setItem('SWEETOS_user_scratchcards', JSON.stringify(scratchcards));
+        localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
       }
 
       // Sync into SWEETOS_coupons
@@ -446,10 +449,11 @@ export function grantBadgeReward(email, badgeInput) {
     rewards[safeEmail] = userReward;
     localStorage.setItem('SWEETOS_badge_rewards', JSON.stringify(rewards));
 
-    // Register Mystery Box scratch card in SWEETOS_user_scratchcards
+    // Register Mystery Box scratch card in user scratchcards
+    const scratchKey = getScratchcardsStorageKey();
     let scratchcards = [];
     try {
-      scratchcards = JSON.parse(localStorage.getItem('SWEETOS_user_scratchcards') || '[]');
+      scratchcards = JSON.parse(localStorage.getItem(scratchKey) || '[]');
     } catch(e) {}
 
     const existingCardIdx = scratchcards.findIndex(sc => 
@@ -488,7 +492,7 @@ export function grantBadgeReward(email, badgeInput) {
     } else {
       scratchcards.unshift(cardPayload);
     }
-    localStorage.setItem('SWEETOS_user_scratchcards', JSON.stringify(scratchcards));
+    localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
 
     // Also register / sync in SWEETOS_coupons (marked as unscratched if not yet scratched)
     let adminCoupons = JSON.parse(localStorage.getItem('SWEETOS_coupons') || '[]');

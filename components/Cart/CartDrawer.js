@@ -1,5 +1,5 @@
 import products from '../../data/products.js';
-import { getCartStorageKey, formatPrice } from '../../utils/storage.js';
+import { getCartStorageKey, getScratchcardsStorageKey, formatPrice } from '../../utils/storage.js';
 import { getBadgeRewardCoupon } from '../../utils/badges.js';
 
 class CartDrawer extends HTMLElement {
@@ -110,7 +110,8 @@ class CartDrawer extends HTMLElement {
         }
 
         // 2. Scratched Mystery Box Level Coupons
-        const scratchcards = JSON.parse(localStorage.getItem('SWEETOS_user_scratchcards') || '[]');
+        const scratchKey = getScratchcardsStorageKey();
+        const scratchcards = JSON.parse(localStorage.getItem(scratchKey) || '[]');
         scratchcards.forEach(sc => {
           if (sc.email && sc.email.toLowerCase() === curEmail && sc.scratched === true && sc.couponWon && sc.couponWon !== 'lost') {
             const cw = sc.couponWon;
@@ -484,9 +485,10 @@ class CartDrawer extends HTMLElement {
           }
 
           // 2. Check Scratched Mystery Boxes
+          const scratchKey = getScratchcardsStorageKey();
           let scratchcards = [];
           try {
-            scratchcards = JSON.parse(localStorage.getItem('SWEETOS_user_scratchcards') || '[]');
+            scratchcards = JSON.parse(localStorage.getItem(scratchKey) || '[]');
           } catch(e) {}
           const userCard = scratchcards.find(sc => 
             (sc.rewardCode && sc.rewardCode.toUpperCase() === code) || 

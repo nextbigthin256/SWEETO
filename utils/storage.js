@@ -40,6 +40,20 @@ export function getNotificationsStorageKey() {
   return 'SWEETOS_notifications_guest';
 }
 
+export function getScratchcardsStorageKey() {
+  const userJson = localStorage.getItem('SWEETOS_logged_in_user');
+  if (userJson) {
+    try {
+      const user = JSON.parse(userJson);
+      if (user && user.email) {
+        const safeKey = user.email.replace(/[^a-zA-Z0-9]/g, '_');
+        return `SWEETOS_user_scratchcards_${safeKey}`;
+      }
+    } catch (e) {}
+  }
+  return 'SWEETOS_user_scratchcards_guest';
+}
+
 export function formatPrice(price) {
   const currency = localStorage.getItem('SWEETOS_currency') || 'CFA';
   let symbol = currency;

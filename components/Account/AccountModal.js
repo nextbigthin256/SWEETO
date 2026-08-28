@@ -195,8 +195,11 @@ class AccountModal extends HTMLElement {
         // Clear active session
         localStorage.removeItem('SWEETOS_logged_in_user');
         localStorage.removeItem('SWEETOS_user_profile');
+        sessionStorage.clear();
         
         window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: false } }));
+        window.dispatchEvent(new CustomEvent('notifications:updated'));
+        window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: 0 }));
         window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Logged out successfully.' }));
         
         this.isOpen = false;
