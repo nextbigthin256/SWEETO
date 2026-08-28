@@ -1,4 +1,4 @@
-// Dedicated Admin Settings Management & Configuration Portal
+import { isLocalDevHost } from '../../utils/storage.js';
 
 export function renderAdminSettings(context) {
   const currentSubTab = context.settingsSubTab || 'general';
@@ -1044,16 +1044,18 @@ export function attachAdminSettingsListeners(context, shadow) {
           }
         } catch(e) {}
         
-        try {
-          await Promise.all([
-            fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '[]' }).catch(() => null),
-            fetch('/api/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '[]' }).catch(() => null),
-            fetch('/api/brands', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '[]' }).catch(() => null),
-            fetch('/api/reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '[]' }).catch(() => null),
-            fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '[]' }).catch(() => null),
-            fetch('/api/coupons', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '[]' }).catch(() => null)
-          ]);
-        } catch(e) {}
+        if (isLocalDevHost()) {
+          try {
+            await Promise.all([
+              fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '[]' }).catch(() => null),
+              fetch('/api/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '[]' }).catch(() => null),
+              fetch('/api/brands', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '[]' }).catch(() => null),
+              fetch('/api/reviews', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '[]' }).catch(() => null),
+              fetch('/api/orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '[]' }).catch(() => null),
+              fetch('/api/coupons', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '[]' }).catch(() => null)
+            ]);
+          } catch(e) {}
+        }
 
         window.dispatchEvent(new CustomEvent('toast:show', { detail: '🧹 Store completely wiped! All items erased from database and cloud.' }));
         setTimeout(() => window.location.reload(), 600);

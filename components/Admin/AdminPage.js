@@ -1,4 +1,4 @@
-import { formatPrice, getAllOrdersFromStorage, saveAllOrdersToStorage } from '../../utils/storage.js';
+import { formatPrice, getAllOrdersFromStorage, saveAllOrdersToStorage, isLocalDevHost } from '../../utils/storage.js';
 import '../../utils/modal.js';
 
 import products from '../../data/products.js';
@@ -874,13 +874,15 @@ class AdminPage extends HTMLElement {
   }
 
   syncCouponsToServer() {
-    fetch('/api/coupons', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(this.coupons)
-    }).catch(() => {});
+    if (isLocalDevHost()) {
+      fetch('/api/coupons', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(this.coupons)
+      }).catch(() => {});
+    }
 
     try {
       import('../../utils/supabase.js').then(({ syncCouponsToSupabase }) => {
@@ -890,11 +892,13 @@ class AdminPage extends HTMLElement {
   }
 
   syncProductsToServer() {
-    fetch('/api/products', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(this.products)
-    }).catch(() => {});
+    if (isLocalDevHost()) {
+      fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.products)
+      }).catch(() => {});
+    }
 
     try {
       import('../../utils/supabase.js').then(({ supabase }) => {
@@ -932,11 +936,13 @@ class AdminPage extends HTMLElement {
   }
 
   syncCategoriesToServer() {
-    fetch('/api/categories', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(this.categories)
-    }).catch(() => {});
+    if (isLocalDevHost()) {
+      fetch('/api/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.categories)
+      }).catch(() => {});
+    }
 
     try {
       import('../../utils/supabase.js').then(({ supabase }) => {
@@ -953,11 +959,13 @@ class AdminPage extends HTMLElement {
   }
 
   syncBrandsToServer() {
-    fetch('/api/brands', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(this.brands)
-    }).catch(() => {});
+    if (isLocalDevHost()) {
+      fetch('/api/brands', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.brands)
+      }).catch(() => {});
+    }
 
     try {
       import('../../utils/supabase.js').then(({ supabase }) => {
@@ -974,11 +982,13 @@ class AdminPage extends HTMLElement {
   }
 
   syncReviewsToServer() {
-    fetch('/api/reviews', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(this.reviews)
-    }).catch(() => {});
+    if (isLocalDevHost()) {
+      fetch('/api/reviews', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.reviews)
+      }).catch(() => {});
+    }
 
     try {
       import('../../utils/supabase.js').then(({ syncReviewsToSupabase }) => {
@@ -988,11 +998,13 @@ class AdminPage extends HTMLElement {
   }
 
   syncOrdersToServer() {
-    fetch('/api/orders', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(this.orders)
-    }).catch(() => {});
+    if (isLocalDevHost()) {
+      fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(this.orders)
+      }).catch(() => {});
+    }
 
     try {
       import('../../utils/supabase.js').then(({ createOrderInSupabase }) => {

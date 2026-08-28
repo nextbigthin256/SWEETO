@@ -7,7 +7,7 @@
  * - Auto-hide on expiration & Admin On/Off switch
  */
 
-import { getNotificationsStorageKey, getScratchcardsStorageKey } from './storage.js';
+import { getNotificationsStorageKey, getScratchcardsStorageKey, isLocalDevHost } from './storage.js';
 
 const STORAGE_KEY = 'SWEETOS_todays_deals';
 
@@ -215,11 +215,13 @@ export function saveTodaysDealsConfig(config) {
     }
 
     // Server sync
-    fetch('/api/todays_deals', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(config)
-    }).catch(() => {});
+    if (isLocalDevHost()) {
+      fetch('/api/todays_deals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config)
+      }).catch(() => {});
+    }
   } catch (e) {
     console.error('Error saving Today Deals config:', e);
   }

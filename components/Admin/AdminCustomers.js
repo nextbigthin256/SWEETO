@@ -1,4 +1,4 @@
-import { formatPrice, getProfileStorageKey } from '../../utils/storage.js';
+import { formatPrice, getProfileStorageKey, isLocalDevHost } from '../../utils/storage.js';
 import { CUSTOMER_LEVELS, VERIFIED_BADGES, renderVerificationBadge, renderLevelPill, getCustomerLevel, grantBadgeReward, notifyCustomerAchievement, getCustomerAvatarStyle, renderLevelChevronV } from '../../utils/badges.js';
 
 let selectedCustomerEmails = new Set();
@@ -1097,11 +1097,13 @@ export function attachAdminCustomersListeners(context, shadow) {
       window.dispatchEvent(new CustomEvent('toast:show', { detail: `Niveau & ${checkedBadges.length} Badge(s) mis à jour avec succès !${rewardNotice} ✨` }));
 
       // Server sync
-      fetch('/api/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(customers)
-      }).catch(err => console.error('Failed to sync updated customer badge:', err));
+      if (isLocalDevHost()) {
+        fetch('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(customers)
+        }).catch(err => console.error('Failed to sync updated customer badge:', err));
+      }
 
       context.render();
       context.attachListeners();

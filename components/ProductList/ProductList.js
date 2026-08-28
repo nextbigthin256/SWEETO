@@ -8302,14 +8302,6 @@ class ProductList extends HTMLElement {
                   globalOrder.customerAddress = newAddress;
                 }
                 saveAllOrdersToStorage(allOrders);
-
-                return fetch('/api/orders', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify(allOrders)
-                });
               })
               .catch(e => console.error('Failed to sync updated order address:', e));
 
@@ -8349,14 +8341,6 @@ class ProductList extends HTMLElement {
                   globalOrder.status = 'Cancelled';
                 }
                 saveAllOrdersToStorage(allOrders);
-
-                return fetch('/api/orders', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json'
-                  },
-                  body: JSON.stringify(allOrders)
-                });
               })
               .catch(e => console.error('Failed to sync cancelled order status:', e));
 
@@ -8393,14 +8377,6 @@ class ProductList extends HTMLElement {
                  globalOrder.status = 'Deleted';
                }
                saveAllOrdersToStorage(allOrders);
-
-               return fetch('/api/orders', {
-                 method: 'POST',
-                 headers: {
-                   'Content-Type': 'application/json'
-                 },
-                 body: JSON.stringify(allOrders)
-               });
              })
              .catch(e => console.error('Failed to sync deleted order status:', e));
 
@@ -8437,14 +8413,6 @@ class ProductList extends HTMLElement {
                 globalOrder.status = 'Done';
               }
               saveAllOrdersToStorage(allOrders);
-
-              return fetch('/api/orders', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(allOrders)
-              });
             })
             .then(() => {
               // 3. Broadcast custom alert to admin panel

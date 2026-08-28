@@ -1,5 +1,5 @@
 import { CUSTOMER_LEVELS, VERIFIED_BADGES, renderVerificationBadge, renderLevelPill, getCustomerLevel, getCustomerBadge, grantBadgeReward, getBadgeRewardCoupon, getCustomerAvatarStyle, renderLevelChevronV } from '../../utils/badges.js';
-import { formatPrice } from '../../utils/storage.js';
+import { formatPrice, isLocalDevHost } from '../../utils/storage.js';
 
 let searchQuery = '';
 let filterTier = 'all';
@@ -558,11 +558,13 @@ export function attachAdminLoyaltyListeners(context, shadow) {
       }
 
       // Server sync
-      fetch('/api/customers', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(customers)
-      }).catch(err => console.error('Failed to sync updated customer loyalty:', err));
+      if (isLocalDevHost()) {
+        fetch('/api/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(customers)
+        }).catch(err => console.error('Failed to sync updated customer loyalty:', err));
+      }
 
       context.render();
       context.attachListeners();

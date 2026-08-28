@@ -1,7 +1,9 @@
-﻿/**
+/**
  * utils/moreToLove.js
  * Centralized configuration & storage helper for the "More to Love" storefront section.
  */
+
+import { isLocalDevHost } from './storage.js';
 
 const STORAGE_KEY = 'SWEETOS_more_to_love_config';
 
@@ -39,11 +41,13 @@ export function saveMoreToLoveConfig(config) {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(safeConfig));
     
     // Server sync
-    fetch('/api/more-to-love', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(safeConfig)
-    }).catch(() => {});
+    if (isLocalDevHost()) {
+      fetch('/api/more-to-love', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(safeConfig)
+      }).catch(() => {});
+    }
 
     window.dispatchEvent(new CustomEvent('more_to_love:updated', { detail: safeConfig }));
     return safeConfig;

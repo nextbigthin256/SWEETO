@@ -266,6 +266,12 @@ export function getAllOrdersFromStorage() {
   return Array.isArray(orders) ? orders : [];
 }
 
+export function isLocalDevHost() {
+  if (typeof window === 'undefined') return false;
+  const host = window.location.hostname;
+  return host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.endsWith('.local');
+}
+
 export function saveAllOrdersToStorage(orders) {
   if (!Array.isArray(orders)) return;
   const jsonStr = JSON.stringify(orders);
@@ -273,12 +279,14 @@ export function saveAllOrdersToStorage(orders) {
   try { sessionStorage.setItem('SWEETOS_all_orders', jsonStr); } catch(e) {}
   window.dispatchEvent(new CustomEvent('orders:updated', { detail: orders }));
   
-  // Persist to local server disk asynchronously
-  fetch('/api/orders', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: jsonStr
-  }).catch(() => {});
+  // Persist to local Node server disk asynchronously only in local dev environment
+  if (isLocalDevHost()) {
+    fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: jsonStr
+    }).catch(() => {});
+  }
 }
 
 export function getOrderCategory(statusStr) {
