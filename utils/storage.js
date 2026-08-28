@@ -119,7 +119,10 @@ export function syncDeliveredNotifications() {
   if (!userEmail) return;
   
   fetch('/api/orders')
-    .then(res => res.json())
+    .then(res => {
+      if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return [];
+      return res.json().catch(() => []);
+    })
     .then(serverOrders => {
       if (!Array.isArray(serverOrders)) return;
       

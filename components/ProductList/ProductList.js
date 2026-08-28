@@ -7302,7 +7302,10 @@ class ProductList extends HTMLElement {
 
     // Fetch latest orders from server to synchronize status
     fetch('/api/orders')
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return [];
+        return res.json().catch(() => []);
+      })
       .then(serverOrders => {
         if (Array.isArray(serverOrders)) {
           const profile = this.loadUserProfile();
@@ -8288,7 +8291,10 @@ class ProductList extends HTMLElement {
             
             // 2. Fetch latest orders from server, update and POST back
             fetch('/api/orders')
-              .then(res => res.json())
+              .then(res => {
+                if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return getAllOrdersFromStorage();
+                return res.json().catch(() => getAllOrdersFromStorage());
+              })
               .then(serverOrders => {
                 let allOrders = Array.isArray(serverOrders) ? serverOrders : [];
                 const globalOrder = allOrders.find(go => go.id === o.id);
@@ -8332,7 +8338,10 @@ class ProductList extends HTMLElement {
             
             // 2. Fetch latest orders from server, update and POST back
             fetch('/api/orders')
-              .then(res => res.json())
+              .then(res => {
+                if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return getAllOrdersFromStorage();
+                return res.json().catch(() => getAllOrdersFromStorage());
+              })
               .then(serverOrders => {
                 let allOrders = Array.isArray(serverOrders) ? serverOrders : [];
                 const globalOrder = allOrders.find(go => go.id === o.id);
@@ -8373,7 +8382,10 @@ class ProductList extends HTMLElement {
           
            // 2. Fetch latest orders from server, update and POST back
            fetch('/api/orders')
-             .then(res => res.json())
+             .then(res => {
+               if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return getAllOrdersFromStorage();
+               return res.json().catch(() => getAllOrdersFromStorage());
+             })
              .then(serverOrders => {
                let allOrders = Array.isArray(serverOrders) ? serverOrders : [];
                const globalOrder = allOrders.find(go => go.id === o.id);
@@ -8414,7 +8426,10 @@ class ProductList extends HTMLElement {
           
           // 2. Fetch latest orders from server, update and POST back
           fetch('/api/orders')
-            .then(res => res.json())
+            .then(res => {
+              if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return getAllOrdersFromStorage();
+              return res.json().catch(() => getAllOrdersFromStorage());
+            })
             .then(serverOrders => {
               let allOrders = Array.isArray(serverOrders) ? serverOrders : [];
               const globalOrder = allOrders.find(go => go.id === o.id);

@@ -591,13 +591,18 @@ class AdminPage extends HTMLElement {
     window.addEventListener('storage', this._supabaseListener);
 
     // Fallback local API fetch
+    const safeFetchJson = (url) => fetch(url).then(res => {
+      if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return null;
+      return res.json().catch(() => null);
+    }).catch(() => null);
+
     Promise.all([
-      fetch('/api/products').then(res => res.json()).catch(() => null),
-      fetch('/api/categories').then(res => res.json()).catch(() => null),
-      fetch('/api/brands').then(res => res.json()).catch(() => null),
-      fetch('/api/reviews').then(res => res.json()).catch(() => null),
-      fetch('/api/orders').then(res => res.json()).catch(() => null),
-      fetch('/api/coupons').then(res => res.json()).catch(() => null)
+      safeFetchJson('/api/products'),
+      safeFetchJson('/api/categories'),
+      safeFetchJson('/api/brands'),
+      safeFetchJson('/api/reviews'),
+      safeFetchJson('/api/orders'),
+      safeFetchJson('/api/coupons')
     ]).then(([products, categories, brands, reviews, orders, coupons]) => {
       let needsRender = false;
       if (Array.isArray(products) && products.length > 0) {
@@ -1037,13 +1042,18 @@ class AdminPage extends HTMLElement {
   }
 
   syncAllDatabasesFromServer() {
+    const safeFetchJson = (url) => fetch(url).then(res => {
+      if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return null;
+      return res.json().catch(() => null);
+    }).catch(() => null);
+
     Promise.all([
-      fetch('/api/products').then(res => res.json()).catch(() => null),
-      fetch('/api/categories').then(res => res.json()).catch(() => null),
-      fetch('/api/brands').then(res => res.json()).catch(() => null),
-      fetch('/api/reviews').then(res => res.json()).catch(() => null),
-      fetch('/api/orders').then(res => res.json()).catch(() => null),
-      fetch('/api/coupons').then(res => res.json()).catch(() => null)
+      safeFetchJson('/api/products'),
+      safeFetchJson('/api/categories'),
+      safeFetchJson('/api/brands'),
+      safeFetchJson('/api/reviews'),
+      safeFetchJson('/api/orders'),
+      safeFetchJson('/api/coupons')
     ]).then(([products, categories, brands, reviews, orders, coupons]) => {
       if (products) {
         this.products = products;
