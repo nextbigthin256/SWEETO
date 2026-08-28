@@ -34,15 +34,30 @@ class Header extends HTMLElement {
     const profilePill = shadow.getElementById('profile-pill');
     if (!profilePill) return;
     
-    const loggedInUser = localStorage.getItem('SWEETOS_logged_in_user');
-    const profileKey = getProfileStorageKey();
-    let profileSaved = localStorage.getItem(profileKey) || localStorage.getItem('SWEETOS_user_profile');
+    const loggedInUserStr = localStorage.getItem('SWEETOS_logged_in_user');
     
-    let loggedObj = null;
-    if (loggedInUser) {
-      try { loggedObj = JSON.parse(loggedInUser); } catch(e) {}
+    // If user is NOT logged in, display clean Guest Connexion/Registration state
+    if (!loggedInUserStr) {
+      profilePill.innerHTML = `
+        <div class="user-avatar" style="background: rgba(0, 82, 204, 0.1); color: #0052cc; font-size: 13px; font-weight: 800;">👤</div>
+        <span class="user-name" style="font-weight: 750; color: #0f172a;">Connexion / S'inscrire</span>
+      `;
+      return;
     }
 
+    let loggedObj = null;
+    try { loggedObj = JSON.parse(loggedInUserStr); } catch(e) {}
+
+    if (!loggedObj || !loggedObj.email) {
+      profilePill.innerHTML = `
+        <div class="user-avatar" style="background: rgba(0, 82, 204, 0.1); color: #0052cc; font-size: 13px; font-weight: 800;">👤</div>
+        <span class="user-name" style="font-weight: 750; color: #0f172a;">Connexion / S'inscrire</span>
+      `;
+      return;
+    }
+
+    const profileKey = getProfileStorageKey();
+    let profileSaved = localStorage.getItem(profileKey);
     let profile = null;
     if (profileSaved) {
       try { profile = JSON.parse(profileSaved); } catch (e) {}
@@ -50,9 +65,9 @@ class Header extends HTMLElement {
 
     if (!profile) {
       profile = {
-        firstName: loggedObj?.fullname ? loggedObj.fullname.split(' ')[0] : 'Client',
-        lastName: loggedObj?.fullname ? loggedObj.fullname.split(' ').slice(1).join(' ') : 'SWEETOS',
-        email: loggedObj?.email || 'customer@sweetos.com',
+        firstName: loggedObj.fullname ? loggedObj.fullname.split(' ')[0] : (loggedObj.email ? loggedObj.email.split('@')[0] : 'Client'),
+        lastName: loggedObj.fullname ? loggedObj.fullname.split(' ').slice(1).join(' ') : '',
+        email: loggedObj.email,
         badgeType: 'none',
         level: 'starter',
         avatar: ''

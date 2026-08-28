@@ -6,6 +6,29 @@ if (window.location.pathname !== '/' && window.location.pathname !== '/index.htm
   }
 }
 
+// Store Purification Sanitizer: Clear old mock sessions and legacy fake user accounts
+(function purifyStoreSessions() {
+  try {
+    if (!localStorage.getItem('SWEETOS_v3_purified')) {
+      const loggedUser = localStorage.getItem('SWEETOS_logged_in_user');
+      if (loggedUser) {
+        try {
+          const parsed = JSON.parse(loggedUser);
+          if (!parsed.email || parsed.email.includes('customer@sweetos.com') || parsed.email.includes('guest@') || parsed.email.includes('john@doe.com')) {
+            localStorage.removeItem('SWEETOS_logged_in_user');
+            localStorage.removeItem('SWEETOS_user_profile');
+          }
+        } catch(e) {
+          localStorage.removeItem('SWEETOS_logged_in_user');
+          localStorage.removeItem('SWEETOS_user_profile');
+        }
+      }
+      localStorage.removeItem('SWEETOS_user_profile_guest');
+      localStorage.setItem('SWEETOS_v3_purified', 'true');
+    }
+  } catch(e) {}
+})();
+
 import { getCartStorageKey } from './utils/storage.js';
 import { initSupabaseSync } from './utils/supabase.js';
 import './utils/modal.js';

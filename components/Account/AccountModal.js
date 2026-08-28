@@ -146,6 +146,11 @@ class AccountModal extends HTMLElement {
 
   setupEventListeners() {
     window.addEventListener('account:toggle', () => {
+      const loggedIn = localStorage.getItem('SWEETOS_logged_in_user');
+      if (!loggedIn) {
+        window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'auth' } }));
+        return;
+      }
       this.isOpen = !this.isOpen;
       this.loadUserData();
       this.render();
