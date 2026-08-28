@@ -622,7 +622,8 @@ class AdminPage extends HTMLElement {
     });
   }
 
-     const isFirstTime = sessionStorage.getItem('SWEETOS_db_initialized') === null && sessionStorage.getItem('SWEETOS_products') === null;
+  loadDatabase() {
+    const isFirstTime = sessionStorage.getItem('SWEETOS_db_initialized') === null && sessionStorage.getItem('SWEETOS_products') === null;
 
     // 1. Product Catalog
     const storedProds = sessionStorage.getItem('SWEETOS_products');
@@ -756,7 +757,7 @@ class AdminPage extends HTMLElement {
       const key = sessionStorage.key(i);
       if (key && key.startsWith('SWEETOS_user_profile_') && !key.endsWith('_guest')) {
         try {
-          const profile = JSON.parse(sessionStorage.getItem(key));age.getItem(key));
+          const profile = JSON.parse(sessionStorage.getItem(key));
           if (profile && profile.email) {
             const orders = profile.orders || [];
             const spent = orders.reduce((sum, o) => sum + o.total, 0);
