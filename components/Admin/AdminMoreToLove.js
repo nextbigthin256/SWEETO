@@ -78,11 +78,11 @@ export function renderAdminMoreToLove(context) {
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px;">
           <div class="form-group">
             <label style="font-size: 12.5px; font-weight: 750; color: var(--text-dark); margin-bottom: 6px; display: block;">Titre de la Section *</label>
-            <input type="text" id="more-love-title-input" value="${config.title || 'More to Love'}" placeholder="Ex: More to Love" style="width: 100%; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--border); font-size: 14px; font-weight: 700;">
+            <input type="text" id="more-love-title-input" name="more_love_title_no_autofill" value="${config.title || 'More to Love'}" placeholder="Ex: More to Love" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" style="width: 100%; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--border); font-size: 14px; font-weight: 700;">
           </div>
           <div class="form-group">
             <label style="font-size: 12.5px; font-weight: 750; color: var(--text-dark); margin-bottom: 6px; display: block;">Sous-titre / Description</label>
-            <input type="text" id="more-love-subtitle-input" value="${config.subtitle || ''}" placeholder="Ex: Recommandations sélectionnées pour vous" style="width: 100%; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--border); font-size: 14px;">
+            <input type="text" id="more-love-subtitle-input" name="more_love_subtitle_no_autofill" value="${config.subtitle || ''}" placeholder="Ex: Recommandations sélectionnées pour vous" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" style="width: 100%; padding: 12px 14px; border-radius: 12px; border: 1.5px solid var(--border); font-size: 14px;">
           </div>
         </div>
       </div>
@@ -166,7 +166,7 @@ export function renderAdminMoreToLove(context) {
         <!-- Search & Filter Controls -->
         <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
           <div style="flex: 1; min-width: 240px; position: relative;">
-            <input type="text" id="more-love-catalog-search" name="more_love_search_query_no_autofill" value="${searchQuery.includes('@') ? '' : searchQuery}" placeholder="Rechercher par nom, catégorie, marque..." autocomplete="new-password" aria-autocomplete="none" spellcheck="false" style="width: 100%; padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--border); font-size: 13.5px;">
+            <input type="search" role="searchbox" aria-label="Search" id="more-love-catalog-search" name="q_search_no_credentials" value="${searchQuery}" placeholder="Rechercher par nom, catégorie, marque..." autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" style="width: 100%; padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--border); font-size: 13.5px;">
           </div>
           <div style="display: flex; gap: 6px; overflow-x: auto; max-width: 100%; padding-bottom: 4px;">
             ${categories.map(cat => `
@@ -368,19 +368,24 @@ export function attachAdminMoreToLoveListeners(context, shadow) {
   // Live search input
   const searchInput = shadow.getElementById('more-love-catalog-search');
   if (searchInput) {
-    if (searchInput.value.includes('@')) {
+    if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
       searchInput.value = '';
       searchQuery = '';
     }
     searchInput.addEventListener('focus', () => {
-      if (searchInput.value.includes('@')) {
+      if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
         searchInput.value = '';
         searchQuery = '';
       }
     });
 
     searchInput.addEventListener('input', (e) => {
-      searchQuery = e.target.value;
+      let val = e.target.value;
+      if (context.isAutofilledCredential && context.isAutofilledCredential(val)) {
+        e.target.value = '';
+        val = '';
+      }
+      searchQuery = val;
       context.render();
       context.attachListeners();
       const inputRef = context.shadowRoot.getElementById('more-love-catalog-search');

@@ -343,7 +343,7 @@ export function renderAdminInventory(context) {
       <div class="filter-controls-group">
         <div class="clean-search-box">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="inventory-search-input" name="inv_search_query_no_autofill" placeholder="Search SKU, item name, brand..." value="${(context.searchQuery || '').includes('@') ? '' : (context.searchQuery || '')}" autocomplete="new-password" aria-autocomplete="none" spellcheck="false">
+          <input type="search" role="searchbox" aria-label="Search" id="inventory-search-input" name="q_search_no_credentials" placeholder="Search SKU, item name, brand..." value="${context.searchQuery || ''}" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
 
         <select class="select-filter-btn" id="inv-category-select" title="Filter category" style="font-weight:700;">
@@ -562,21 +562,21 @@ export function renderAdminInventory(context) {
               </div>
             </div>
 
-            <form id="stock-modal-form" style="display:flex; flex-direction:column; gap:14px;">
+            <form id="stock-modal-form" autocomplete="off" style="display:flex; flex-direction:column; gap:14px;">
               <div class="form-group-modern">
                 <label>Available Stock Units *</label>
-                <input type="number" id="modal-stock-qty" required min="0" value="${context.stockProduct.stock !== undefined ? context.stockProduct.stock : 0}">
+                <input type="number" id="modal-stock-qty" name="modal_stock_qty_no_autofill" required min="0" value="${context.stockProduct.stock !== undefined ? context.stockProduct.stock : 0}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
               </div>
 
               <div class="form-group-modern">
                 <label>Low-Stock Alert Threshold *</label>
-                <input type="number" id="modal-stock-thresh" required min="1" value="${context.stockProduct.threshold || 5}">
+                <input type="number" id="modal-stock-thresh" name="modal_stock_thresh_no_autofill" required min="1" value="${context.stockProduct.threshold || 5}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
                 <small style="color:#94a3b8; font-size:11px; margin-top:2px;">Trigger alert when stock drops to or below this level.</small>
               </div>
 
               <div class="form-group-modern">
                 <label>Adjustment Reason / Note</label>
-                <input type="text" id="modal-stock-reason" placeholder="e.g. Received new shipment, Damaged item write-off">
+                <input type="text" id="modal-stock-reason" name="modal_stock_reason_no_autofill" placeholder="e.g. Received new shipment, Damaged item write-off" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
               </div>
 
               <button type="submit" class="admin-btn admin-btn-primary" style="padding:12px; font-weight:800; font-size:13.5px; margin-top:6px;">
@@ -594,19 +594,24 @@ export function attachAdminInventoryListeners(context, shadow) {
   // 1. Search Input
   const searchInput = shadow.getElementById('inventory-search-input');
   if (searchInput) {
-    if (searchInput.value.includes('@')) {
+    if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
       searchInput.value = '';
       context.searchQuery = '';
     }
     searchInput.addEventListener('focus', () => {
-      if (searchInput.value.includes('@')) {
+      if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
         searchInput.value = '';
         context.searchQuery = '';
       }
     });
 
     searchInput.addEventListener('input', (e) => {
-      context.searchQuery = e.target.value;
+      let val = e.target.value;
+      if (context.isAutofilledCredential && context.isAutofilledCredential(val)) {
+        e.target.value = '';
+        val = '';
+      }
+      context.searchQuery = val;
       context.currentPageIndex = 1;
       context.render();
       context.attachListeners();

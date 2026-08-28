@@ -347,7 +347,7 @@ export function renderAdminCategories(context) {
         <!-- Search Box -->
         <div class="clean-search-box">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="category-search-input" name="cat_search_query_no_autofill" placeholder="Search categories, subcategories, slugs..." value="${(context.searchQuery || '').includes('@') ? '' : (context.searchQuery || '')}" autocomplete="new-password" aria-autocomplete="none" spellcheck="false">
+          <input type="search" role="searchbox" aria-label="Search" id="category-search-input" name="q_search_no_credentials" placeholder="Search categories, subcategories, slugs..." value="${context.searchQuery || ''}" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
 
         <!-- Hierarchy Filter -->
@@ -633,7 +633,7 @@ export function renderAdminCategories(context) {
 
         <!-- Modal Form Body -->
         <div class="modal-body-modern custom-scroll" style="max-height:78vh; overflow-y:auto; padding:10px 4px;">
-          <form id="cat-crud-form" style="display:flex; flex-direction:column; gap:18px;">
+          <form id="cat-crud-form" autocomplete="off" style="display:flex; flex-direction:column; gap:18px;">
             
             <!-- Category Level Selector (Parent vs Subcategory) -->
             <div class="form-group-modern">
@@ -674,12 +674,12 @@ export function renderAdminCategories(context) {
             <div style="display:grid; grid-template-columns:1.2fr 0.8fr; gap:14px;">
               <div class="form-group-modern">
                 <label>Category Name *</label>
-                <input type="text" id="cat-name-input" required placeholder="e.g. Mechanical Keyboards" value="${editCat.name || ''}" autocomplete="off">
+                <input type="text" id="cat-name-input" name="cat_name_no_autofill" required placeholder="e.g. Mechanical Keyboards" value="${editCat.name || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
               </div>
 
               <div class="form-group-modern">
                 <label>URL Slug</label>
-                <input type="text" id="cat-slug-input" placeholder="e.g. mechanical-keyboards" value="${editCat.slug || ''}">
+                <input type="text" id="cat-slug-input" name="cat_slug_no_autofill" placeholder="e.g. mechanical-keyboards" value="${editCat.slug || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
               </div>
             </div>
 
@@ -689,7 +689,7 @@ export function renderAdminCategories(context) {
               
               <!-- URL input fallback -->
               <div style="display:flex; gap:8px; margin-bottom:8px;">
-                <input type="text" id="cat-image-url-input" placeholder="Or paste image URL (https://...)" value="${editCat.image || ''}" style="padding:8px 12px; font-size:12px;">
+                <input type="text" id="cat-image-url-input" name="cat_img_url_no_autofill" placeholder="Or paste image URL (https://...)" value="${editCat.image || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" style="padding:8px 12px; font-size:12px;">
                 <button type="button" id="apply-cat-img-url-btn" class="admin-btn" style="background:rgba(255,255,255,0.1); color:white; padding:8px 14px; font-size:12px; white-space:nowrap;">Load</button>
               </div>
 
@@ -719,7 +719,7 @@ export function renderAdminCategories(context) {
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:14px;">
               <div class="form-group-modern">
                 <label>Category Icon / Emoji (Optional)</label>
-                <input type="text" id="cat-icon-input" placeholder="e.g. 📁 or ⌨️" value="${editCat.icon || ''}" style="width:100%; font-size:14px;">
+                <input type="text" id="cat-icon-input" name="cat_icon_no_autofill" placeholder="e.g. 📁 or ⌨️" value="${editCat.icon || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" style="width:100%; font-size:14px;">
               </div>
 
               <div class="form-group-modern" style="justify-content:center;">
@@ -756,19 +756,24 @@ export function attachAdminCategoriesListeners(context, shadow) {
   // 1. Search Input
   const searchInput = shadow.getElementById('category-search-input');
   if (searchInput) {
-    if (searchInput.value.includes('@')) {
+    if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
       searchInput.value = '';
       context.searchQuery = '';
     }
     searchInput.addEventListener('focus', () => {
-      if (searchInput.value.includes('@')) {
+      if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
         searchInput.value = '';
         context.searchQuery = '';
       }
     });
 
     searchInput.addEventListener('input', (e) => {
-      context.searchQuery = e.target.value;
+      let val = e.target.value;
+      if (context.isAutofilledCredential && context.isAutofilledCredential(val)) {
+        e.target.value = '';
+        val = '';
+      }
+      context.searchQuery = val;
       context.render();
       context.attachListeners();
       const sRef = shadow.getElementById('category-search-input');

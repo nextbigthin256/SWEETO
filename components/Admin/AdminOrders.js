@@ -26,7 +26,7 @@ export function renderAdminOrders(context) {
   // 2. Search query filter
   if (context.searchQuery) {
     const q = context.searchQuery.toLowerCase().trim();
-    const matches = list.filter(o => 
+    list = list.filter(o => 
       (o.id && o.id.toLowerCase().includes(q)) || 
       (o.customerName && o.customerName.toLowerCase().includes(q)) ||
       (o.customerEmail && o.customerEmail.toLowerCase().includes(q)) ||
@@ -34,10 +34,6 @@ export function renderAdminOrders(context) {
       (o.items && o.items.toLowerCase().includes(q)) ||
       (o.products && o.products.some(p => p.name && p.name.toLowerCase().includes(q)))
     );
-    // If query contains @ (autofilled email) and returns 0 matches, keep full order list
-    if (matches.length > 0 || !q.includes('@')) {
-      list = matches;
-    }
   }
 
   // 3. Status tab filter
@@ -482,7 +478,7 @@ export function renderAdminOrders(context) {
         <!-- Live Search -->
         <div class="clean-search-box">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="order-search-input" name="order_search_query_no_autofill" placeholder="Search by ID, customer name, phone, item..." value="${(context.searchQuery || '').includes('@') ? '' : (context.searchQuery || '')}" autocomplete="new-password" aria-autocomplete="none" spellcheck="false">
+          <input type="search" role="searchbox" aria-label="Search" id="order-search-input" name="q_search_no_credentials" placeholder="Search by ID, customer name, phone, item..." value="${context.searchQuery || ''}" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
 
         <!-- Date Range Filter -->
@@ -993,7 +989,7 @@ export function renderAdminOrderDetails(context) {
               <label style="font-size:11.5px; font-weight:750; color:#64748b; text-transform:uppercase; margin:0;">Tracking Number</label>
               <button id="generate-tracking-btn" style="background:transparent; border:none; color:#0052cc; font-size:11.5px; font-weight:750; cursor:pointer;">Generate ID ⚡</button>
             </div>
-            <input type="text" id="order-tracking-num" class="admin-input" placeholder="e.g. WV-ABJ-89234" value="${order.trackingNumber || ''}" style="width:100%;">
+            <input type="text" id="order-tracking-num" name="order_tracking_num_no_autofill" class="admin-input" placeholder="e.g. WV-ABJ-89234" value="${order.trackingNumber || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" style="width:100%;">
           </div>
 
           <button class="admin-btn admin-btn-success" id="save-order-status-btn" style="width:100%; padding:12px; font-size:14px;">
@@ -1038,19 +1034,24 @@ export function attachAdminOrdersListeners(context, shadow) {
   // 3. Search input with debounce / reactive re-render
   const searchInput = shadow.getElementById('order-search-input');
   if (searchInput) {
-    if (searchInput.value.includes('@')) {
+    if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
       searchInput.value = '';
       context.searchQuery = '';
     }
     searchInput.addEventListener('focus', () => {
-      if (searchInput.value.includes('@')) {
+      if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
         searchInput.value = '';
         context.searchQuery = '';
       }
     });
 
     searchInput.addEventListener('input', (e) => {
-      context.searchQuery = e.target.value;
+      let val = e.target.value;
+      if (context.isAutofilledCredential && context.isAutofilledCredential(val)) {
+        e.target.value = '';
+        val = '';
+      }
+      context.searchQuery = val;
       context.currentPageIndex = 1;
       context.render();
       context.attachListeners();

@@ -372,12 +372,53 @@ class AdminPage extends HTMLElement {
     this.loadDatabase();
   }
 
+  isAutofilledCredential(val) {
+    if (!val || typeof val !== 'string') return false;
+    const trimmed = val.trim().toLowerCase();
+    
+    // Check saved login email from session
+    const savedEmail = (sessionStorage.getItem('SWEETOS_admin_login_email') || '').trim().toLowerCase();
+    if (savedEmail && trimmed === savedEmail) return true;
+    
+    // Check SWEETOS_admin_user email
+    const userObjStr = sessionStorage.getItem('SWEETOS_admin_user');
+    if (userObjStr) {
+      try {
+        const parsed = JSON.parse(userObjStr);
+        if (parsed && parsed.email && trimmed === parsed.email.trim().toLowerCase()) return true;
+      } catch (e) {}
+    }
+
+    return false;
+  }
+
   get searchQuery() {
-    return this.searchQueries[this.currentTab] || '';
+    const q = this.searchQueries[this.currentTab] || '';
+    if (this.isAutofilledCredential(q)) {
+      return '';
+    }
+    return q;
   }
 
   set searchQuery(val) {
-    this.searchQueries[this.currentTab] = val;
+    if (this.isAutofilledCredential(val)) {
+      this.searchQueries[this.currentTab] = '';
+      return;
+    }
+    this.searchQueries[this.currentTab] = val || '';
+  }
+
+  sanitizeAutofilledSearchBars() {
+    const shadow = this.shadowRoot;
+    if (!shadow) return;
+
+    const searchInputs = shadow.querySelectorAll('input[type="search"], #global-admin-search, [id*="search-input"]');
+    searchInputs.forEach(input => {
+      if (this.isAutofilledCredential(input.value)) {
+        input.value = '';
+        this.searchQueries[this.currentTab] = '';
+      }
+    });
   }
 
    checkSessionValidity() {
@@ -1057,14 +1098,14 @@ class AdminPage extends HTMLElement {
             <h2>SWEETOS Admin Portal</h2>
             <p>⚡ Authentification Cloud Supabase</p>
           </div>
-          <form id="admin-login-form">
+          <form id="admin-login-form" autocomplete="off">
             <div class="form-group">
               <label>Email Admin Supabase</label>
-              <input type="email" id="admin-email" required placeholder="admin@example.com" autocomplete="email">
+              <input type="email" id="admin-email" name="admin_login_email_no_autofill" required placeholder="admin@example.com" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
             </div>
             <div class="form-group">
               <label>Mot de Passe Admin</label>
-              <input type="password" id="admin-password" required placeholder="••••••••" autocomplete="current-password">
+              <input type="password" id="admin-password" name="admin_login_pass_no_autofill" required placeholder="••••••••" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
             </div>
             <div id="login-error-msg" class="error-text" style="color: #f87171; font-size: 13px; font-weight: 650; margin-bottom: 12px; text-align: center;"></div>
             <button type="submit" id="admin-submit-btn">Connexion Supabase 🚀</button>
@@ -1104,9 +1145,9 @@ class AdminPage extends HTMLElement {
             <p style="font-size: 12.5px; color: #94a3b8; margin: 0;">Entrez le code PIN à 3 chiffres pour déconnecter les autres appareils</p>
             
             <div class="pin-inputs-row">
-              <input type="password" maxlength="1" class="pin-digit-box" id="pin-digit-1" autocomplete="off">
-              <input type="password" maxlength="1" class="pin-digit-box" id="pin-digit-2" autocomplete="off">
-              <input type="password" maxlength="1" class="pin-digit-box" id="pin-digit-3" autocomplete="off">
+              <input type="password" maxlength="1" class="pin-digit-box" id="pin-digit-1" name="pin_digit_1_no_autofill" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
+              <input type="password" maxlength="1" class="pin-digit-box" id="pin-digit-2" name="pin_digit_2_no_autofill" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
+              <input type="password" maxlength="1" class="pin-digit-box" id="pin-digit-3" name="pin_digit_3_no_autofill" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
             </div>
 
             <div id="pin-modal-error" style="color: #f87171; font-size: 12.5px; font-weight: 700; margin-bottom: 16px; min-height: 18px;"></div>
@@ -1194,12 +1235,14 @@ class AdminPage extends HTMLElement {
             if (result.success) {
               this.isAuthenticated = true;
               sessionStorage.setItem('SWEETOS_admin_authenticated', 'true');
+              if (email) sessionStorage.setItem('SWEETOS_admin_login_email', email);
               const sessionVersion = localStorage.getItem('SWEETOS_admin_session_version') || Date.now().toString();
               localStorage.setItem('SWEETOS_admin_session_version', sessionVersion);
               sessionStorage.setItem('SWEETOS_admin_device_session_version', sessionVersion);
               
               if (result.user && result.user.email) {
                 sessionStorage.setItem('SWEETOS_admin_user', JSON.stringify({ email: result.user.email }));
+                sessionStorage.setItem('SWEETOS_admin_login_email', result.user.email);
               }
 
               this.render();
@@ -1223,6 +1266,9 @@ class AdminPage extends HTMLElement {
       }
       return;
     }
+
+    // Sanitize any search bars that browser autofilled credentials into
+    this.sanitizeAutofilledSearchBars();
 
     // Attach modular components listeners
     attachAdminSidebarListeners(this, shadow);

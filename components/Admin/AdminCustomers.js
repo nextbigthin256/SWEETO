@@ -312,7 +312,7 @@ export function renderAdminCustomers(context) {
         <!-- Live Instant Search -->
         <div class="clean-search-box">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="customer-search-input" name="cust_search_query_no_autofill" placeholder="Search customer name, email, phone, city..." value="${(context.searchQuery || '').includes('@') ? '' : (context.searchQuery || '')}" autocomplete="new-password" aria-autocomplete="none" spellcheck="false">
+          <input type="search" role="searchbox" aria-label="Search" id="customer-search-input" name="q_search_no_credentials" placeholder="Search customer name, email, phone, city..." value="${context.searchQuery || ''}" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
 
         <!-- Tier Filter -->
@@ -700,19 +700,24 @@ export function attachAdminCustomersListeners(context, shadow) {
   // 1. Search Input
   const searchInput = shadow.getElementById('customer-search-input');
   if (searchInput) {
-    if (searchInput.value.includes('@')) {
+    if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
       searchInput.value = '';
       context.searchQuery = '';
     }
     searchInput.addEventListener('focus', () => {
-      if (searchInput.value.includes('@')) {
+      if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
         searchInput.value = '';
         context.searchQuery = '';
       }
     });
 
     searchInput.addEventListener('input', (e) => {
-      context.searchQuery = e.target.value;
+      let val = e.target.value;
+      if (context.isAutofilledCredential && context.isAutofilledCredential(val)) {
+        e.target.value = '';
+        val = '';
+      }
+      context.searchQuery = val;
       context.currentPageIndex = 1;
       context.render();
       context.attachListeners();

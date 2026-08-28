@@ -488,7 +488,7 @@ export function renderAdminProducts(context) {
         <!-- Live Instant Search -->
         <div class="clean-search-box">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="product-search-input" name="prod_search_query_no_autofill" placeholder="Search by name, SKU, brand, category..." value="${(context.searchQuery || '').includes('@') ? '' : (context.searchQuery || '')}" autocomplete="new-password" aria-autocomplete="none" spellcheck="false">
+          <input type="search" role="searchbox" aria-label="Search" id="product-search-input" name="q_search_no_credentials" placeholder="Search by name, SKU, brand, category..." value="${context.searchQuery || ''}" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
 
         <!-- Stock Filter -->
@@ -729,7 +729,7 @@ export function renderAdminProducts(context) {
         
         <!-- Modal Body -->
         <div class="modal-body-modern custom-scroll" style="max-height:76vh; overflow-y:auto; padding-right:6px;">
-          <form id="prod-crud-form" class="product-modern-form">
+          <form id="prod-crud-form" class="product-modern-form" autocomplete="off">
             
             <!-- LEFT COLUMN: Core Details, Pricing, Inventory -->
             <div class="form-col-left">
@@ -737,7 +737,7 @@ export function renderAdminProducts(context) {
               <!-- Product Title -->
               <div class="form-group-modern">
                 <label>Product Title / Name *</label>
-                <input type="text" id="prod-name" required placeholder="e.g. Ergonomic Split Mechanical Keyboard" autocomplete="off" value="${isEditing ? (context.editingProduct.name || '') : ''}">
+                <input type="text" id="prod-name" name="prod_name_no_autofill" required placeholder="e.g. Ergonomic Split Mechanical Keyboard" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" value="${isEditing ? (context.editingProduct.name || '') : ''}">
               </div>
 
               <!-- Category & Brand -->
@@ -788,14 +788,14 @@ export function renderAdminProducts(context) {
                 <div class="form-group-modern">
                   <label>Sale Price (CFA) *</label>
                   <div class="price-input-wrapper">
-                    <input type="text" inputmode="numeric" id="prod-price" required placeholder="e.g. 200000" value="${isEditing ? (context.editingProduct.price || '') : ''}">
+                    <input type="text" inputmode="numeric" id="prod-price" name="prod_price_no_autofill" required placeholder="e.g. 200000" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" value="${isEditing ? (context.editingProduct.price || '') : ''}">
                   </div>
                 </div>
 
                 <div class="form-group-modern">
                   <label>Compare-At Price (Optional Original)</label>
                   <div class="price-input-wrapper">
-                    <input type="text" inputmode="numeric" id="prod-compare-price" placeholder="Leave empty if no discount" value="${isEditing && (context.editingProduct.comparePrice || context.editingProduct.originalPrice) ? (context.editingProduct.comparePrice || context.editingProduct.originalPrice) : ''}">
+                    <input type="text" inputmode="numeric" id="prod-compare-price" name="prod_compare_no_autofill" placeholder="Leave empty if no discount" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" value="${isEditing && (context.editingProduct.comparePrice || context.editingProduct.originalPrice) ? (context.editingProduct.comparePrice || context.editingProduct.originalPrice) : ''}">
                   </div>
                 </div>
               </div>
@@ -807,12 +807,12 @@ export function renderAdminProducts(context) {
                     <label>SKU Code</label>
                     <button type="button" id="auto-sku-btn" style="background:transparent; border:none; color:#38bdf8; font-size:11px; font-weight:750; cursor:pointer;">Auto ⚡</button>
                   </div>
-                  <input type="text" id="prod-sku" placeholder="e.g. KB-SPLIT-920" value="${isEditing ? (context.editingProduct.sku || '') : ''}">
+                  <input type="text" id="prod-sku" name="prod_sku_no_autofill" placeholder="e.g. KB-SPLIT-920" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" value="${isEditing ? (context.editingProduct.sku || '') : ''}">
                 </div>
 
                 <div class="form-group-modern">
                   <label>Initial Stock Quantity *</label>
-                  <input type="number" id="prod-stock" required min="0" placeholder="10" value="${isEditing ? (context.editingProduct.stock !== undefined ? context.editingProduct.stock : 15) : '15'}">
+                  <input type="number" id="prod-stock" name="prod_stock_no_autofill" required min="0" placeholder="e.g. 10" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" value="${isEditing ? (context.editingProduct.stock !== undefined ? context.editingProduct.stock : 15) : 15}">
                 </div>
               </div>
 
@@ -820,12 +820,12 @@ export function renderAdminProducts(context) {
               <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
                 <div class="form-group-modern">
                   <label>Low-Stock Alert Level</label>
-                  <input type="number" id="prod-threshold" min="1" placeholder="5" value="${isEditing ? (context.editingProduct.threshold || 5) : '5'}">
+                  <input type="number" id="prod-threshold" name="prod_threshold_no_autofill" min="1" placeholder="e.g. 5" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" value="${isEditing ? (context.editingProduct.threshold || 5) : 5}">
                 </div>
 
                 <div class="form-group-modern">
                   <label>Cost Price (CFA)</label>
-                  <input type="number" id="prod-cost-price" min="0" placeholder="e.g. 28000" value="${isEditing && context.editingProduct.costPrice ? context.editingProduct.costPrice : ''}">
+                  <input type="number" id="prod-cost-price" name="prod_cost_no_autofill" min="0" placeholder="e.g. 28000" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" value="${isEditing && context.editingProduct.costPrice ? context.editingProduct.costPrice : ''}">
                 </div>
               </div>
 
@@ -846,7 +846,7 @@ export function renderAdminProducts(context) {
                 
                 <!-- URL input fallback -->
                 <div style="display:flex; gap:8px; margin-bottom:8px;">
-                  <input type="text" id="prod-image-url-input" placeholder="Or paste image URL (https://...)" value="${isEditing ? (context.editingProduct.image || '') : ''}" style="padding:8px 12px; font-size:12px;">
+                  <input type="text" id="prod-image-url-input" name="prod_img_url_no_autofill" placeholder="Or paste image URL (https://...)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" value="${isEditing ? (context.editingProduct.image || '') : ''}" style="padding:8px 12px; font-size:12px;">
                   <button type="button" id="apply-img-url-btn" class="admin-btn" style="background:rgba(255,255,255,0.1); color:white; padding:8px 14px; font-size:12px; white-space:nowrap;">Load</button>
                 </div>
 
@@ -876,7 +876,7 @@ export function renderAdminProducts(context) {
               <div class="form-group-modern">
                 <label>Promotional Ribbon / Badge Tag</label>
                 <div style="display:flex; gap:8px;">
-                  <input type="text" id="prod-badge" placeholder="e.g. NEW, 30% OFF, BESTSELLER" value="${isEditing ? (context.editingProduct.badge || '') : ''}">
+                  <input type="text" id="prod-badge" name="prod_badge_no_autofill" placeholder="e.g. NEW, 30% OFF, BESTSELLER" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" value="${isEditing ? (context.editingProduct.badge || '') : ''}">
                   <select id="preset-badge-select" style="width:130px; font-size:12px;">
                     <option value="">Preset...</option>
                     <option value="NEW">NEW</option>
@@ -988,19 +988,24 @@ export function attachAdminProductsListeners(context, shadow) {
   // 1. Search Input
   const searchInput = shadow.getElementById('product-search-input');
   if (searchInput) {
-    if (searchInput.value.includes('@')) {
+    if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
       searchInput.value = '';
       context.searchQuery = '';
     }
     searchInput.addEventListener('focus', () => {
-      if (searchInput.value.includes('@')) {
+      if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
         searchInput.value = '';
         context.searchQuery = '';
       }
     });
 
     searchInput.addEventListener('input', (e) => {
-      context.searchQuery = e.target.value;
+      let val = e.target.value;
+      if (context.isAutofilledCredential && context.isAutofilledCredential(val)) {
+        e.target.value = '';
+        val = '';
+      }
+      context.searchQuery = val;
       context.currentPageIndex = 1;
       context.render();
       context.attachListeners();
@@ -1611,11 +1616,11 @@ export function attachAdminProductsListeners(context, shadow) {
           <input type="color" class="variant-color-picker" data-index="${index}" value="${hex}" style="width:32px; height:32px; border-radius:6px; border:1px solid rgba(255,255,255,0.2); cursor:pointer; background:none; padding:0; flex-shrink:0;">
           
           <div style="flex:2; min-width:120px;">
-            <input type="text" class="variant-color-name" data-index="${index}" placeholder="Color Name (e.g. Midnight Black)" value="${name}" style="width:100%; background:#141b2d; border:1px solid rgba(255,255,255,0.1); color:white; padding:6px 8px; border-radius:6px; font-size:12px;">
+            <input type="text" class="variant-color-name" name="variant_color_name_no_autofill" data-index="${index}" placeholder="Color Name (e.g. Midnight Black)" value="${name}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" style="width:100%; background:#141b2d; border:1px solid rgba(255,255,255,0.1); color:white; padding:6px 8px; border-radius:6px; font-size:12px;">
           </div>
 
           <div style="flex:1; min-width:95px;">
-            <input type="number" class="variant-price-adjust" data-index="${index}" placeholder="± Extra FCFA" value="${priceAdj}" title="Extra Price (FCFA)" style="width:100%; background:#141b2d; border:1px solid rgba(255,255,255,0.1); color:white; padding:6px 8px; border-radius:6px; font-size:12px;">
+            <input type="number" class="variant-price-adjust" name="variant_price_adjust_no_autofill" data-index="${index}" placeholder="± Extra FCFA" value="${priceAdj}" title="Extra Price (FCFA)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" style="width:100%; background:#141b2d; border:1px solid rgba(255,255,255,0.1); color:white; padding:6px 8px; border-radius:6px; font-size:12px;">
           </div>
 
           <button type="button" class="delete-color-variant-btn" data-index="${index}" style="background:rgba(239,68,68,0.15); color:#ef4444; border:1px solid rgba(239,68,68,0.3); border-radius:6px; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; font-size:14px; flex-shrink:0;" title="Remove Color">✕</button>

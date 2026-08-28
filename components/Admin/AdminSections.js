@@ -265,7 +265,7 @@ export function renderAdminSections(context) {
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; flex:1;">
         <div class="clean-search-box">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="section-search-input" placeholder="Search section title, layout type, category..." value="${context.searchQuery || ''}">
+          <input type="search" role="searchbox" aria-label="Search" id="section-search-input" name="q_search_no_credentials" placeholder="Search section title, layout type, category..." value="${context.searchQuery || ''}" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
 
         <select class="select-filter-btn" id="section-type-filter" title="Filter by layout type">
@@ -389,16 +389,16 @@ export function renderAdminSections(context) {
         </div>
 
         <div class="modal-body-modern custom-scroll" style="max-height:75vh; overflow-y:auto; padding:12px 4px;">
-          <form id="section-crud-form" style="display:flex; flex-direction:column; gap:16px;">
+          <form id="section-crud-form" autocomplete="off" style="display:flex; flex-direction:column; gap:16px;">
             
             <div class="form-group-modern">
               <label>Section Display Title *</label>
-              <input type="text" id="sec-name-input" required placeholder="e.g. ⚡ Flash Deals & Weekend Specials" value="${editSec.name || ''}">
+              <input type="text" id="sec-name-input" name="sec_name_no_autofill" required placeholder="e.g. ⚡ Flash Deals & Weekend Specials" value="${editSec.name || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
             </div>
 
             <div class="form-group-modern">
               <label>Subtitle / Description Tagline</label>
-              <input type="text" id="sec-subtitle-input" placeholder="e.g. Handcrafted wooden desk risers & artisan keycaps" value="${editSec.subtitle || ''}">
+              <input type="text" id="sec-subtitle-input" name="sec_subtitle_no_autofill" placeholder="e.g. Handcrafted wooden desk risers & artisan keycaps" value="${editSec.subtitle || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
             </div>
 
             <div class="form-group-modern">
@@ -463,8 +463,24 @@ export function attachAdminSectionsListeners(context, shadow) {
   // 1. Search Input
   const searchInput = shadow.getElementById('section-search-input');
   if (searchInput) {
+    if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
+      searchInput.value = '';
+      context.searchQuery = '';
+    }
+    searchInput.addEventListener('focus', () => {
+      if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
+        searchInput.value = '';
+        context.searchQuery = '';
+      }
+    });
+
     searchInput.addEventListener('input', (e) => {
-      context.searchQuery = e.target.value;
+      let val = e.target.value;
+      if (context.isAutofilledCredential && context.isAutofilledCredential(val)) {
+        e.target.value = '';
+        val = '';
+      }
+      context.searchQuery = val;
       context.render();
       context.attachListeners();
       const sRef = shadow.getElementById('section-search-input');

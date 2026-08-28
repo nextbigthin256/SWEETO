@@ -210,32 +210,32 @@ function renderSettingsSubtabContent(context, subtab) {
           <p style="margin:3px 0 0 0; font-size:12.5px; color:#64748b;">Manage public store details, contact info, and About Us story</p>
         </div>
 
-        <form id="settings-general-form">
+        <form id="settings-general-form" autocomplete="off">
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
             <div class="settings-form-group">
               <label>Store Brand Name *</label>
-              <input type="text" id="set-store-name" class="settings-input" value="${storeName}" required>
+              <input type="text" id="set-store-name" name="set_store_name_no_autofill" class="settings-input" value="${storeName}" required autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
             </div>
             <div class="settings-form-group">
               <label>Support Email Address *</label>
-              <input type="email" id="set-store-email" class="settings-input" value="${storeEmail}" required>
+              <input type="email" id="set-store-email" name="set_store_email_no_autofill" class="settings-input" value="${storeEmail}" required autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
             </div>
           </div>
 
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
             <div class="settings-form-group">
               <label>Official Phone / WhatsApp *</label>
-              <input type="text" id="set-store-phone" class="settings-input" value="${storePhone}" required>
+              <input type="text" id="set-store-phone" name="set_store_phone_no_autofill" class="settings-input" value="${storePhone}" required autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
             </div>
             <div class="settings-form-group">
               <label>Physical Store Location / Address</label>
-              <input type="text" id="set-store-addr" class="settings-input" value="${storeAddr}">
+              <input type="text" id="set-store-addr" name="set_store_addr_no_autofill" class="settings-input" value="${storeAddr}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
             </div>
           </div>
 
           <div class="settings-form-group">
             <label>Opening / Business Hours</label>
-            <input type="text" id="set-store-hours" class="settings-input" value="${storeHours}">
+            <input type="text" id="set-store-hours" name="set_store_hours_no_autofill" class="settings-input" value="${storeHours}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
           </div>
 
           <div class="settings-form-group">
@@ -261,10 +261,10 @@ function renderSettingsSubtabContent(context, subtab) {
           <p style="margin:3px 0 0 0; font-size:12.5px; color:#64748b;">Configure brand color accents, social channels, and Google search metadata</p>
         </div>
 
-        <form id="settings-brand-form">
+        <form id="settings-brand-form" autocomplete="off">
           <div class="settings-form-group">
             <label>Brand Tagline</label>
-            <input type="text" id="set-brand-tagline" class="settings-input" value="${brandTagline}">
+            <input type="text" id="set-brand-tagline" name="set_brand_tagline_no_autofill" class="settings-input" value="${brandTagline}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
           </div>
 
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
@@ -272,7 +272,7 @@ function renderSettingsSubtabContent(context, subtab) {
               <label>Primary Theme Color</label>
               <div style="display:flex; align-items:center; gap:10px;">
                 <input type="color" id="set-brand-color-primary" value="${primaryColor}" style="width:44px; height:40px; border:none; border-radius:8px; cursor:pointer;">
-                <input type="text" id="set-brand-color-primary-text" class="settings-input" value="${primaryColor}">
+                <input type="text" id="set-brand-color-primary-text" name="set_brand_color_primary_text_no_autofill" class="settings-input" value="${primaryColor}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
               </div>
             </div>
 
@@ -280,7 +280,7 @@ function renderSettingsSubtabContent(context, subtab) {
               <label>Accent Highlight Color</label>
               <div style="display:flex; align-items:center; gap:10px;">
                 <input type="color" id="set-brand-color-accent" value="${accentColor}" style="width:44px; height:40px; border:none; border-radius:8px; cursor:pointer;">
-                <input type="text" id="set-brand-color-accent-text" class="settings-input" value="${accentColor}">
+                <input type="text" id="set-brand-color-accent-text" name="set_brand_color_accent_text_no_autofill" class="settings-input" value="${accentColor}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
               </div>
             </div>
           </div>
@@ -288,11 +288,11 @@ function renderSettingsSubtabContent(context, subtab) {
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
             <div class="settings-form-group">
               <label>Facebook Profile URL</label>
-              <input type="url" id="set-fb-url" class="settings-input" value="${fbUrl}">
+              <input type="url" id="set-fb-url" name="set_fb_url_no_autofill" class="settings-input" value="${fbUrl}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
             </div>
             <div class="settings-form-group">
               <label>Instagram Handle / URL</label>
-              <input type="url" id="set-ig-url" class="settings-input" value="${igUrl}">
+              <input type="url" id="set-ig-url" name="set_ig_url_no_autofill" class="settings-input" value="${igUrl}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
             </div>
           </div>
 
@@ -401,21 +401,21 @@ function renderSettingsSubtabContent(context, subtab) {
           <p style="margin:3px 0 0 0; font-size:12.5px; color:#64748b;">Set standard delivery fees, free shipping qualifying thresholds, and default courier</p>
         </div>
 
-        <form id="settings-shipping-form">
+        <form id="settings-shipping-form" autocomplete="off">
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
             <div class="settings-form-group">
               <label>Flat Delivery Fee (CFA) *</label>
-              <input type="number" id="set-shipping-rate" class="settings-input" value="${shippingRate}" min="0">
+              <input type="number" id="set-shipping-rate" name="set_shipping_rate_no_autofill" class="settings-input" value="${shippingRate}" min="0" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
             </div>
             <div class="settings-form-group">
               <label>Free Delivery Threshold (CFA)</label>
-              <input type="number" id="set-free-shipping" class="settings-input" value="${freeShippingThreshold}" min="0">
+              <input type="number" id="set-free-shipping" name="set_free_shipping_no_autofill" class="settings-input" value="${freeShippingThreshold}" min="0" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
             </div>
           </div>
 
           <div class="settings-form-group">
             <label>Primary Logistics Courier Partner</label>
-            <input type="text" id="set-shipping-provider" class="settings-input" value="${shippingProvider}">
+            <input type="text" id="set-shipping-provider" name="set_shipping_provider_no_autofill" class="settings-input" value="${shippingProvider}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
           </div>
 
           <button type="submit" class="admin-btn admin-btn-primary" style="padding:12px 24px; font-weight:800; font-size:13.5px; margin-top:8px;">
@@ -431,7 +431,7 @@ function renderSettingsSubtabContent(context, subtab) {
           <p style="margin:3px 0 0 0; font-size:12.5px; color:#64748b;">Enable payment methods available on customer checkout</p>
         </div>
 
-        <form id="settings-payment-form">
+        <form id="settings-payment-form" autocomplete="off">
           <div class="toggle-switch-card">
             <div>
               <strong style="font-size:13.5px; color:#0f172a; display:block;">💵 Cash on Delivery (Paiement à la livraison)</strong>
@@ -474,11 +474,11 @@ function renderSettingsSubtabContent(context, subtab) {
           <p style="margin:3px 0 0 0; font-size:12.5px; color:#64748b;">Configure standard sales tax / TVA rates and invoice calculations</p>
         </div>
 
-        <form id="settings-tax-form">
+        <form id="settings-tax-form" autocomplete="off">
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
             <div class="settings-form-group">
               <label>Standard VAT / TVA Rate (%)</label>
-              <input type="number" id="set-vat-rate" class="settings-input" value="${vatRate}" min="0" max="50">
+              <input type="number" id="set-vat-rate" name="set_vat_rate_no_autofill" class="settings-input" value="${vatRate}" min="0" max="50" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
             </div>
             <div class="settings-form-group">
               <label>Calculation Mode</label>
@@ -502,7 +502,7 @@ function renderSettingsSubtabContent(context, subtab) {
           <p style="margin:3px 0 0 0; font-size:12.5px; color:#64748b;">Customize storefront typography, aesthetic styles, and banner copy</p>
         </div>
 
-        <form id="settings-appearance-form">
+        <form id="settings-appearance-form" autocomplete="off">
           <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
             <div class="settings-form-group">
               <label>Aesthetic Theme</label>
@@ -524,12 +524,12 @@ function renderSettingsSubtabContent(context, subtab) {
 
           <div class="settings-form-group">
             <label>Storefront Hero Banner Main Title</label>
-            <input type="text" id="set-hero-title" class="settings-input" value="${heroTitle}">
+            <input type="text" id="set-hero-title" name="set_hero_title_no_autofill" class="settings-input" value="${heroTitle}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
           </div>
 
           <div class="settings-form-group">
             <label>Storefront Hero Subtitle / Slogan</label>
-            <input type="text" id="set-hero-subtitle" class="settings-input" value="${heroSubtitle}">
+            <input type="text" id="set-hero-subtitle" name="set_hero_subtitle_no_autofill" class="settings-input" value="${heroSubtitle}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
           </div>
 
           <button type="submit" class="admin-btn admin-btn-primary" style="padding:12px 24px; font-weight:800; font-size:13.5px; margin-top:8px;">
@@ -550,8 +550,8 @@ function renderSettingsSubtabContent(context, subtab) {
           <h4 style="margin:0 0 6px 0; font-size:14.5px; font-weight:800; color:#0f172a;">🔑 Code PIN de Sécurité (3 Chiffres)</h4>
           <p style="margin:0 0 14px 0; font-size:12px; color:#64748b;">Ce code PIN à 3 chiffres est stocké sur Supabase Cloud et est requis pour déconnecter à distance tous les autres appareils.</p>
 
-          <form id="settings-change-pin-form" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-            <input type="password" id="set-new-pin-input" class="settings-input" maxlength="3" placeholder="Ex: 256" style="width:120px; text-align:center; font-size:18px; font-weight:900; letter-spacing:4px;" required>
+          <form id="settings-change-pin-form" autocomplete="off" style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+            <input type="password" id="set-new-pin-input" name="set_new_pin_no_autofill" class="settings-input" maxlength="3" placeholder="Ex: 256" style="width:120px; text-align:center; font-size:18px; font-weight:900; letter-spacing:4px;" required autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
             <button type="submit" class="admin-btn admin-btn-primary" style="padding:10px 18px; font-weight:800; font-size:13px;">
               💾 Mettre à jour PIN Cloud
             </button>

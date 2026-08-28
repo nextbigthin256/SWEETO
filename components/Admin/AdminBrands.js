@@ -310,7 +310,7 @@ export function renderAdminBrands(context) {
         <!-- Search Box -->
         <div class="clean-search-box">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="brand-search-input" name="brand_search_query_no_autofill" placeholder="Search brands, slugs, websites..." value="${(context.searchQuery || '').includes('@') ? '' : (context.searchQuery || '')}" autocomplete="new-password" aria-autocomplete="none" spellcheck="false">
+          <input type="search" role="searchbox" aria-label="Search" id="brand-search-input" name="q_search_no_credentials" placeholder="Search brands, slugs, websites..." value="${context.searchQuery || ''}" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
 
         <!-- Sorting -->
@@ -519,18 +519,18 @@ export function renderAdminBrands(context) {
 
         <!-- Modal Form Body -->
         <div class="modal-body-modern custom-scroll" style="max-height:78vh; overflow-y:auto; padding:10px 4px;">
-          <form id="brand-crud-form" style="display:flex; flex-direction:column; gap:18px;">
+          <form id="brand-crud-form" autocomplete="off" style="display:flex; flex-direction:column; gap:18px;">
             
             <!-- Brand Name & Slug -->
             <div style="display:grid; grid-template-columns:1.2fr 0.8fr; gap:14px;">
               <div class="form-group-modern">
                 <label>Brand Name *</label>
-                <input type="text" id="brand-name-input" required placeholder="e.g. Keychron, Sony, Apple" value="${editBrand.name || ''}" autocomplete="off">
+                <input type="text" id="brand-name-input" name="brand_name_no_autofill" required placeholder="e.g. Keychron, Sony, Apple" value="${editBrand.name || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
               </div>
 
               <div class="form-group-modern">
                 <label>URL Slug</label>
-                <input type="text" id="brand-slug-input" placeholder="e.g. keychron" value="${editBrand.slug || ''}">
+                <input type="text" id="brand-slug-input" name="brand_slug_no_autofill" placeholder="e.g. keychron" value="${editBrand.slug || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
               </div>
             </div>
 
@@ -540,7 +540,7 @@ export function renderAdminBrands(context) {
               
               <!-- URL input fallback -->
               <div style="display:flex; gap:8px; margin-bottom:8px;">
-                <input type="text" id="brand-image-url-input" placeholder="Or paste image URL (https://...)" value="${editBrand.image || ''}" style="padding:8px 12px; font-size:12px;">
+                <input type="text" id="brand-image-url-input" name="brand_img_url_no_autofill" placeholder="Or paste image URL (https://...)" value="${editBrand.image || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" style="padding:8px 12px; font-size:12px;">
                 <button type="button" id="apply-brand-img-url-btn" class="admin-btn" style="background:rgba(255,255,255,0.1); color:white; padding:8px 14px; font-size:12px; white-space:nowrap;">Load</button>
               </div>
 
@@ -570,12 +570,12 @@ export function renderAdminBrands(context) {
             <div style="display:grid; grid-template-columns:0.8fr 1.2fr; gap:14px;">
               <div class="form-group-modern">
                 <label>Emoji / Logo Icon</label>
-                <input type="text" id="brand-logo-input" placeholder="🍭, 🍏, ⌨️, 🎧" value="${editBrand.logo || '🏷️'}" style="text-align:center; font-size:18px;">
+                <input type="text" id="brand-logo-input" name="brand_logo_icon_no_autofill" placeholder="e.g. 🏷️" value="${editBrand.logo || '🏷️'}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" style="text-align:center; font-size:18px;">
               </div>
 
               <div class="form-group-modern">
                 <label>Official Website / Store</label>
-                <input type="url" id="brand-website-input" placeholder="https://brand.com" value="${editBrand.website || ''}">
+                <input type="url" id="brand-website-input" name="brand_website_no_autofill" placeholder="https://brand.com" value="${editBrand.website || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
               </div>
             </div>
 
@@ -612,19 +612,24 @@ export function attachAdminBrandsListeners(context, shadow) {
   // 1. Search Input
   const searchInput = shadow.getElementById('brand-search-input');
   if (searchInput) {
-    if (searchInput.value.includes('@')) {
+    if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
       searchInput.value = '';
       context.searchQuery = '';
     }
     searchInput.addEventListener('focus', () => {
-      if (searchInput.value.includes('@')) {
+      if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
         searchInput.value = '';
         context.searchQuery = '';
       }
     });
 
     searchInput.addEventListener('input', (e) => {
-      context.searchQuery = e.target.value;
+      let val = e.target.value;
+      if (context.isAutofilledCredential && context.isAutofilledCredential(val)) {
+        e.target.value = '';
+        val = '';
+      }
+      context.searchQuery = val;
       context.render();
       context.attachListeners();
       const sRef = shadow.getElementById('brand-search-input');

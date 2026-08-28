@@ -251,7 +251,7 @@ export function renderAdminReviews(context) {
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; flex:1;">
         <div class="clean-search-box" style="min-width:240px;">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="review-search-input" placeholder="Search by customer, comment, product..." value="${context.searchQuery || ''}">
+          <input type="search" role="searchbox" aria-label="Search" id="review-search-input" name="q_search_no_credentials" placeholder="Search by customer, comment, product..." value="${context.searchQuery || ''}" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
 
         <select class="select-filter-btn" id="review-rating-filter" title="Filter by stars">
@@ -439,7 +439,7 @@ export function renderAdminReviews(context) {
           </div>
 
           <div class="modal-body-modern custom-scroll" style="max-height:75vh; overflow-y:auto; padding:16px 4px;">
-            <form id="review-crud-form" style="display:flex; flex-direction:column; gap:16px;">
+            <form id="review-crud-form" autocomplete="off" style="display:flex; flex-direction:column; gap:16px;">
               
               <div class="form-group-modern">
                 <label>Target Product *</label>
@@ -454,7 +454,7 @@ export function renderAdminReviews(context) {
               <div style="display:grid; grid-template-columns:1.2fr 0.8fr; gap:14px;">
                 <div class="form-group-modern">
                   <label>Reviewer Name *</label>
-                  <input type="text" id="rev-author-name" required placeholder="e.g. Marc Aurele" value="${isEditing ? (editRev.user || '') : ''}">
+                  <input type="text" id="rev-author-name" name="rev_author_name_no_autofill" required placeholder="e.g. Marc Aurele" value="${isEditing ? (editRev.user || '') : ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
                 </div>
 
                 <div class="form-group-modern">
@@ -512,8 +512,24 @@ export function attachAdminReviewsListeners(context, shadow) {
   // 1. Search Input
   const searchInput = shadow.getElementById('review-search-input');
   if (searchInput) {
+    if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
+      searchInput.value = '';
+      context.searchQuery = '';
+    }
+    searchInput.addEventListener('focus', () => {
+      if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
+        searchInput.value = '';
+        context.searchQuery = '';
+      }
+    });
+
     searchInput.addEventListener('input', (e) => {
-      context.searchQuery = e.target.value;
+      let val = e.target.value;
+      if (context.isAutofilledCredential && context.isAutofilledCredential(val)) {
+        e.target.value = '';
+        val = '';
+      }
+      context.searchQuery = val;
       context.render();
       context.attachListeners();
       const sRef = shadow.getElementById('review-search-input');

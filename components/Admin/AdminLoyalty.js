@@ -276,7 +276,7 @@ export function renderAdminLoyalty(context) {
             </div>
             
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <input type="text" id="loyalty-search-input" name="loyalty_search_query_no_autofill" class="admin-input" placeholder="Rechercher par nom ou email..." value="${searchQuery.includes('@') ? '' : searchQuery}" autocomplete="new-password" aria-autocomplete="none" spellcheck="false" style="width: 240px; font-size: 12.5px;">
+              <input type="search" role="searchbox" aria-label="Search" id="loyalty-search-input" name="q_search_no_credentials" class="admin-input" placeholder="Rechercher par nom ou email..." value="${searchQuery}" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false" style="width: 240px; font-size: 12.5px;">
               
               <select id="loyalty-filter-tier" class="admin-input" style="font-size: 12px; font-weight: 700;">
                 <option value="all" ${filterTier === 'all' ? 'selected' : ''}>Tous les Niveaux</option>
@@ -388,19 +388,24 @@ export function attachAdminLoyaltyListeners(context, shadow) {
   // 1. Search Input
   const searchInput = shadow.getElementById('loyalty-search-input');
   if (searchInput) {
-    if (searchInput.value.includes('@')) {
+    if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
       searchInput.value = '';
       searchQuery = '';
     }
     searchInput.addEventListener('focus', () => {
-      if (searchInput.value.includes('@')) {
+      if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
         searchInput.value = '';
         searchQuery = '';
       }
     });
 
     searchInput.addEventListener('input', (e) => {
-      searchQuery = e.target.value;
+      let val = e.target.value;
+      if (context.isAutofilledCredential && context.isAutofilledCredential(val)) {
+        e.target.value = '';
+        val = '';
+      }
+      searchQuery = val;
       context.render();
       context.attachListeners();
       const ref = shadow.getElementById('loyalty-search-input');

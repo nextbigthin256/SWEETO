@@ -273,7 +273,7 @@ export function renderAdminCoupons(context) {
       <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; flex:1;">
         <div class="clean-search-box">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="coupon-search-input" name="coup_search_query_no_autofill" placeholder="Search coupon code or discount type..." value="${(context.searchQuery || '').includes('@') ? '' : (context.searchQuery || '')}" autocomplete="new-password" aria-autocomplete="none" spellcheck="false">
+          <input type="search" role="searchbox" aria-label="Search" id="coupon-search-input" name="q_search_no_credentials" placeholder="Search coupon code or discount type..." value="${context.searchQuery || ''}" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
 
         <select class="select-filter-btn" id="coupon-type-filter" title="Filter by type">
@@ -430,12 +430,12 @@ export function renderAdminCoupons(context) {
         </div>
 
         <div class="modal-body-modern custom-scroll" style="max-height:75vh; overflow-y:auto; padding:12px 4px;">
-          <form id="coupon-crud-form" style="display:flex; flex-direction:column; gap:16px;">
+          <form id="coupon-crud-form" autocomplete="off" style="display:flex; flex-direction:column; gap:16px;">
             
             <div class="form-group-modern">
               <label>Coupon Code *</label>
               <div style="display:flex; gap:8px;">
-                <input type="text" id="coup-code-input" required placeholder="e.g. FLASH25" value="${editCoup.code || ''}" style="text-transform:uppercase; font-family:monospace; font-weight:800; letter-spacing:1px; flex:1;">
+                <input type="text" id="coup-code-input" name="coup_code_no_autofill" required placeholder="e.g. FLASH25" value="${editCoup.code || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" style="text-transform:uppercase; font-family:monospace; font-weight:800; letter-spacing:1px; flex:1;">
                 <button type="button" id="auto-gen-code-btn" class="admin-btn" style="background:rgba(255,255,255,0.1); color:white; font-size:12px; padding:8px 12px; white-space:nowrap;">
                   ⚡ Auto-Gen
                 </button>
@@ -453,25 +453,25 @@ export function renderAdminCoupons(context) {
 
               <div class="form-group-modern">
                 <label>Discount Value *</label>
-                <input type="number" id="coup-val-input" required min="1" placeholder="e.g. 20" value="${editCoup.value || ''}">
+                <input type="number" id="coup-val-input" name="coup_val_no_autofill" required min="1" placeholder="e.g. 20" value="${editCoup.value || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
               </div>
             </div>
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
               <div class="form-group-modern">
                 <label>Min. Order Requirement (CFA)</label>
-                <input type="number" id="coup-min-input" min="0" placeholder="0" value="${editCoup.minOrder || 0}">
+                <input type="number" id="coup-min-input" name="coup_min_no_autofill" min="0" placeholder="0" value="${isEditing && editCoup.minOrder !== undefined ? editCoup.minOrder : 0}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
               </div>
 
               <div class="form-group-modern">
                 <label>Max Quantity / Available Stock</label>
-                <input type="number" id="coup-stock-input" min="1" placeholder="50" value="${editCoup.stock !== undefined ? editCoup.stock : (editCoup.limit || 50)}">
+                <input type="number" id="coup-stock-input" name="coup_stock_no_autofill" min="1" placeholder="50" value="${isEditing ? (editCoup.stock !== undefined ? editCoup.stock : (editCoup.limit || 50)) : 50}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
               </div>
             </div>
 
             <div class="form-group-modern">
               <label>Expiration Date *</label>
-              <input type="date" id="coup-expiry-input" required value="${editCoup.expiry || '2026-12-31'}">
+              <input type="date" id="coup-expiry-input" name="coup_expiry_no_autofill" required value="${isEditing ? (editCoup.expiry || '2026-12-31') : '2026-12-31'}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
             </div>
 
             <div id="coup-error-msg" style="color:#ef4444; font-size:12.5px; font-weight:700;"></div>
@@ -491,19 +491,24 @@ export function attachAdminCouponsListeners(context, shadow) {
   // 1. Search Input
   const searchInput = shadow.getElementById('coupon-search-input');
   if (searchInput) {
-    if (searchInput.value.includes('@')) {
+    if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
       searchInput.value = '';
       context.searchQuery = '';
     }
     searchInput.addEventListener('focus', () => {
-      if (searchInput.value.includes('@')) {
+      if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
         searchInput.value = '';
         context.searchQuery = '';
       }
     });
 
     searchInput.addEventListener('input', (e) => {
-      context.searchQuery = e.target.value;
+      let val = e.target.value;
+      if (context.isAutofilledCredential && context.isAutofilledCredential(val)) {
+        e.target.value = '';
+        val = '';
+      }
+      context.searchQuery = val;
       context.render();
       context.attachListeners();
       const sRef = shadow.getElementById('coupon-search-input');

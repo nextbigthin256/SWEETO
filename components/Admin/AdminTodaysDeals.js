@@ -237,11 +237,11 @@ export function renderAdminTodaysDeals(context) {
             <div style="display: flex; flex-direction: column; gap: 10px; border-top: 1px solid var(--border); padding-top: 14px;">
               <div>
                 <label style="font-size: 11.5px; font-weight: 750; color: var(--text-dark); display: block; margin-bottom: 4px;">Titre de la Bannière :</label>
-                <input type="text" id="deals-title-input" value="${config.title || 'Offres Flash du Jour'}" class="admin-input" style="width: 100%; font-weight: 800;" placeholder="Ex: Smartphones & Tablettes">
+                <input type="text" id="deals-title-input" name="deals_title_no_autofill" value="${config.title || 'Offres Flash du Jour'}" class="admin-input" style="width: 100%; font-weight: 800;" placeholder="Ex: Smartphones & Tablettes" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
               </div>
               <div>
                 <label style="font-size: 11.5px; font-weight: 750; color: var(--text-dark); display: block; margin-bottom: 4px;">Sous-titre / Message d'accroche :</label>
-                <input type="text" id="deals-subtitle-input" value="${config.subtitle || "Sélection exclusive limitée avec compte à rebours — Jusqu'à 50% de réduction !"}" class="admin-input" style="width: 100%;" placeholder="Ex: Dépêchez-vous ! Réductions jusqu'à 50% sur la collection exclusive.">
+                <input type="text" id="deals-subtitle-input" name="deals_subtitle_no_autofill" value="${config.subtitle || "Sélection exclusive limitée avec compte à rebours — Jusqu'à 50% de réduction !"}" class="admin-input" style="width: 100%;" placeholder="Ex: Dépêchez-vous ! Réductions jusqu'à 50% sur la collection exclusive." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
               </div>
             </div>
           </div>
@@ -300,7 +300,7 @@ export function renderAdminTodaysDeals(context) {
             <div style="display: flex; gap: 10px; align-items: flex-end;">
               <div style="flex: 1;">
                 <label style="font-size: 11px; font-weight: 750; color: var(--text-gray); display: block; margin-bottom: 4px;">Ou Heures Personnalisées:</label>
-                <input type="number" id="deals-custom-hours" value="${config.durationHours}" min="1" max="720" class="admin-input" style="width: 100%; font-weight: 750;">
+                <input type="number" id="deals-custom-hours" name="deals_custom_hours_no_autofill" value="${config.durationHours}" min="1" max="720" class="admin-input" style="width: 100%; font-weight: 750;" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
               </div>
               <button type="button" id="deals-reset-timer-btn" class="btn-primary" style="height: 42px; padding: 0 16px; font-size: 12px; font-weight: 800; border-radius: 10px; white-space: nowrap;">
                 🔄 Relancer le Compte à Rebours
@@ -353,7 +353,7 @@ export function renderAdminTodaysDeals(context) {
                 </button>
               </div>
               <div style="position: relative;">
-                <input type="number" id="deals-min-spend-input" value="${config.minSpendForReward || 15000}" min="0" step="1000" placeholder="15000" class="admin-input" style="width: 100%; font-weight: 850; font-size: 14px; padding: 10px 14px; border-radius: 10px; border: 1.5px solid var(--border);">
+                <input type="number" id="deals-min-spend-input" name="deals_min_spend_no_autofill" value="${config.minSpendForReward || 15000}" min="0" step="1000" placeholder="15000" class="admin-input" style="width: 100%; font-weight: 850; font-size: 14px; padding: 10px 14px; border-radius: 10px; border: 1.5px solid var(--border);" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
               </div>
               <small style="color: var(--text-gray); font-size: 11px; display: block; margin-top: 4px;">
                 Le client reçoit une Boîte Mystère à chaque commande. Si son achat d'articles de l'offre du jour atteint au moins ce montant, la boîte révélera son coupon de réduction de 5% OFF. Sinon, elle donnera "Oups ! Bonne chance pour la prochaine fois !".
@@ -423,7 +423,7 @@ export function renderAdminTodaysDeals(context) {
 
           <!-- Search Filter for Products -->
           <div>
-            <input type="text" id="deals-product-search-input" placeholder="🔍 Rechercher un produit à ajouter aux offres..." class="admin-input" style="width: 100%; font-size: 12.5px; font-weight: 600;">
+            <input type="search" role="searchbox" aria-label="Search" id="deals-product-search-input" name="q_search_no_credentials" placeholder="🔍 Rechercher un produit à ajouter aux offres..." class="admin-input" style="width: 100%; font-size: 12.5px; font-weight: 600;" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false">
           </div>
 
           <!-- Products Checkbox Grid -->
@@ -585,8 +585,15 @@ export function attachAdminTodaysDealsListeners(context, shadow) {
   // 6. Search Filter
   const searchInput = shadow.getElementById('deals-product-search-input');
   if (searchInput) {
+    if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
+      searchInput.value = '';
+    }
     searchInput.addEventListener('input', (e) => {
-      const term = e.target.value.toLowerCase().trim();
+      let term = e.target.value.toLowerCase().trim();
+      if (context.isAutofilledCredential && context.isAutofilledCredential(term)) {
+        e.target.value = '';
+        term = '';
+      }
       shadow.querySelectorAll('.deals-product-card').forEach(card => {
         const prodName = card.querySelector('div')?.textContent?.toLowerCase() || '';
         if (prodName.includes(term)) {

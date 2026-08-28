@@ -235,7 +235,7 @@ export function renderAdminHeader(context) {
         <!-- Global Search Input -->
         <div class="header-search-bar">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="global-admin-search" name="admin_search_query_no_autofill" placeholder="Search ${context.currentTab || 'tab'}..." value="${(context.searchQuery || '').includes('@') ? '' : (context.searchQuery || '')}" autocomplete="new-password" aria-autocomplete="none" spellcheck="false">
+          <input type="search" role="searchbox" aria-label="Search" id="global-admin-search" name="q_search_no_credentials" placeholder="Search ${context.currentTab || 'tab'}..." value="${context.searchQuery || ''}" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
 
         <!-- Notification Bell with Dropdown -->
@@ -468,19 +468,24 @@ export function attachAdminHeaderListeners(context, shadow) {
   // Global Search input key listeners (shares state with all sub-tabs)
   const searchInput = shadow.getElementById('global-admin-search');
   if (searchInput) {
-    if (searchInput.value.includes('@')) {
+    if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
       searchInput.value = '';
       context.searchQuery = '';
     }
     searchInput.addEventListener('focus', () => {
-      if (searchInput.value.includes('@')) {
+      if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
         searchInput.value = '';
         context.searchQuery = '';
       }
     });
 
     searchInput.addEventListener('input', (e) => {
-      context.searchQuery = e.target.value;
+      let val = e.target.value;
+      if (context.isAutofilledCredential && context.isAutofilledCredential(val)) {
+        e.target.value = '';
+        val = '';
+      }
+      context.searchQuery = val;
       context.currentPageIndex = 1;
       context.render();
       context.attachListeners();
