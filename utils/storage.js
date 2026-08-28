@@ -12,16 +12,20 @@ export function getCartStorageKey() {
   return 'SWEETOS_cart_guest';
 }
 
-export function getProfileStorageKey() {
-  const userJson = sessionStorage.getItem('SWEETOS_logged_in_user');
-  if (userJson) {
-    try {
-      const user = JSON.parse(userJson);
-      if (user && user.email) {
-        const safeKey = user.email.replace(/[^a-zA-Z0-9]/g, '_');
-        return `SWEETOS_user_profile_${safeKey}`;
-      }
-    } catch (e) {}
+export function getProfileStorageKey(email = null) {
+  let targetEmail = email;
+  if (!targetEmail) {
+    const userJson = sessionStorage.getItem('SWEETOS_logged_in_user');
+    if (userJson) {
+      try {
+        const user = JSON.parse(userJson);
+        if (user && user.email) targetEmail = user.email;
+      } catch (e) {}
+    }
+  }
+  if (targetEmail) {
+    const safeKey = targetEmail.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+    return `SWEETOS_user_profile_${safeKey}`;
   }
   return 'SWEETOS_user_profile_guest';
 }

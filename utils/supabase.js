@@ -390,24 +390,41 @@ export async function fetchProfileFromSupabase(email) {
 
     let formattedOrders = existing?.orders || [];
     if (cloudOrders && cloudOrders.length > 0) {
-      formattedOrders = cloudOrders.map(o => ({
-        id: o.order_number || o.id,
-        date: o.created_at ? new Date(o.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Recently',
-        status: o.status === 'pending' ? 'Processing' : (o.status === 'completed' ? 'Delivered' : (o.status === 'shipped' ? 'Shipped' : o.status)),
-        total: parseFloat(o.total_amount) || 0,
-        itemsCount: (o.order_items || []).reduce((sum, item) => sum + (item.quantity || 1), 0),
-        products: (o.order_items || []).map(item => ({
-          name: item.product_name,
-          price: parseFloat(item.unit_price) || 0,
-          quantity: item.quantity || 1,
-          selectedColor: item.selected_color || '',
-          image: item.item_image || ''
-        })),
-        customerName: o.customer_name,
-        customerPhone: o.customer_phone,
-        customerAddress: typeof o.customer_address === 'string' ? o.customer_address : (o.customer_address?.street || o.customer_address?.address || ''),
-        paymentMethod: o.payment_method
-      }));
+      const mergedMap = new Map();
+      
+      // Add existing local orders first
+      (existing?.orders || []).forEach(o => {
+        if (o && o.id) mergedMap.set(o.id, o);
+      });
+
+      // Merge Cloud orders
+      cloudOrders.forEach(o => {
+        const id = o.order_number || o.id;
+        if (id) {
+          const itemsStr = o.items || (o.products || []).map(p => `${p.name} (x${p.quantity || 1})`).join(', ') || (o.shipping_notes || 'Commande SWEETOS');
+          mergedMap.set(id, {
+            id: id,
+            date: o.created_at ? new Date(o.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : (o.date || 'Récemment'),
+            status: o.status === 'pending' ? 'Processing' : (o.status === 'completed' ? 'Delivered' : (o.status === 'shipped' ? 'Shipped' : (o.status || 'Pending'))),
+            total: parseFloat(o.total_amount || o.total) || 0,
+            items: itemsStr,
+            itemsCount: (o.order_items || []).reduce((sum, item) => sum + (item.quantity || 1), 0) || (o.products || []).length || 1,
+            products: o.products || (o.order_items || []).map(item => ({
+              name: item.product_name,
+              price: parseFloat(item.unit_price) || 0,
+              quantity: item.quantity || 1,
+              selectedColor: item.selected_color || '',
+              image: item.item_image || ''
+            })),
+            customerName: o.customer_name || o.customerName || 'Client',
+            customerPhone: o.customer_phone || o.customerPhone || '',
+            customerAddress: typeof o.customer_address === 'string' ? o.customer_address : (o.customerAddress || o.customer_address?.street || ''),
+            paymentMethod: o.payment_method || o.paymentMethod || 'cod'
+          });
+        }
+      });
+
+      formattedOrders = Array.from(mergedMap.values());
     }
 
     if (pData || formattedOrders.length > 0) {
@@ -424,7 +441,8 @@ export async function fetchProfileFromSupabase(email) {
       };
       sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
       sessionStorage.setItem(`SWEETOS_user_profile_${safeKey}`, JSON.stringify(profile));
-      window.dispatchEvent(new CustomEvent('profile:updated'));
+      window.dispatchEvent(new CustomEvent('profile:updated', { detail: profile }));
+      window.dispatchEvent(new CustomEvent('orders:updated', { detail: formattedOrders }));
       return profile;
     }
   } catch(e) {

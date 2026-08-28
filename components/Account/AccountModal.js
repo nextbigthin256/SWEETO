@@ -27,27 +27,44 @@ class AccountModal extends HTMLElement {
     if (loggedIn) {
       try {
         const session = JSON.parse(loggedIn);
-        const email = session.email;
-        const profileKey = getProfileStorageKey();
+        const email = (session.email || '').toLowerCase();
+        const profileKey = getProfileStorageKey(email);
         let profile = sessionStorage.getItem(profileKey);
         
         if (!profile) {
           profile = sessionStorage.getItem('SWEETOS_user_profile');
         }
         
-        if (profile) {
-          const parsed = JSON.parse(profile);
-          this.user = {
-            name: `${parsed.firstName || ''} ${parsed.lastName || ''}`.trim() || 'SWEETOS Member',
-            email: parsed.email || email,
-            phone: parsed.phone || "+225 600 000 000",
-            memberSince: "October 2025",
-            address: parsed.address || "Ivory Coast",
-            avatar: (parsed.firstName && parsed.lastName) ? `${parsed.firstName.charAt(0).toUpperCase()}${parsed.lastName.charAt(0).toUpperCase()}` : 'US'
-          };
-          this.orders = parsed.orders || [];
-          return;
-        }
+        const parsed = profile ? JSON.parse(profile) : null;
+        let ordersList = parsed?.orders || [];
+
+        // Also merge any matching orders from global SWEETOS_all_orders
+        try {
+          const globalOrders = JSON.parse(sessionStorage.getItem('SWEETOS_all_orders') || '[]');
+          const userGlobalOrders = globalOrders.filter(o => o.customerEmail && o.customerEmail.toLowerCase() === email);
+          userGlobalOrders.forEach(go => {
+            if (!ordersList.some(o => o.id === go.id)) {
+              ordersList.unshift(go);
+            }
+          });
+        } catch(e) {}
+
+        this.user = {
+          name: parsed ? `${parsed.firstName || ''} ${parsed.lastName || ''}`.trim() : (session.name || 'SWEETOS Member'),
+          email: email,
+          phone: parsed?.phone || "+225 05 00 61 99 23",
+          memberSince: "October 2025",
+          address: parsed?.address || "Ivory Coast",
+          avatar: (parsed && parsed.firstName && parsed.lastName) ? `${parsed.firstName.charAt(0).toUpperCase()}${parsed.lastName.charAt(0).toUpperCase()}` : 'US'
+        };
+        this.orders = ordersList;
+
+        // Async sync from Supabase Cloud
+        import('../../utils/supabase.js').then(({ fetchProfileFromSupabase }) => {
+          fetchProfileFromSupabase(email);
+        }).catch(() => {});
+
+        return;
       } catch (e) {
         console.error(e);
       }
@@ -120,6 +137,7 @@ class AccountModal extends HTMLElement {
                     if (s === 'cancelled' || s === 'refusé') return 'cancelled';
                     return 'pending';
                   })();
+                  const itemsLabel = order.items || (order.products || []).map(p => `${p.name} (x${p.quantity || 1})`).join(', ') || 'Commande SWEETOS';
                   return `
                     <div class="order-item glass-panel">
                       <div class="order-header">
@@ -127,10 +145,10 @@ class AccountModal extends HTMLElement {
                         <span class="order-status ${statusClass}">${order.status}</span>
                       </div>
                       <div class="order-details-row">
-                        <span class="order-product">${order.items}</span>
+                        <span class="order-product">${itemsLabel}</span>
                         <span class="order-price">${formatPrice(Number(order.total))}</span>
                       </div>
-                      <div class="order-date">${order.date}</div>
+                      <div class="order-date">${order.date || 'Récemment'}</div>
                     </div>
                   `;
                 }).join('')}
@@ -157,12 +175,17 @@ class AccountModal extends HTMLElement {
       this.updateState();
     });
 
-    window.addEventListener('orders:updated', () => {
+    const refreshData = () => {
       this.loadUserData();
       if (this.isOpen) {
         this.render();
       }
-    });
+    };
+
+    window.addEventListener('orders:updated', refreshData);
+    window.addEventListener('profile:updated', refreshData);
+    window.addEventListener('auth:changed', refreshData);
+    window.addEventListener('supabase:ready', refreshData);
   }
 
   attachDynamicListeners() {
