@@ -30,13 +30,13 @@ class CheckoutModal extends HTMLElement {
 
   getShippingFee(subtotal) {
     if (subtotal === 0) return 0;
-    const shippingRate = parseFloat(localStorage.getItem('SWEETOS_shipping_rate') || '2000');
-    const freeThreshold = parseFloat(localStorage.getItem('SWEETOS_free_shipping_threshold') || '25000');
+    const shippingRate = parseFloat(sessionStorage.getItem('SWEETOS_shipping_rate') || '2000');
+    const freeThreshold = parseFloat(sessionStorage.getItem('SWEETOS_free_shipping_threshold') || '25000');
     return subtotal >= freeThreshold ? 0 : shippingRate;
   }
 
   getOrderTotal() {
-    const cartSaved = localStorage.getItem(getCartStorageKey());
+    const cartSaved = sessionStorage.getItem(getCartStorageKey());
     let cartItems = [];
     if (cartSaved) {
       try {
@@ -81,7 +81,7 @@ class CheckoutModal extends HTMLElement {
 
   loadUserProfile() {
     const profileKey = getProfileStorageKey();
-    let profileSaved = localStorage.getItem(profileKey) || localStorage.getItem('SWEETOS_user_profile');
+    let profileSaved = sessionStorage.getItem(profileKey) || sessionStorage.getItem('SWEETOS_user_profile');
     if (profileSaved) {
       try {
         const prof = JSON.parse(profileSaved);
@@ -327,7 +327,7 @@ class CheckoutModal extends HTMLElement {
             </div>
 
             <div class="payment-methods-grid">
-              ${localStorage.getItem('SWEETOS_payment_cod_enabled') !== 'false' ? `
+              ${sessionStorage.getItem('SWEETOS_payment_cod_enabled') !== 'false' ? `
                 <div class="payment-method-card ${this.selectedPaymentMethod === 'cod' ? 'active' : ''}" data-value="cod">
                   <div class="method-logo-wrap">
                     <img src="./assets/payment_cod.png" alt="Livraison" class="method-logo-img cod-logo-img">
@@ -337,7 +337,7 @@ class CheckoutModal extends HTMLElement {
                 </div>
               ` : ''}
 
-              ${localStorage.getItem('SWEETOS_payment_momo_enabled') !== 'false' ? `
+              ${sessionStorage.getItem('SWEETOS_payment_momo_enabled') !== 'false' ? `
                 <div class="payment-method-card ${this.selectedPaymentMethod === 'wave' ? 'active' : ''}" data-value="wave">
                   <div class="method-logo-wrap">
                     <img src="./assets/payment_wave.jpg" alt="Wave" class="method-logo-img">
@@ -363,7 +363,7 @@ class CheckoutModal extends HTMLElement {
                 </div>
               ` : ''}
 
-              ${localStorage.getItem('SWEETOS_payment_card_enabled') === 'true' ? `
+              ${sessionStorage.getItem('SWEETOS_payment_card_enabled') === 'true' ? `
                 <div class="payment-method-card ${this.selectedPaymentMethod === 'card' ? 'active' : ''}" data-value="card">
                   <div class="method-logo-wrap card-logo-wrap">
                     <span class="method-icon">💳</span>
@@ -508,7 +508,7 @@ class CheckoutModal extends HTMLElement {
 
   // ================= ORDER SUMMARY =================
   renderOrderSummary() {
-    const cartSaved = localStorage.getItem(getCartStorageKey());
+    const cartSaved = sessionStorage.getItem(getCartStorageKey());
     let cartItems = [];
     if (cartSaved) {
       try {
@@ -538,7 +538,7 @@ class CheckoutModal extends HTMLElement {
     } catch(e) {}
 
     const total = Math.max(0, subtotal + shippingFee - discount);
-    const freeThreshold = parseFloat(localStorage.getItem('SWEETOS_free_shipping_threshold') || '25000');
+    const freeThreshold = parseFloat(sessionStorage.getItem('SWEETOS_free_shipping_threshold') || '25000');
     const freeProgress = Math.min(100, Math.round((subtotal / freeThreshold) * 100));
 
     return `
@@ -792,7 +792,7 @@ class CheckoutModal extends HTMLElement {
         const orderId = 'ORD-' + Math.floor(100000 + Math.random() * 900000);
         this.latestOrderId = orderId;
 
-        const cartSaved = localStorage.getItem(getCartStorageKey());
+        const cartSaved = sessionStorage.getItem(getCartStorageKey());
         let cartItems = [];
         let orderTotal = 0;
         if (cartSaved) {
@@ -816,7 +816,7 @@ class CheckoutModal extends HTMLElement {
         const profileKey = getProfileStorageKey();
         let profile = null;
         try {
-          profile = JSON.parse(localStorage.getItem(profileKey) || 'null');
+          profile = JSON.parse(sessionStorage.getItem(profileKey) || 'null');
         } catch(err) {}
         if (!profile) {
           profile = {
@@ -870,8 +870,8 @@ class CheckoutModal extends HTMLElement {
 
         if (!profile.orders) profile.orders = [];
         profile.orders.unshift(newOrder);
-        localStorage.setItem(profileKey, JSON.stringify(profile));
-        localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+        sessionStorage.setItem(profileKey, JSON.stringify(profile));
+        sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
 
         // Save order to Supabase Cloud Database & local store
         import('../../utils/supabase.js').then(async ({ createOrderInSupabase, saveCustomerToSupabase }) => {
@@ -881,12 +881,12 @@ class CheckoutModal extends HTMLElement {
 
         let localOrders = [];
         try {
-          localOrders = JSON.parse(localStorage.getItem('SWEETOS_all_orders') || '[]');
+          localOrders = JSON.parse(sessionStorage.getItem('SWEETOS_all_orders') || '[]');
         } catch(e) {}
         if (!localOrders.some(o => o.id === newOrder.id)) {
           localOrders.unshift(newOrder);
         }
-        localStorage.setItem('SWEETOS_all_orders', JSON.stringify(localOrders));
+        sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(localOrders));
 
         // Deduct coupon usage if applied
         try {
@@ -899,13 +899,13 @@ class CheckoutModal extends HTMLElement {
                 consumeBadgeRewardUse(this.formData.email, appliedC.code);
               } else {
                 // Single-use coupon: mark used & exhausted immediately
-                let adminCoupons = JSON.parse(localStorage.getItem('SWEETOS_coupons') || '[]');
+                let adminCoupons = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
                 const idx = adminCoupons.findIndex(c => c.code === appliedC.code);
                 if (idx > -1) {
                   adminCoupons[idx].used = (adminCoupons[idx].used || 0) + 1;
                   adminCoupons[idx].remainingUses = 0;
                   adminCoupons[idx].status = 'exhausted';
-                  localStorage.setItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
+                  sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
                 }
               }
             }
@@ -914,7 +914,7 @@ class CheckoutModal extends HTMLElement {
 
         // Clear Cart & Clean Coupon
         sessionStorage.removeItem('SWEETOS_applied_coupon');
-        localStorage.removeItem(getCartStorageKey());
+        sessionStorage.removeItem(getCartStorageKey());
         window.dispatchEvent(new CustomEvent('cart:updated', { detail: [] }));
         window.dispatchEvent(new CustomEvent('orders:updated'));
 
@@ -922,7 +922,7 @@ class CheckoutModal extends HTMLElement {
         const notifKey = getNotificationsStorageKey();
         let notifs = [];
         try {
-          notifs = JSON.parse(localStorage.getItem(notifKey) || '[]');
+          notifs = JSON.parse(sessionStorage.getItem(notifKey) || '[]');
         } catch(e) {}
         notifs.unshift({
           id: Date.now(),
@@ -933,7 +933,7 @@ class CheckoutModal extends HTMLElement {
           time: 'À l\'instant',
           unread: true
         });
-        localStorage.setItem(notifKey, JSON.stringify(notifs));
+        sessionStorage.setItem(notifKey, JSON.stringify(notifs));
         window.dispatchEvent(new CustomEvent('notifications:updated'));
 
         setTimeout(() => {
@@ -970,7 +970,7 @@ class CheckoutModal extends HTMLElement {
 
         let coupons = [];
         try {
-          coupons = JSON.parse(localStorage.getItem('SWEETOS_coupons') || '[]');
+          coupons = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
         } catch(e) {}
 
         const found = coupons.find(c => c.code.toUpperCase() === code && c.status === 'active');

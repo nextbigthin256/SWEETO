@@ -1,5 +1,5 @@
 export function getCartStorageKey() {
-  const userJson = localStorage.getItem('SWEETOS_logged_in_user');
+  const userJson = sessionStorage.getItem('SWEETOS_logged_in_user');
   if (userJson) {
     try {
       const user = JSON.parse(userJson);
@@ -13,7 +13,7 @@ export function getCartStorageKey() {
 }
 
 export function getProfileStorageKey() {
-  const userJson = localStorage.getItem('SWEETOS_logged_in_user');
+  const userJson = sessionStorage.getItem('SWEETOS_logged_in_user');
   if (userJson) {
     try {
       const user = JSON.parse(userJson);
@@ -27,7 +27,7 @@ export function getProfileStorageKey() {
 }
 
 export function getNotificationsStorageKey() {
-  const userJson = localStorage.getItem('SWEETOS_logged_in_user');
+  const userJson = sessionStorage.getItem('SWEETOS_logged_in_user');
   if (userJson) {
     try {
       const user = JSON.parse(userJson);
@@ -41,7 +41,7 @@ export function getNotificationsStorageKey() {
 }
 
 export function getScratchcardsStorageKey() {
-  const userJson = localStorage.getItem('SWEETOS_logged_in_user');
+  const userJson = sessionStorage.getItem('SWEETOS_logged_in_user');
   if (userJson) {
     try {
       const user = JSON.parse(userJson);
@@ -55,7 +55,7 @@ export function getScratchcardsStorageKey() {
 }
 
 export function formatPrice(price) {
-  const currency = localStorage.getItem('SWEETOS_currency') || 'CFA';
+  const currency = sessionStorage.getItem('SWEETOS_currency') || 'CFA';
   let symbol = currency;
   if (currency === 'USD') symbol = '$';
   else if (currency === 'EUR') symbol = '€';
@@ -69,7 +69,7 @@ export function formatPrice(price) {
 
 export function syncDeliveredNotifications() {
   const profileKey = getProfileStorageKey();
-  const profileJson = localStorage.getItem(profileKey) || localStorage.getItem('SWEETOS_user_profile');
+  const profileJson = sessionStorage.getItem(profileKey) || sessionStorage.getItem('SWEETOS_user_profile');
   if (!profileJson) return;
   
   let profile = {};
@@ -89,19 +89,18 @@ export function syncDeliveredNotifications() {
       
       let processedDeliveries = [];
       try {
-        processedDeliveries = JSON.parse(localStorage.getItem('SWEETOS_processed_deliveries') || '[]');
+        processedDeliveries = JSON.parse(sessionStorage.getItem('SWEETOS_processed_deliveries') || '[]');
       } catch(e) {}
       
       const notifKey = getNotificationsStorageKey();
       let customerNotifs = [];
       try {
-        customerNotifs = JSON.parse(localStorage.getItem(notifKey) || '[]');
+        customerNotifs = JSON.parse(sessionStorage.getItem(notifKey) || '[]');
       } catch(e) {}
       
       let changed = false;
       
       serverOrders.forEach(order => {
-        // Only process orders belonging to this customer that are completed (Done/Livré)
         const isCompleted = order.status === 'Done' || order.status === 'Livré';
         if (order.customerEmail === userEmail && isCompleted) {
           if (!processedDeliveries.includes(order.id)) {
@@ -117,7 +116,6 @@ export function syncDeliveredNotifications() {
             
             const totalCFA = parseFloat(order.total) || 0;
             
-            // 1. Generate Delivered Notification
             customerNotifs.unshift({
               id: Date.now() + Math.floor(Math.random() * 1000),
               type: 'shipping',
@@ -132,11 +130,9 @@ export function syncDeliveredNotifications() {
               unread: true
             });
             
-            // 2. Generate Scratchcard and Email notification if total >= 2000 CFA
             if (totalCFA >= 2000) {
-              // Add a scratch card to storage
               try {
-                let scratchcards = JSON.parse(localStorage.getItem('SWEETOS_user_scratchcards') || '[]');
+                let scratchcards = JSON.parse(sessionStorage.getItem('SWEETOS_user_scratchcards') || '[]');
                 if (!scratchcards.some(sc => sc.orderId === order.id)) {
                   scratchcards.push({
                     id: Date.now() + Math.floor(Math.random() * 1000) + 1,
@@ -147,13 +143,12 @@ export function syncDeliveredNotifications() {
                     createdAt: Date.now(),
                     expiresAt: Date.now() + 14 * 24 * 60 * 60 * 1000
                   });
-                  localStorage.setItem('SWEETOS_user_scratchcards', JSON.stringify(scratchcards));
+                  sessionStorage.setItem('SWEETOS_user_scratchcards', JSON.stringify(scratchcards));
                 }
               } catch(e) {
                 console.error('Failed to create scratchcard during sync:', e);
               }
               
-              // Push simulated email notification
               customerNotifs.unshift({
                 id: Date.now() + Math.floor(Math.random() * 1000) + 2,
                 type: 'email',
@@ -174,8 +169,8 @@ export function syncDeliveredNotifications() {
       });
       
       if (changed) {
-        localStorage.setItem('SWEETOS_processed_deliveries', JSON.stringify(processedDeliveries));
-        localStorage.setItem(notifKey, JSON.stringify(customerNotifs));
+        sessionStorage.setItem('SWEETOS_processed_deliveries', JSON.stringify(processedDeliveries));
+        sessionStorage.setItem(notifKey, JSON.stringify(customerNotifs));
         window.dispatchEvent(new CustomEvent('notifications:updated'));
       }
     })

@@ -14,7 +14,7 @@ export const DEFAULT_MORE_TO_LOVE_CONFIG = {
 
 export function getMoreToLoveConfig() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_MORE_TO_LOVE_CONFIG };
     const parsed = JSON.parse(raw);
     return {
@@ -36,7 +36,7 @@ export function saveMoreToLoveConfig(config) {
       subtitle: (config.subtitle || '').trim(),
       productIds: Array.isArray(config.productIds) ? config.productIds : []
     };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(safeConfig));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(safeConfig));
     
     // Server sync
     fetch('/api/more-to-love', {

@@ -6,27 +6,10 @@ if (window.location.pathname !== '/' && window.location.pathname !== '/index.htm
   }
 }
 
-// Store Purification Sanitizer: Clear old mock sessions and legacy fake user accounts
-(function purifyStoreSessions() {
+// Clear any legacy localStorage items entirely as requested by user
+(function purgeLocalStorage() {
   try {
-    if (!localStorage.getItem('SWEETOS_v4_purified')) {
-      const loggedUser = localStorage.getItem('SWEETOS_logged_in_user');
-      if (loggedUser) {
-        try {
-          const parsed = JSON.parse(loggedUser);
-          if (!parsed.email || parsed.email.includes('customer@sweetos.com') || parsed.email.includes('developer.') || parsed.email.includes('guest@') || parsed.email.includes('john@doe.com')) {
-            localStorage.removeItem('SWEETOS_logged_in_user');
-            localStorage.removeItem('SWEETOS_user_profile');
-          }
-        } catch(e) {
-          localStorage.removeItem('SWEETOS_logged_in_user');
-          localStorage.removeItem('SWEETOS_user_profile');
-        }
-      }
-      localStorage.removeItem('SWEETOS_user_profile_guest');
-      localStorage.removeItem('SWEETOS_user_profile');
-      localStorage.setItem('SWEETOS_v4_purified', 'true');
-    }
+    localStorage.clear();
   } catch(e) {}
 })();
 
@@ -55,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Live Background Customer Revocation Guard (Every 6 seconds)
   setInterval(async () => {
-    const loggedUserStr = localStorage.getItem('SWEETOS_logged_in_user');
+    const loggedUserStr = sessionStorage.getItem('SWEETOS_logged_in_user');
     if (loggedUserStr) {
       try {
         const loggedUser = JSON.parse(loggedUserStr);
@@ -63,8 +46,8 @@ document.addEventListener('DOMContentLoaded', () => {
           const { checkCustomerAccountValidInSupabase } = await import('./utils/supabase.js');
           const res = await checkCustomerAccountValidInSupabase(loggedUser.email);
           if (res && res.valid === false) {
-            localStorage.removeItem('SWEETOS_logged_in_user');
-            localStorage.removeItem('SWEETOS_user_profile');
+            sessionStorage.removeItem('SWEETOS_logged_in_user');
+            sessionStorage.removeItem('SWEETOS_user_profile');
             const { clearCustomerRevocationInSupabase } = await import('./utils/supabase.js');
             await clearCustomerRevocationInSupabase(loggedUser.email);
             window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: false } }));
@@ -78,10 +61,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Apply dynamic store configurations (theme, brand colors, font family)
   const applyBrandingSettings = () => {
-    const primaryColor = localStorage.getItem('SWEETOS_brand_color_primary') || '#0052cc';
-    const accentColor = localStorage.getItem('SWEETOS_brand_color_accent') || '#00b4d8';
-    const font = localStorage.getItem('SWEETOS_font_family') || 'Outfit';
-    const theme = localStorage.getItem('SWEETOS_theme_mode') || 'dark';
+    const primaryColor = sessionStorage.getItem('SWEETOS_brand_color_primary') || '#0052cc';
+    const accentColor = sessionStorage.getItem('SWEETOS_brand_color_accent') || '#00b4d8';
+    const font = sessionStorage.getItem('SWEETOS_font_family') || 'Outfit';
+    const theme = sessionStorage.getItem('SWEETOS_theme_mode') || 'dark';
 
     // Inject Google Font link tag dynamically if it isn't already loaded
     if (font && !document.getElementById(`font-link-${font}`)) {
@@ -415,7 +398,7 @@ document.addEventListener('DOMContentLoaded', () => {
     closeNotifications();
 
     // Check if user is logged in
-    const loggedInUserStr = localStorage.getItem('SWEETOS_logged_in_user');
+    const loggedInUserStr = sessionStorage.getItem('SWEETOS_logged_in_user');
     if (!loggedInUserStr) {
       window.dispatchEvent(new CustomEvent('toast:show', { detail: '🔒 Veuillez vous connecter pour finaliser votre commande / Please log in to complete your order!' }));
       window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'auth' } }));
@@ -434,7 +417,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Initial cart load synchronization
-  const initialSaved = localStorage.getItem(getCartStorageKey());
+  const initialSaved = sessionStorage.getItem(getCartStorageKey());
   if (initialSaved) {
     try {
       const parsed = JSON.parse(initialSaved);
@@ -442,7 +425,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
   } else {
     setTimeout(() => {
-      const saved = localStorage.getItem(getCartStorageKey());
+      const saved = sessionStorage.getItem(getCartStorageKey());
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -454,7 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Listen for user login/logout to update the cart badge count dynamically
   window.addEventListener('auth:changed', () => {
-    const saved = localStorage.getItem(getCartStorageKey());
+    const saved = sessionStorage.getItem(getCartStorageKey());
     let parsed = [];
     if (saved) {
       try {
@@ -664,7 +647,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // 1. Guest User Welcome Dialog
-  const loggedInUserStr = localStorage.getItem('SWEETOS_logged_in_user');
+  const loggedInUserStr = sessionStorage.getItem('SWEETOS_logged_in_user');
   const guestDismissed = sessionStorage.getItem('SWEETOS_guest_welcome_dismissed');
   if (!loggedInUserStr && !guestDismissed) {
     sessionStorage.setItem('SWEETOS_guest_welcome_dismissed', 'true');
@@ -690,12 +673,12 @@ document.addEventListener('DOMContentLoaded', () => {
       
       let scratchcards = [];
       try {
-        scratchcards = JSON.parse(localStorage.getItem('SWEETOS_user_scratchcards') || '[]');
+        scratchcards = JSON.parse(sessionStorage.getItem('SWEETOS_user_scratchcards') || '[]');
       } catch(e) {}
       
       let coupons = [];
       try {
-        coupons = JSON.parse(localStorage.getItem('SWEETOS_coupons') || '[]');
+        coupons = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
       } catch(e) {}
       
       const hasUnscratched = scratchcards.some(card => !card.scratched);
@@ -736,7 +719,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const productAdded = e.detail;
     let currentCart = [];
     try {
-      currentCart = JSON.parse(localStorage.getItem(getCartStorageKey()) || '[]');
+      currentCart = JSON.parse(sessionStorage.getItem(getCartStorageKey()) || '[]');
     } catch(err) {}
     
     const existing = currentCart.find(item => item.id === productAdded.id);
@@ -756,7 +739,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (subtotal < 30000) {
       const todayStr = new Date().toDateString();
-      const lastShown = localStorage.getItem('SWEETOS_cart_upsell_last_shown');
+      const lastShown = sessionStorage.getItem('SWEETOS_cart_upsell_last_shown');
       if (lastShown === todayStr) {
         return; // Do not show again today
       }
@@ -764,7 +747,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const needed = 30000 - subtotal;
       setTimeout(() => {
         // Mark as shown today immediately when triggered
-        localStorage.setItem('SWEETOS_cart_upsell_last_shown', todayStr);
+        sessionStorage.setItem('SWEETOS_cart_upsell_last_shown', todayStr);
         showCustomScreenModal({
           icon: '🛒',
           title: 'Offre Spéciale / Special Offer',

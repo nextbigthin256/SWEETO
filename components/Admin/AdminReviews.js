@@ -9,7 +9,7 @@ export function renderAdminReviews(context) {
   // Load real customer reviews from storage, cleaning legacy mock reviews
   let reviews = [];
   try {
-    const stored = localStorage.getItem('SWEETOS_reviews') || localStorage.getItem('SWEETOS_reviews_all');
+    const stored = sessionStorage.getItem('SWEETOS_reviews') || sessionStorage.getItem('SWEETOS_reviews_all');
     if (stored) {
       reviews = JSON.parse(stored);
     } else if (context.reviews && Array.isArray(context.reviews)) {
@@ -27,8 +27,8 @@ export function renderAdminReviews(context) {
 
   context.reviews = reviews;
   try {
-    localStorage.setItem('SWEETOS_reviews', JSON.stringify(reviews));
-    localStorage.setItem('SWEETOS_reviews_all', JSON.stringify(reviews));
+    sessionStorage.setItem('SWEETOS_reviews', JSON.stringify(reviews));
+    sessionStorage.setItem('SWEETOS_reviews_all', JSON.stringify(reviews));
   } catch(e) {}
 
   const query = (context.searchQuery || '').toLowerCase().trim();
@@ -621,8 +621,8 @@ export function attachAdminReviewsListeners(context, shadow) {
 
   const syncReviews = (list) => {
     context.reviews = list;
-    localStorage.setItem('SWEETOS_reviews', JSON.stringify(list));
-    localStorage.setItem('SWEETOS_reviews_all', JSON.stringify(list));
+    sessionStorage.setItem('SWEETOS_reviews', JSON.stringify(list));
+    sessionStorage.setItem('SWEETOS_reviews_all', JSON.stringify(list));
     window.dispatchEvent(new CustomEvent('reviews:updated', { detail: list }));
   };
 

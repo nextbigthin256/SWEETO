@@ -844,14 +844,14 @@ export function attachAdminCustomersListeners(context, shadow) {
 
         // 2. Remove all local user profile keys
         const keysToRemove = [];
-        for (let i = 0; i < localStorage.length; i++) {
-          const k = localStorage.key(i);
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const k = sessionStorage.key(i);
           if (k && k.startsWith('SWEETOS_user_profile_')) {
             keysToRemove.push(k);
           }
         }
-        keysToRemove.forEach(k => localStorage.removeItem(k));
-        localStorage.setItem('SWEETOS_customers', JSON.stringify([]));
+        keysToRemove.forEach(k => sessionStorage.removeItem(k));
+        sessionStorage.setItem('SWEETOS_customers', JSON.stringify([]));
 
         context.customers = [];
         selectedCustomerEmails.clear();
@@ -890,10 +890,10 @@ export function attachAdminCustomersListeners(context, shadow) {
           }
         }).catch(() => {});
 
-        // Delete from localStorage
+        // Delete from sessionStorage
         emailsArray.forEach(email => {
-          localStorage.removeItem(getProfileStorageKey(email));
-          localStorage.removeItem(`SWEETOS_user_profile_${email}`);
+          sessionStorage.removeItem(getProfileStorageKey(email));
+          sessionStorage.removeItem(`SWEETOS_user_profile_${email}`);
         });
 
         context.customers = (context.customers || []).filter(c => !selectedCustomerEmails.has(c.email));
@@ -955,8 +955,8 @@ export function attachAdminCustomersListeners(context, shadow) {
           await hardDeleteCustomerAndDataInSupabase(email);
         }).catch(() => {});
 
-        localStorage.removeItem(getProfileStorageKey(email));
-        localStorage.removeItem(`SWEETOS_user_profile_${email}`);
+        sessionStorage.removeItem(getProfileStorageKey(email));
+        sessionStorage.removeItem(`SWEETOS_user_profile_${email}`);
 
         context.customers = (context.customers || []).filter(c => c.email && c.email.toLowerCase() !== email.toLowerCase());
         selectedCustomerEmails.delete(email);
@@ -1053,18 +1053,18 @@ export function attachAdminCustomersListeners(context, shadow) {
         });
       }
 
-      localStorage.setItem('SWEETOS_customers', JSON.stringify(customers));
+      sessionStorage.setItem('SWEETOS_customers', JSON.stringify(customers));
 
-      // Sync customer user profile in localStorage if matches
+      // Sync customer user profile in sessionStorage if matches
       try {
         const safeKey = custEmail.replace(/[^a-zA-Z0-9]/g, '_');
         const specificProfileKey = `SWEETOS_user_profile_${safeKey}`;
-        let prof = JSON.parse(localStorage.getItem(specificProfileKey) || localStorage.getItem('SWEETOS_user_profile') || '{}');
+        let prof = JSON.parse(sessionStorage.getItem(specificProfileKey) || sessionStorage.getItem('SWEETOS_user_profile') || '{}');
         prof.level = selectedLevel;
         prof.badgeType = selectedBadge;
         prof.unlockedBadges = checkedBadges;
-        localStorage.setItem(specificProfileKey, JSON.stringify(prof));
-        localStorage.setItem('SWEETOS_user_profile', JSON.stringify(prof));
+        sessionStorage.setItem(specificProfileKey, JSON.stringify(prof));
+        sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(prof));
       } catch(e) {}
 
       // If badges are granted, unlock 5% OFF coupon (5 uses per badge = up to 25 uses for 5 badges)

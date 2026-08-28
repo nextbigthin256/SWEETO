@@ -7,7 +7,7 @@ export function renderAdminNotifications(context) {
   const pendingOrders = (context.orders || []).filter(o => o.status === 'Pending' || o.status === 'En cours' || o.status === 'Traitement');
   const lowCoupons = (context.coupons || []).filter(c => c.stock !== undefined && c.stock <= 2);
   
-  const readAlertsStr = localStorage.getItem('SWEETOS_admin_read_alerts') || '[]';
+  const readAlertsStr = sessionStorage.getItem('SWEETOS_admin_read_alerts') || '[]';
   let readAlerts = [];
   try {
     readAlerts = JSON.parse(readAlertsStr);
@@ -387,7 +387,7 @@ export function attachAdminNotificationsListeners(context, shadow) {
         ...pendingOrders.map(o => `order-${o.id}`)
       ];
 
-      localStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(allIds));
+      sessionStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(allIds));
       window.dispatchEvent(new CustomEvent('toast:show', { detail: 'All notifications marked as read!' }));
       context.render();
       context.attachListeners();
@@ -400,7 +400,7 @@ export function attachAdminNotificationsListeners(context, shadow) {
       const id = btn.getAttribute('data-id');
       let readAlerts = [];
       try {
-        readAlerts = JSON.parse(localStorage.getItem('SWEETOS_admin_read_alerts') || '[]');
+        readAlerts = JSON.parse(sessionStorage.getItem('SWEETOS_admin_read_alerts') || '[]');
       } catch(e) {}
 
       if (readAlerts.includes(id)) {
@@ -409,7 +409,7 @@ export function attachAdminNotificationsListeners(context, shadow) {
         readAlerts.push(id);
       }
 
-      localStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(readAlerts));
+      sessionStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(readAlerts));
       context.render();
       context.attachListeners();
     });
@@ -425,11 +425,11 @@ export function attachAdminNotificationsListeners(context, shadow) {
       if (alertId) {
         let readAlerts = [];
         try {
-          readAlerts = JSON.parse(localStorage.getItem('SWEETOS_admin_read_alerts') || '[]');
+          readAlerts = JSON.parse(sessionStorage.getItem('SWEETOS_admin_read_alerts') || '[]');
         } catch(e) {}
         if (!readAlerts.includes(alertId)) {
           readAlerts.push(alertId);
-          localStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(readAlerts));
+          sessionStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(readAlerts));
         }
       }
 

@@ -20,7 +20,7 @@ class Header extends HTMLElement {
 
   getProductsList() {
     try {
-      const stored = localStorage.getItem('SWEETOS_products');
+      const stored = sessionStorage.getItem('SWEETOS_products');
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -34,7 +34,7 @@ class Header extends HTMLElement {
     const profilePill = shadow.getElementById('profile-pill');
     if (!profilePill) return;
     
-    const loggedInUserStr = localStorage.getItem('SWEETOS_logged_in_user');
+    const loggedInUserStr = sessionStorage.getItem('SWEETOS_logged_in_user');
     
     // If user is NOT logged in, display clean Guest Connexion/Registration state
     if (!loggedInUserStr) {
@@ -57,7 +57,7 @@ class Header extends HTMLElement {
     }
 
     const profileKey = getProfileStorageKey();
-    let profileSaved = localStorage.getItem(profileKey);
+    let profileSaved = sessionStorage.getItem(profileKey);
     let profile = null;
     if (profileSaved) {
       try { profile = JSON.parse(profileSaved); } catch (e) {}
@@ -80,7 +80,7 @@ class Header extends HTMLElement {
 
     // Always check SWEETOS_customers by email to get latest badge, level and avatar assigned by Admin
     try {
-      const custs = JSON.parse(localStorage.getItem('SWEETOS_customers') || '[]');
+      const custs = JSON.parse(sessionStorage.getItem('SWEETOS_customers') || '[]');
       if (curEmail) {
         const match = custs.find(c => c.email && c.email.toLowerCase() === curEmail);
         if (match) {
@@ -99,7 +99,7 @@ class Header extends HTMLElement {
 
     // Calculate customer total spent to compute dynamic level and 500k+ badge if not manually overridden
     try {
-      const allOrders = JSON.parse(localStorage.getItem('SWEETOS_all_orders') || '[]');
+      const allOrders = JSON.parse(sessionStorage.getItem('SWEETOS_all_orders') || '[]');
       const userOrders = allOrders.filter(o => o.customerEmail && o.customerEmail.toLowerCase() === curEmail && (o.status || '').toLowerCase() !== 'deleted');
       const totalSpent = userOrders.filter(o => (o.status || '').toLowerCase() !== 'cancelled').reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
 
@@ -138,7 +138,7 @@ class Header extends HTMLElement {
   }
 
   syncCartBadge() {
-    const saved = localStorage.getItem(getCartStorageKey());
+    const saved = sessionStorage.getItem(getCartStorageKey());
     let count = 0;
     if (saved) {
       try {
@@ -154,7 +154,7 @@ class Header extends HTMLElement {
 
   syncNotificationBadge() {
     const key = getNotificationsStorageKey();
-    const saved = localStorage.getItem(key);
+    const saved = sessionStorage.getItem(key);
     let count = 0;
     if (saved) {
       try {
@@ -176,7 +176,7 @@ class Header extends HTMLElement {
   }
 
   syncWishlistBadge() {
-    const saved = localStorage.getItem('SWEETOS_wishlist');
+    const saved = sessionStorage.getItem('SWEETOS_wishlist');
     let count = 0;
     if (saved) {
       try {
@@ -196,8 +196,8 @@ class Header extends HTMLElement {
   }
 
   render() {
-    const storeName = localStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
-    const categories = JSON.parse(localStorage.getItem('SWEETOS_categories') || '[]');
+    const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
+    const categories = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
 
     this.shadowRoot.innerHTML = `
       <link rel="stylesheet" href="./components/Header/Header.css">
@@ -543,7 +543,7 @@ class Header extends HTMLElement {
 
     // Profile page navigation
     shadow.getElementById('profile-pill').addEventListener('click', () => {
-      const loggedInUser = localStorage.getItem('SWEETOS_logged_in_user');
+      const loggedInUser = sessionStorage.getItem('SWEETOS_logged_in_user');
       const targetPage = loggedInUser ? 'profile' : 'auth';
       window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: targetPage } }));
     });

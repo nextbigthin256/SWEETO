@@ -41,7 +41,7 @@ class ProductCard extends HTMLElement {
 
     // Load reviews with fallback to product rating
     const key = `SWEETOS_reviews_${p.id}`;
-    const saved = localStorage.getItem(key);
+    const saved = sessionStorage.getItem(key);
     let reviewsList = [];
     if (saved) {
       try {
@@ -92,7 +92,7 @@ class ProductCard extends HTMLElement {
     const originalPriceVal = hasDiscount ? origPrice : 0;
     const discountVal = hasDiscount ? Math.round(((originalPriceVal - p.price) / originalPriceVal) * 100) : 0;
 
-    const wishlistSaved = localStorage.getItem('SWEETOS_wishlist');
+    const wishlistSaved = sessionStorage.getItem('SWEETOS_wishlist');
     let isWishlisted = false;
     if (wishlistSaved) {
       try {

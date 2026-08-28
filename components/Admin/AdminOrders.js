@@ -1343,7 +1343,7 @@ function updateOrderStatus(context, orderId, nextStatus, trackingNum, shadow) {
     
     let customerNotifs = [];
     try {
-      customerNotifs = JSON.parse(localStorage.getItem(notifKey) || '[]');
+      customerNotifs = JSON.parse(sessionStorage.getItem(notifKey) || '[]');
     } catch(e) {}
 
     let icon = '📦';
@@ -1374,7 +1374,7 @@ function updateOrderStatus(context, orderId, nextStatus, trackingNum, shadow) {
       unread: true
     });
 
-    localStorage.setItem(notifKey, JSON.stringify(customerNotifs));
+    sessionStorage.setItem(notifKey, JSON.stringify(customerNotifs));
     window.dispatchEvent(new CustomEvent('notifications:updated'));
   }
 
@@ -1461,10 +1461,10 @@ function printOrderReceipt(order) {
   const printWindow = window.open('', '_blank', 'width=800,height=900');
   if (!printWindow) return;
 
-  const storeName = localStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
-  const storePhone = localStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23';
-  const storeEmail = localStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com';
-  const storeAddress = localStorage.getItem('SWEETOS_store_addr') || 'Abidjan, Cocody Mermoz';
+  const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
+  const storePhone = sessionStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23';
+  const storeEmail = sessionStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com';
+  const storeAddress = sessionStorage.getItem('SWEETOS_store_addr') || 'Abidjan, Cocody Mermoz';
 
   const prods = order.products || [];
   let subtotal = 0;

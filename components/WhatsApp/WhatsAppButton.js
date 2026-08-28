@@ -28,13 +28,13 @@ class WhatsAppButton extends HTMLElement {
   }
 
   getAdminPhone() {
-    const raw = localStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23';
+    const raw = sessionStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23';
     return raw.replace(/[^0-9]/g, '') || '2250500619923';
   }
 
   initPosition() {
     try {
-      const saved = localStorage.getItem('SWEETOS_wa_btn_pos');
+      const saved = sessionStorage.getItem('SWEETOS_wa_btn_pos');
       if (saved) {
         const { left, top } = JSON.parse(saved);
         this.style.left = `${left}px`;
@@ -77,7 +77,7 @@ class WhatsAppButton extends HTMLElement {
     try {
       const left = parseFloat(this.style.left) || 26;
       const top = parseFloat(this.style.top) || 26;
-      localStorage.setItem('SWEETOS_wa_btn_pos', JSON.stringify({ left, top }));
+      sessionStorage.setItem('SWEETOS_wa_btn_pos', JSON.stringify({ left, top }));
     } catch(e) {}
   }
 

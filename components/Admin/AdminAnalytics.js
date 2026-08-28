@@ -7,7 +7,7 @@ export function renderAdminAnalytics(context) {
   // Pre-seed mock customer activity logs if empty
   let sessionLogs = [];
   try {
-    const rawLogs = localStorage.getItem('SWEETOS_activity_logs');
+    const rawLogs = sessionStorage.getItem('SWEETOS_activity_logs');
     if (!rawLogs) {
       sessionLogs = [
         { id: "mock_1", user: "Alina Putri", email: "alina@example.com", phone: "+225 05 00 61 99 23", loginType: "Google OAuth", visits: ["Home", "Product: Keyboard Q1 Pro", "Cart", "Checkout"], bought: true, orderTotal: 135000, duration: "12 mins", timestamp: "Today, 02:32 PM", browser: "Chrome 122", device: "Desktop (Windows)", source: "google.com" },
@@ -15,7 +15,7 @@ export function renderAdminAnalytics(context) {
         { id: "mock_3", user: "Marc Aurele", email: "marc@aurele.ci", phone: "+225 01 23 45 67 89", loginType: "Guest Checkout", visits: ["Home", "Product: Solid Oak Riser Shelf", "Checkout"], bought: true, orderTotal: 48000, duration: "4 mins", timestamp: "Today, 04:15 PM", browser: "Firefox 124", device: "Desktop (Mac)", source: "facebook.com" },
         { id: "mock_4", user: "Alex Johnson", email: "alex@johnson.com", phone: "+225 05 99 88 77 66", loginType: "Not Logged In", visits: ["Home", "Product: Nebula Light Ring Dial", "Cart"], bought: false, orderTotal: 0, duration: "8 mins", timestamp: "Today, 05:44 PM", browser: "Chrome 122", device: "Mobile (Android)", source: "whatsapp.com" }
       ];
-      localStorage.setItem('SWEETOS_activity_logs', JSON.stringify(sessionLogs));
+      sessionStorage.setItem('SWEETOS_activity_logs', JSON.stringify(sessionLogs));
     } else {
       sessionLogs = JSON.parse(rawLogs);
     }
@@ -26,7 +26,7 @@ export function renderAdminAnalytics(context) {
   // Pre-seed detailed unresolved searches with customer contacts and notification tracking
   let failedSearches = [];
   try {
-    const rawSearches = localStorage.getItem('SWEETOS_failed_searches');
+    const rawSearches = sessionStorage.getItem('SWEETOS_failed_searches');
     if (!rawSearches) {
       failedSearches = [
         { 
@@ -78,7 +78,7 @@ export function renderAdminAnalytics(context) {
           notified: false 
         }
       ];
-      localStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
+      sessionStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
     } else {
       failedSearches = JSON.parse(rawSearches);
     }
@@ -1030,11 +1030,11 @@ export function attachAdminAnalyticsListeners(context, shadow) {
     
     let failedSearches = [];
     try {
-      failedSearches = JSON.parse(localStorage.getItem('SWEETOS_failed_searches') || '[]');
+      failedSearches = JSON.parse(sessionStorage.getItem('SWEETOS_failed_searches') || '[]');
       const found = failedSearches.find(f => f.id === qId);
       if (found) {
         found.notified = true;
-        localStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
+        sessionStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
       }
     } catch(e) {}
 
@@ -1060,11 +1060,11 @@ export function attachAdminAnalyticsListeners(context, shadow) {
       const qId = btn.getAttribute('data-query-id');
       let failedSearches = [];
       try {
-        failedSearches = JSON.parse(localStorage.getItem('SWEETOS_failed_searches') || '[]');
+        failedSearches = JSON.parse(sessionStorage.getItem('SWEETOS_failed_searches') || '[]');
         const found = failedSearches.find(f => f.id === qId);
         if (found) {
           found.notified = !found.notified;
-          localStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
+          sessionStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
         }
       } catch(e) {}
 
@@ -1079,7 +1079,7 @@ export function attachAdminAnalyticsListeners(context, shadow) {
     exportDemandBtn.addEventListener('click', () => {
       let failedSearches = [];
       try {
-        failedSearches = JSON.parse(localStorage.getItem('SWEETOS_failed_searches') || '[]');
+        failedSearches = JSON.parse(sessionStorage.getItem('SWEETOS_failed_searches') || '[]');
       } catch(e) {}
 
       let csv = "data:text/csv;charset=utf-8,ID,Searched Query,Customer Name,Phone Number,Email,Timestamp,Location,Device,Notification Status\n";

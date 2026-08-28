@@ -142,7 +142,7 @@ class MobileNav extends HTMLElement {
 
     // Cart badge
     try {
-      const cart = JSON.parse(localStorage.getItem('SWEETOS_cart') || '[]');
+      const cart = JSON.parse(sessionStorage.getItem('SWEETOS_cart') || '[]');
       const count = cart.reduce((acc, item) => acc + item.quantity, 0);
       const cartBadge = shadow.getElementById('mobile-cart-badge');
       if (cartBadge) {
@@ -153,7 +153,7 @@ class MobileNav extends HTMLElement {
 
     // Wishlist badge
     try {
-      const wishlist = JSON.parse(localStorage.getItem('SWEETOS_wishlist') || '[]');
+      const wishlist = JSON.parse(sessionStorage.getItem('SWEETOS_wishlist') || '[]');
       const wishBadge = shadow.getElementById('mobile-wishlist-badge');
       if (wishBadge) {
         wishBadge.textContent = wishlist.length;

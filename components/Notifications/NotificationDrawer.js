@@ -41,7 +41,7 @@ class NotificationDrawer extends HTMLElement {
 
   loadNotifications() {
     const key = getNotificationsStorageKey();
-    const saved = localStorage.getItem(key);
+    const saved = sessionStorage.getItem(key);
     if (saved) {
       try {
         this.notifications = JSON.parse(saved);
@@ -61,7 +61,7 @@ class NotificationDrawer extends HTMLElement {
           unread: true
         }
       ];
-      localStorage.setItem(key, JSON.stringify(this.notifications));
+      sessionStorage.setItem(key, JSON.stringify(this.notifications));
     }
 
     // Ensure all existing notifications have a numeric createdAt timestamp
@@ -85,7 +85,7 @@ class NotificationDrawer extends HTMLElement {
     let scratchcards = [];
     try {
       const scratchKey = getScratchcardsStorageKey();
-      scratchcards = JSON.parse(localStorage.getItem(scratchKey) || '[]');
+      scratchcards = JSON.parse(sessionStorage.getItem(scratchKey) || '[]');
     } catch(e) {}
     
     const now = Date.now();
@@ -117,7 +117,7 @@ class NotificationDrawer extends HTMLElement {
 
     let coupons = [];
     try {
-      coupons = JSON.parse(localStorage.getItem('SWEETOS_coupons') || '[]');
+      coupons = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
     } catch(e) {}
     
     coupons.forEach(c => {
@@ -153,7 +153,7 @@ class NotificationDrawer extends HTMLElement {
 
   saveNotifications() {
     const key = getNotificationsStorageKey();
-    localStorage.setItem(key, JSON.stringify(this.notifications));
+    sessionStorage.setItem(key, JSON.stringify(this.notifications));
   }
 
   render() {
@@ -420,7 +420,7 @@ class NotificationDrawer extends HTMLElement {
   handleOpenEmailModal(orderId) {
     let orders = [];
     try {
-      orders = JSON.parse(localStorage.getItem('SWEETOS_all_orders') || '[]');
+      orders = JSON.parse(sessionStorage.getItem('SWEETOS_all_orders') || '[]');
     } catch(e) {}
     const order = orders.find(o => o.id === orderId);
     if (!order) {
@@ -440,7 +440,7 @@ class NotificationDrawer extends HTMLElement {
   downloadReceipt(orderId) {
     let orders = [];
     try {
-      orders = JSON.parse(localStorage.getItem('SWEETOS_all_orders') || '[]');
+      orders = JSON.parse(sessionStorage.getItem('SWEETOS_all_orders') || '[]');
     } catch(e) {}
     const order = orders.find(o => o.id === orderId);
     if (!order) {

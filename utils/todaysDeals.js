@@ -139,10 +139,10 @@ export function getDefaultTodaysDealsConfig() {
 
 export function getTodaysDealsConfig() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) {
       const def = getDefaultTodaysDealsConfig();
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(def));
+      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(def));
       return def;
     }
     const parsed = JSON.parse(raw);
@@ -174,7 +174,7 @@ export function notifyCustomersDealsActive(config) {
     const notifKey = 'SWEETOS_notifications';
     let notifs = [];
     try {
-      notifs = JSON.parse(localStorage.getItem(notifKey) || '[]');
+      notifs = JSON.parse(sessionStorage.getItem(notifKey) || '[]');
     } catch(e) {}
 
     const totalCoupons = config.couponPool?.totalCoupons || 5;
@@ -193,7 +193,7 @@ export function notifyCustomersDealsActive(config) {
     const isDuplicate = notifs.some(n => n.type === 'deal' && (Date.now() - n.id) < 2 * 60 * 1000);
     if (!isDuplicate) {
       notifs.unshift(newNotif);
-      localStorage.setItem(notifKey, JSON.stringify(notifs));
+      sessionStorage.setItem(notifKey, JSON.stringify(notifs));
       window.dispatchEvent(new CustomEvent('notifications:updated'));
     }
   } catch(e) {
@@ -206,7 +206,7 @@ export function saveTodaysDealsConfig(config) {
     const prevCfg = getTodaysDealsConfig();
     const wasOff = !prevCfg.enabled || (prevCfg.endsAt && Date.now() >= prevCfg.endsAt);
     
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(config));
     window.dispatchEvent(new CustomEvent('todays_deals:updated', { detail: config }));
     
     // If deals turned ON or timer restarted while enabled, notify customers!
@@ -318,10 +318,10 @@ export function claimTodaysDealsCoupon(customerEmail) {
   // Add to global coupons database
   let couponsList = [];
   try {
-    couponsList = JSON.parse(localStorage.getItem('SWEETOS_coupons') || '[]');
+    couponsList = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
   } catch (e) {}
   couponsList.unshift(newCoupon);
-  localStorage.setItem('SWEETOS_coupons', JSON.stringify(couponsList));
+  sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(couponsList));
 
   // Deduct 1 from pool
   pool.remainingCoupons = Math.max(0, pool.remainingCoupons - 1);
@@ -356,7 +356,7 @@ export function awardMysteryBoxForDeliveredOrder(order) {
   const scratchKey = getScratchcardsStorageKey();
   let scratchcards = [];
   try {
-    scratchcards = JSON.parse(localStorage.getItem(scratchKey) || '[]');
+    scratchcards = JSON.parse(sessionStorage.getItem(scratchKey) || '[]');
   } catch (e) {}
 
   // Prevent duplicate mystery boxes for the same order
@@ -385,13 +385,13 @@ export function awardMysteryBoxForDeliveredOrder(order) {
     expiresAt: Date.now() + 14 * 24 * 60 * 60 * 1000
   });
 
-  localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
+  sessionStorage.setItem(scratchKey, JSON.stringify(scratchcards));
 
   // Push customer delivered notification with mystery box alert to user-scoped notification store
   const notifKey = getNotificationsStorageKey();
   let notifs = [];
   try {
-    notifs = JSON.parse(localStorage.getItem(notifKey) || '[]');
+    notifs = JSON.parse(sessionStorage.getItem(notifKey) || '[]');
   } catch (e) {}
 
   notifs.unshift({
@@ -405,14 +405,14 @@ export function awardMysteryBoxForDeliveredOrder(order) {
     unread: true
   });
 
-  localStorage.setItem(notifKey, JSON.stringify(notifs));
+  sessionStorage.setItem(notifKey, JSON.stringify(notifs));
 
   // Also push to user-specific notification store if available
   if (userEmail) {
     const userSafeKey = `SWEETOS_notifications_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
     let userNotifs = [];
     try {
-      userNotifs = JSON.parse(localStorage.getItem(userSafeKey) || '[]');
+      userNotifs = JSON.parse(sessionStorage.getItem(userSafeKey) || '[]');
     } catch (e) {}
     userNotifs.unshift({
       id: Date.now(),
@@ -424,7 +424,7 @@ export function awardMysteryBoxForDeliveredOrder(order) {
       timestamp: Date.now(),
       unread: true
     });
-    localStorage.setItem(userSafeKey, JSON.stringify(userNotifs));
+    sessionStorage.setItem(userSafeKey, JSON.stringify(userNotifs));
   }
 
   window.dispatchEvent(new CustomEvent('notifications:updated'));

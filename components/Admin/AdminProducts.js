@@ -111,7 +111,7 @@ export function renderAdminProducts(context) {
   const allSelected = paginatedProducts.length > 0 && paginatedProducts.every(p => selectedProductIds.has(p.id));
 
   // Extract unique brands
-  const savedBrands = JSON.parse(localStorage.getItem('SWEETOS_brands') || '[]');
+  const savedBrands = JSON.parse(sessionStorage.getItem('SWEETOS_brands') || '[]');
   const brandNames = Array.from(new Set([...savedBrands.map(b => b.name), ...rawProducts.map(p => p.brand).filter(Boolean)]));
 
   return `
@@ -940,7 +940,7 @@ export function renderAdminProducts(context) {
                 <label>Show in Homepage Curated Sections</label>
                 <div class="sections-checkbox-grid" style="display:flex; flex-direction:column; gap:8px; background:#0c101b; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); max-height:140px; overflow-y:auto;">
                   ${(() => {
-                    const secs = JSON.parse(localStorage.getItem('SWEETOS_homepage_sections') || '[]');
+                    const secs = JSON.parse(sessionStorage.getItem('SWEETOS_homepage_sections') || '[]');
                     const targetSecs = secs.filter(s => s.type !== 'categories');
                     if (targetSecs.length === 0) {
                       return `<small style="color:#64748b;">No dynamic sections configured.</small>`;
@@ -1189,9 +1189,9 @@ export function attachAdminProductsListeners(context, shadow) {
 
         // 3. Clear curated sections
         try {
-          const secs = JSON.parse(localStorage.getItem('SWEETOS_homepage_sections') || '[]');
+          const secs = JSON.parse(sessionStorage.getItem('SWEETOS_homepage_sections') || '[]');
           secs.forEach(s => { s.productIds = []; });
-          localStorage.setItem('SWEETOS_homepage_sections', JSON.stringify(secs));
+          sessionStorage.setItem('SWEETOS_homepage_sections', JSON.stringify(secs));
         } catch(e) {}
 
         window.dispatchEvent(new CustomEvent('toast:show', { detail: '🔥 All products permanently wiped from store and cloud! (0 Items)' }));
@@ -1264,7 +1264,7 @@ export function attachAdminProductsListeners(context, shadow) {
 
       // 3. Clean up from curated homepage sections
       try {
-        const secs = JSON.parse(localStorage.getItem('SWEETOS_homepage_sections') || '[]');
+        const secs = JSON.parse(sessionStorage.getItem('SWEETOS_homepage_sections') || '[]');
         let secMod = false;
         secs.forEach(s => {
           if (s.productIds && s.productIds.includes(prod.id)) {
@@ -1272,7 +1272,7 @@ export function attachAdminProductsListeners(context, shadow) {
             secMod = true;
           }
         });
-        if (secMod) localStorage.setItem('SWEETOS_homepage_sections', JSON.stringify(secs));
+        if (secMod) sessionStorage.setItem('SWEETOS_homepage_sections', JSON.stringify(secs));
       } catch(e) {}
 
       window.dispatchEvent(new CustomEvent('toast:show', { detail: `🔥 "${prod.name}" permanently deleted forever.` }));

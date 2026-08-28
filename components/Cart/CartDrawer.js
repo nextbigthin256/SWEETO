@@ -18,7 +18,7 @@ class CartDrawer extends HTMLElement {
 
   loadCartFromStorage() {
     const key = getCartStorageKey();
-    const saved = localStorage.getItem(key);
+    const saved = sessionStorage.getItem(key);
     if (saved) {
       try {
         this.cart = JSON.parse(saved);
@@ -32,7 +32,7 @@ class CartDrawer extends HTMLElement {
 
   saveCartToStorage() {
     const key = getCartStorageKey();
-    localStorage.setItem(key, JSON.stringify(this.cart));
+    sessionStorage.setItem(key, JSON.stringify(this.cart));
     window.dispatchEvent(new CustomEvent('cart:updated', { detail: this.cart }));
   }
 
@@ -91,8 +91,8 @@ class CartDrawer extends HTMLElement {
     // Only load customer's personally earned/unlocked coupons if SCRATCHED (no unscratched coupons, no generic coupons)
     let activeCoupons = [];
     try {
-      const loggedUser = JSON.parse(localStorage.getItem('SWEETOS_logged_in_user') || '{}');
-      const userProfile = JSON.parse(localStorage.getItem('SWEETOS_user_profile') || '{}');
+      const loggedUser = JSON.parse(sessionStorage.getItem('SWEETOS_logged_in_user') || '{}');
+      const userProfile = JSON.parse(sessionStorage.getItem('SWEETOS_user_profile') || '{}');
       const curEmail = (loggedUser.email || userProfile.email || '').toLowerCase();
       if (curEmail) {
         // 1. Scratched Badge Rewards
@@ -111,7 +111,7 @@ class CartDrawer extends HTMLElement {
 
         // 2. Scratched Mystery Box Level Coupons
         const scratchKey = getScratchcardsStorageKey();
-        const scratchcards = JSON.parse(localStorage.getItem(scratchKey) || '[]');
+        const scratchcards = JSON.parse(sessionStorage.getItem(scratchKey) || '[]');
         scratchcards.forEach(sc => {
           if (sc.email && sc.email.toLowerCase() === curEmail && sc.scratched === true && sc.couponWon && sc.couponWon !== 'lost') {
             const cw = sc.couponWon;
@@ -416,11 +416,11 @@ class CartDrawer extends HTMLElement {
         if (item) {
           let wishlist = [];
           try {
-            wishlist = JSON.parse(localStorage.getItem('SWEETOS_wishlist') || '[]');
+            wishlist = JSON.parse(sessionStorage.getItem('SWEETOS_wishlist') || '[]');
           } catch(e) {}
           if (!wishlist.some(w => w.id === item.id)) {
             wishlist.push(item);
-            localStorage.setItem('SWEETOS_wishlist', JSON.stringify(wishlist));
+            sessionStorage.setItem('SWEETOS_wishlist', JSON.stringify(wishlist));
             window.dispatchEvent(new CustomEvent('wishlist:updated', { detail: wishlist }));
           }
           this.cart.splice(idx, 1);
@@ -451,8 +451,8 @@ class CartDrawer extends HTMLElement {
             return;
           }
 
-          const loggedUser = JSON.parse(localStorage.getItem('SWEETOS_logged_in_user') || '{}');
-          const userProfile = JSON.parse(localStorage.getItem('SWEETOS_user_profile') || '{}');
+          const loggedUser = JSON.parse(sessionStorage.getItem('SWEETOS_logged_in_user') || '{}');
+          const userProfile = JSON.parse(sessionStorage.getItem('SWEETOS_user_profile') || '{}');
           const curEmail = (loggedUser.email || userProfile.email || '').toLowerCase();
 
           // 1. Check Badge Rewards
@@ -488,7 +488,7 @@ class CartDrawer extends HTMLElement {
           const scratchKey = getScratchcardsStorageKey();
           let scratchcards = [];
           try {
-            scratchcards = JSON.parse(localStorage.getItem(scratchKey) || '[]');
+            scratchcards = JSON.parse(sessionStorage.getItem(scratchKey) || '[]');
           } catch(e) {}
           const userCard = scratchcards.find(sc => 
             (sc.rewardCode && sc.rewardCode.toUpperCase() === code) || 
@@ -518,7 +518,7 @@ class CartDrawer extends HTMLElement {
           // 3. Check General Admin Coupons
           let coupons = [];
           try {
-            const stored = localStorage.getItem('SWEETOS_coupons');
+            const stored = sessionStorage.getItem('SWEETOS_coupons');
             coupons = stored ? JSON.parse(stored) : [];
           } catch(e) {}
 

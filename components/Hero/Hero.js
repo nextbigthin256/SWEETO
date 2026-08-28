@@ -15,7 +15,7 @@ class Hero extends HTMLElement {
 
   getProductsList() {
     try {
-      const stored = localStorage.getItem('SWEETOS_products');
+      const stored = sessionStorage.getItem('SWEETOS_products');
       if (stored) {
         const parsed = JSON.parse(stored);
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -26,10 +26,10 @@ class Hero extends HTMLElement {
 
   initSlides() {
     const allProds = this.getProductsList();
-    const storeName = localStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
-    const heroTitle = localStorage.getItem('SWEETOS_hero_title') || 'Find Your Style, Love Your Look ✨';
-    const heroSubtitle = localStorage.getItem('SWEETOS_hero_subtitle') || 'Discover the latest trends in high-end tech layouts, accessories, and premium workspace gear.';
-    const entranceImg = localStorage.getItem('SWEETOS_store_entrance_image') || null;
+    const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
+    const heroTitle = sessionStorage.getItem('SWEETOS_hero_title') || 'Find Your Style, Love Your Look ✨';
+    const heroSubtitle = sessionStorage.getItem('SWEETOS_hero_subtitle') || 'Discover the latest trends in high-end tech layouts, accessories, and premium workspace gear.';
+    const entranceImg = sessionStorage.getItem('SWEETOS_store_entrance_image') || null;
 
     if (!Array.isArray(allProds) || allProds.length === 0) {
       // 0 Products in store - Clean branded showcase without any mock cards

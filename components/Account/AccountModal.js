@@ -23,16 +23,16 @@ class AccountModal extends HTMLElement {
   }
 
   loadUserData() {
-    const loggedIn = localStorage.getItem('SWEETOS_logged_in_user');
+    const loggedIn = sessionStorage.getItem('SWEETOS_logged_in_user');
     if (loggedIn) {
       try {
         const session = JSON.parse(loggedIn);
         const email = session.email;
         const profileKey = getProfileStorageKey();
-        let profile = localStorage.getItem(profileKey);
+        let profile = sessionStorage.getItem(profileKey);
         
         if (!profile) {
-          profile = localStorage.getItem('SWEETOS_user_profile');
+          profile = sessionStorage.getItem('SWEETOS_user_profile');
         }
         
         if (profile) {
@@ -146,7 +146,7 @@ class AccountModal extends HTMLElement {
 
   setupEventListeners() {
     window.addEventListener('account:toggle', () => {
-      const loggedIn = localStorage.getItem('SWEETOS_logged_in_user');
+      const loggedIn = sessionStorage.getItem('SWEETOS_logged_in_user');
       if (!loggedIn) {
         window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'auth' } }));
         return;
@@ -193,8 +193,8 @@ class AccountModal extends HTMLElement {
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
         // Clear active session
-        localStorage.removeItem('SWEETOS_logged_in_user');
-        localStorage.removeItem('SWEETOS_user_profile');
+        sessionStorage.removeItem('SWEETOS_logged_in_user');
+        sessionStorage.removeItem('SWEETOS_user_profile');
         sessionStorage.clear();
         
         window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: false } }));

@@ -13,8 +13,8 @@ class ProductList extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     
-    // Initialize products database from localStorage to enable Admin Panel synchronization
-    const storedProds = localStorage.getItem('SWEETOS_products');
+    // Initialize products database from sessionStorage to enable Admin Panel synchronization
+    const storedProds = sessionStorage.getItem('SWEETOS_products');
     if (storedProds !== null) {
       try {
         this.products = JSON.parse(storedProds);
@@ -24,7 +24,7 @@ class ProductList extends HTMLElement {
     } else {
       this.products = products;
       this.initializeHomepageSectionsForProducts(this.products);
-      localStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
+      sessionStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
     }
 
     // Auto-sanitize all product categories and names
@@ -41,24 +41,24 @@ class ProductList extends HTMLElement {
         }
       });
       if (prodsModified) {
-        localStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
+        sessionStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
       }
     }
 
     // Auto-sanitize categories and homepage sections
     try {
-      const rawCats = JSON.parse(localStorage.getItem('SWEETOS_categories') || '[]');
+      const rawCats = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
       const cleanCats = rawCats.filter(c => c && c.name && c.name !== 'undefined' && c.name !== 'null');
       if (cleanCats.length !== rawCats.length) {
-        localStorage.setItem('SWEETOS_categories', JSON.stringify(cleanCats));
+        sessionStorage.setItem('SWEETOS_categories', JSON.stringify(cleanCats));
       }
     } catch(e) {}
 
     try {
-      const rawSecs = JSON.parse(localStorage.getItem('SWEETOS_homepage_sections') || '[]');
+      const rawSecs = JSON.parse(sessionStorage.getItem('SWEETOS_homepage_sections') || '[]');
       const cleanSecs = rawSecs.filter(s => s && s.name && s.name !== 'undefined' && s.name !== 'null');
       if (cleanSecs.length !== rawSecs.length) {
-        localStorage.setItem('SWEETOS_homepage_sections', JSON.stringify(cleanSecs));
+        sessionStorage.setItem('SWEETOS_homepage_sections', JSON.stringify(cleanSecs));
       }
     } catch(e) {}
     
@@ -193,15 +193,15 @@ class ProductList extends HTMLElement {
         let needsReRender = false;
         if (cloudProds.status === 'fulfilled' && Array.isArray(cloudProds.value)) {
           this.products = cloudProds.value;
-          localStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
+          sessionStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
           needsReRender = true;
         }
         if (cloudCats.status === 'fulfilled' && Array.isArray(cloudCats.value)) {
-          localStorage.setItem('SWEETOS_categories', JSON.stringify(cloudCats.value));
+          sessionStorage.setItem('SWEETOS_categories', JSON.stringify(cloudCats.value));
           needsReRender = true;
         }
         if (cloudBrands.status === 'fulfilled' && Array.isArray(cloudBrands.value)) {
-          localStorage.setItem('SWEETOS_brands', JSON.stringify(cloudBrands.value));
+          sessionStorage.setItem('SWEETOS_brands', JSON.stringify(cloudBrands.value));
           needsReRender = true;
         }
         if (needsReRender) {
@@ -260,7 +260,7 @@ class ProductList extends HTMLElement {
     // Listen to live Supabase and product updates
     this._productsUpdatedHandler = (e) => {
       try {
-        const stored = localStorage.getItem('SWEETOS_products');
+        const stored = sessionStorage.getItem('SWEETOS_products');
         if (stored) {
           this.products = JSON.parse(stored);
         } else if (e.detail && Array.isArray(e.detail)) {
@@ -283,7 +283,7 @@ class ProductList extends HTMLElement {
     });
 
     window.addEventListener('auth:changed', (e) => {
-      const isLoggedIn = localStorage.getItem('SWEETOS_logged_in_user') !== null || (e.detail && e.detail.loggedIn);
+      const isLoggedIn = sessionStorage.getItem('SWEETOS_logged_in_user') !== null || (e.detail && e.detail.loggedIn);
       if (isLoggedIn && (this.currentPage === 'auth' || window.location.hash === '#/auth' || window.location.hash === '#/auth/')) {
         this.currentPage = 'home';
         this.currentCategory = 'All';
@@ -358,7 +358,7 @@ class ProductList extends HTMLElement {
 
   // --- Functional Wishlist Utility Methods ---
   loadWishlistFromStorage() {
-    const saved = localStorage.getItem('SWEETOS_wishlist');
+    const saved = sessionStorage.getItem('SWEETOS_wishlist');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -370,7 +370,7 @@ class ProductList extends HTMLElement {
   }
 
   saveWishlistToStorage(wishlist) {
-    localStorage.setItem('SWEETOS_wishlist', JSON.stringify(wishlist));
+    sessionStorage.setItem('SWEETOS_wishlist', JSON.stringify(wishlist));
     window.dispatchEvent(new CustomEvent('wishlist:updated', { detail: wishlist }));
   }
 
@@ -403,7 +403,7 @@ class ProductList extends HTMLElement {
 
   // --- Functional User Profile Utility Methods ---
   loadUserProfile() {
-    const loggedInUserStr = localStorage.getItem('SWEETOS_logged_in_user');
+    const loggedInUserStr = sessionStorage.getItem('SWEETOS_logged_in_user');
     if (!loggedInUserStr) {
       return null;
     }
@@ -418,7 +418,7 @@ class ProductList extends HTMLElement {
     }
 
     const profileKey = getProfileStorageKey();
-    const saved = localStorage.getItem(profileKey);
+    const saved = sessionStorage.getItem(profileKey);
     let profile = null;
     if (saved) {
       try {
@@ -452,7 +452,7 @@ class ProductList extends HTMLElement {
 
     // Check if admin customer record has level, badge or avatar override
     try {
-      const customersList = JSON.parse(localStorage.getItem('SWEETOS_customers') || '[]');
+      const customersList = JSON.parse(sessionStorage.getItem('SWEETOS_customers') || '[]');
       if (currentEmail) {
         const custRecord = customersList.find(c => c.email && c.email.toLowerCase() === currentEmail);
         if (custRecord) {
@@ -472,7 +472,7 @@ class ProductList extends HTMLElement {
 
     // Pull real orders from SWEETOS_all_orders to calculate live gross spend & orders count
     try {
-      const allOrders = JSON.parse(localStorage.getItem('SWEETOS_all_orders') || '[]');
+      const allOrders = JSON.parse(sessionStorage.getItem('SWEETOS_all_orders') || '[]');
       const userOrders = allOrders.filter(o => o.customerEmail && o.customerEmail.toLowerCase() === currentEmail && (o.status || '').toLowerCase() !== 'deleted');
       if (userOrders.length > 0) {
         profile.orders = userOrders;
@@ -503,12 +503,12 @@ class ProductList extends HTMLElement {
 
   saveUserProfile(profile) {
     const profileKey = getProfileStorageKey();
-    localStorage.setItem(profileKey, JSON.stringify(profile));
-    localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+    sessionStorage.setItem(profileKey, JSON.stringify(profile));
+    sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
 
     // Synchronize with SWEETOS_customers if exists
     try {
-      let customers = JSON.parse(localStorage.getItem('SWEETOS_customers') || '[]');
+      let customers = JSON.parse(sessionStorage.getItem('SWEETOS_customers') || '[]');
       const idx = customers.findIndex(c => c.email && c.email.toLowerCase() === (profile.email || '').toLowerCase());
       if (idx > -1) {
         customers[idx].name = `${profile.firstName || ''} ${profile.lastName || ''}`.trim();
@@ -516,7 +516,7 @@ class ProductList extends HTMLElement {
         if (profile.avatar !== undefined) customers[idx].avatar = profile.avatar;
         if (profile.level) customers[idx].level = profile.level;
         if (profile.badgeType) customers[idx].badgeType = profile.badgeType;
-        localStorage.setItem('SWEETOS_customers', JSON.stringify(customers));
+        sessionStorage.setItem('SWEETOS_customers', JSON.stringify(customers));
       }
     } catch(e) {}
   }
@@ -527,7 +527,7 @@ class ProductList extends HTMLElement {
     
     let categories = [];
     try {
-      categories = JSON.parse(localStorage.getItem('SWEETOS_categories') || '[]');
+      categories = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
     } catch(e) {}
     
     const targetLower = String(targetCatName).trim().toLowerCase();
@@ -728,7 +728,7 @@ class ProductList extends HTMLElement {
   loadProductReviews(productId, targetRating, defaultCount) {
     let allReviews = [];
     try {
-      const stored = localStorage.getItem('SWEETOS_reviews') || localStorage.getItem('SWEETOS_reviews_all');
+      const stored = sessionStorage.getItem('SWEETOS_reviews') || sessionStorage.getItem('SWEETOS_reviews_all');
       if (stored) {
         allReviews = JSON.parse(stored);
       }
@@ -746,7 +746,7 @@ class ProductList extends HTMLElement {
   saveProductReviews(productId, newReviewsForProduct) {
     let allReviews = [];
     try {
-      const stored = localStorage.getItem('SWEETOS_reviews') || localStorage.getItem('SWEETOS_reviews_all');
+      const stored = sessionStorage.getItem('SWEETOS_reviews') || sessionStorage.getItem('SWEETOS_reviews_all');
       if (stored) {
         allReviews = JSON.parse(stored);
       }
@@ -776,8 +776,8 @@ class ProductList extends HTMLElement {
     });
 
     allReviews = [...mapped, ...allReviews];
-    localStorage.setItem('SWEETOS_reviews', JSON.stringify(allReviews));
-    localStorage.setItem('SWEETOS_reviews_all', JSON.stringify(allReviews));
+    sessionStorage.setItem('SWEETOS_reviews', JSON.stringify(allReviews));
+    sessionStorage.setItem('SWEETOS_reviews_all', JSON.stringify(allReviews));
     window.dispatchEvent(new CustomEvent('reviews:updated', { detail: allReviews }));
 
     // Sync to server disk if backend API is active
@@ -815,18 +815,18 @@ class ProductList extends HTMLElement {
     } catch(err) {}
 
     // Reload products database to reflect Admin changes dynamically
-    const storedProds = localStorage.getItem('SWEETOS_products');
+    const storedProds = sessionStorage.getItem('SWEETOS_products');
     if (storedProds) {
       try {
         this.products = JSON.parse(storedProds);
         const hasMigrated = this.initializeHomepageSectionsForProducts(this.products);
         if (hasMigrated) {
-          localStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
+          sessionStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
         }
       } catch (e) {}
     }
 
-    const isLoggedIn = localStorage.getItem('SWEETOS_logged_in_user') !== null;
+    const isLoggedIn = sessionStorage.getItem('SWEETOS_logged_in_user') !== null;
     if (!isLoggedIn && (this.currentPage === 'profile' || this.currentPage === 'orders')) {
       this.currentPage = 'auth';
       setTimeout(() => {
@@ -862,7 +862,7 @@ class ProductList extends HTMLElement {
     if (this.currentPage === 'home') {
       let sectionsList = [];
       try {
-        const storedSecs = localStorage.getItem('SWEETOS_homepage_sections');
+        const storedSecs = sessionStorage.getItem('SWEETOS_homepage_sections');
         sectionsList = storedSecs ? JSON.parse(storedSecs) : [];
       } catch(e) {}
 
@@ -898,7 +898,7 @@ class ProductList extends HTMLElement {
       });
 
       if (needsSave) {
-        localStorage.setItem('SWEETOS_homepage_sections', JSON.stringify(sectionsList));
+        sessionStorage.setItem('SWEETOS_homepage_sections', JSON.stringify(sectionsList));
       }
 
       // Sort active sections by order
@@ -933,7 +933,7 @@ class ProductList extends HTMLElement {
 
               <div class="home-category-row custom-scroll" id="home-category-row">
                 ${(() => {
-                  const storedCats = JSON.parse(localStorage.getItem('SWEETOS_categories') || '[]');
+                  const storedCats = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
                   const themeMap = {
                     "Keyboards": {
                       bg: "linear-gradient(145deg, #0b1528 0%, #1e3a8a 100%)",
@@ -1301,7 +1301,7 @@ class ProductList extends HTMLElement {
       const isSearchActive = Boolean(this.currentQuery && this.currentQuery.trim() !== '');
 
       // Hierarchical dynamic breadcrumbs
-      const allCatsList = JSON.parse(localStorage.getItem('SWEETOS_categories') || '[]');
+      const allCatsList = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
       const activeCatObj = allCatsList.find(c => c && (
         String(c.name || '').trim().toLowerCase() === String(this.currentCategory).trim().toLowerCase() ||
         String(c.id) === String(this.currentCategory)
@@ -1482,7 +1482,7 @@ class ProductList extends HTMLElement {
       this.injectCategorizedProducts('best');
 
     } else if (this.currentPage === 'brands') {
-      const storedBrands = JSON.parse(localStorage.getItem('SWEETOS_brands') || '[]');
+      const storedBrands = JSON.parse(sessionStorage.getItem('SWEETOS_brands') || '[]');
       const isAll = !this.currentBrandFilter || this.currentBrandFilter === 'All';
       const activeBrandObj = storedBrands.find(b => b && b.name && b.name.toLowerCase() === (this.currentBrandFilter || '').toLowerCase());
 
@@ -1519,7 +1519,7 @@ class ProductList extends HTMLElement {
             <select class="brand-toolbar-select" id="brand-cat-select" aria-label="Filtrer par catégorie">
               <option value="All" ${this.brandCategoryFilter === 'All' ? 'selected' : ''}>Toutes les catégories</option>
               ${(() => {
-                const cats = JSON.parse(localStorage.getItem('SWEETOS_categories') || '[]');
+                const cats = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
                 return cats.map(c => `
                   <option value="${c.name || c}" ${this.brandCategoryFilter === (c.name || c) ? 'selected' : ''}>${c.name || c}</option>
                 `).join('');
@@ -1711,10 +1711,10 @@ class ProductList extends HTMLElement {
     } else if (this.currentPage === 'coupons') {
       let scratchcardsList = [];
       try {
-        const loggedInUserStr = localStorage.getItem('SWEETOS_logged_in_user');
+        const loggedInUserStr = sessionStorage.getItem('SWEETOS_logged_in_user');
         if (loggedInUserStr) {
           const scratchKey = getScratchcardsStorageKey();
-          const stored = localStorage.getItem(scratchKey);
+          const stored = sessionStorage.getItem(scratchKey);
           let rawList = stored ? JSON.parse(stored) : [];
           const now = Date.now();
 
@@ -1739,7 +1739,7 @@ class ProductList extends HTMLElement {
       if (this.currentCouponCode) {
         let couponsList = [];
         try {
-          couponsList = JSON.parse(localStorage.getItem('SWEETOS_coupons') || '[]');
+          couponsList = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
         } catch(e) {}
         const c = couponsList.find(item => item.code === this.currentCouponCode);
         if (c) {
@@ -2889,7 +2889,7 @@ class ProductList extends HTMLElement {
   injectHomeProducts() {
     let sectionsList = [];
     try {
-      const storedSecs = localStorage.getItem('SWEETOS_homepage_sections');
+      const storedSecs = sessionStorage.getItem('SWEETOS_homepage_sections');
       sectionsList = storedSecs ? JSON.parse(storedSecs) : [];
     } catch(e) {}
 
@@ -3257,7 +3257,7 @@ class ProductList extends HTMLElement {
     const banner = this.shadowRoot.getElementById('category-hero-banner-container');
     if (!banner) return;
 
-    const allCats = JSON.parse(localStorage.getItem('SWEETOS_categories') || '[]');
+    const allCats = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
     const isAll = !this.currentCategory || this.currentCategory === 'All';
 
     // Matching products for this category (including subcategories)
@@ -3414,7 +3414,7 @@ class ProductList extends HTMLElement {
     const container = this.shadowRoot.getElementById('category-smart-pills-row');
     if (!container) return;
 
-    const allCats = JSON.parse(localStorage.getItem('SWEETOS_categories') || '[]');
+    const allCats = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
     const isAll = !this.currentCategory || this.currentCategory === 'All';
 
     // Find current category object
@@ -3566,7 +3566,7 @@ class ProductList extends HTMLElement {
 
     if (isAllView) {
       // Group by top-level parent categories
-      const storedCats = JSON.parse(localStorage.getItem('SWEETOS_categories') || '[]');
+      const storedCats = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
       const parentCats = storedCats.filter(c => c && !c.parent);
       const catList = parentCats.length > 0 ? parentCats : storedCats;
 
@@ -3687,14 +3687,14 @@ class ProductList extends HTMLElement {
     if (cleanQuery && cleanQuery !== 'All') {
       let failedSearches = [];
       try {
-        failedSearches = JSON.parse(localStorage.getItem('SWEETOS_failed_searches') || '[]');
+        failedSearches = JSON.parse(sessionStorage.getItem('SWEETOS_failed_searches') || '[]');
       } catch (e) {
         failedSearches = [];
       }
 
       let loggedUser = null;
       try {
-        loggedUser = JSON.parse(localStorage.getItem('SWEETOS_logged_in_user') || 'null');
+        loggedUser = JSON.parse(sessionStorage.getItem('SWEETOS_logged_in_user') || 'null');
       } catch(e) {}
 
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -3728,7 +3728,7 @@ class ProductList extends HTMLElement {
         });
       }
 
-      localStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
+      sessionStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
       window.dispatchEvent(new CustomEvent('failed_searches:updated', { detail: failedSearches }));
     }
 
@@ -3749,7 +3749,7 @@ class ProductList extends HTMLElement {
 
     let loggedUser = null;
     try {
-      loggedUser = JSON.parse(localStorage.getItem('SWEETOS_logged_in_user') || 'null');
+      loggedUser = JSON.parse(sessionStorage.getItem('SWEETOS_logged_in_user') || 'null');
     } catch(e) {}
 
     const emptyBox = document.createElement('div');
@@ -3835,7 +3835,7 @@ class ProductList extends HTMLElement {
 
         let failedSearches = [];
         try {
-          failedSearches = JSON.parse(localStorage.getItem('SWEETOS_failed_searches') || '[]');
+          failedSearches = JSON.parse(sessionStorage.getItem('SWEETOS_failed_searches') || '[]');
           const target = failedSearches.find(f => f.query.toLowerCase() === cleanQuery.toLowerCase());
           if (target) {
             target.customerName = nameVal;
@@ -3854,7 +3854,7 @@ class ProductList extends HTMLElement {
               notified: false
             });
           }
-          localStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
+          sessionStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
         } catch(err) {}
 
         const notifyBox = emptyBox.querySelector('#restock-notify-box');
@@ -3976,7 +3976,7 @@ class ProductList extends HTMLElement {
 
       // Authentication route guard
       const requiresAuthPages = ['orders', 'profile', 'coupons'];
-      const isLoggedIn = localStorage.getItem('SWEETOS_logged_in_user') !== null;
+      const isLoggedIn = sessionStorage.getItem('SWEETOS_logged_in_user') !== null;
       if (requiresAuthPages.includes(targetPage) && !isLoggedIn) {
         window.dispatchEvent(new CustomEvent('toast:show', { detail: '🔒 Veuillez vous connecter pour accéder à cette page / Please log in to access this page!' }));
         setTimeout(() => {
@@ -4308,7 +4308,7 @@ class ProductList extends HTMLElement {
     const banner = this.shadowRoot.getElementById('brand-hero-banner-container');
     if (!banner) return;
 
-    const storedBrands = JSON.parse(localStorage.getItem('SWEETOS_brands') || '[]');
+    const storedBrands = JSON.parse(sessionStorage.getItem('SWEETOS_brands') || '[]');
     const isAll = !this.currentBrandFilter || this.currentBrandFilter === 'All';
 
     const isProductOfBrand = (product, brandName) => {
@@ -4479,7 +4479,7 @@ class ProductList extends HTMLElement {
     const container = this.shadowRoot.getElementById('brand-smart-pills-row');
     if (!container) return;
 
-    const storedBrands = JSON.parse(localStorage.getItem('SWEETOS_brands') || '[]');
+    const storedBrands = JSON.parse(sessionStorage.getItem('SWEETOS_brands') || '[]');
     const isAll = !this.currentBrandFilter || this.currentBrandFilter === 'All';
 
     const isProductOfBrand = (product, brandName) => {
@@ -4605,7 +4605,7 @@ class ProductList extends HTMLElement {
     const isAllView = (!this.currentBrandFilter || this.currentBrandFilter === 'All') && !localQ && this.brandCategoryFilter === 'All' && !this.brandInStockOnly && this.brandSort === 'featured';
 
     if (isAllView) {
-      const storedBrands = JSON.parse(localStorage.getItem('SWEETOS_brands') || '[]');
+      const storedBrands = JSON.parse(sessionStorage.getItem('SWEETOS_brands') || '[]');
       
       storedBrands.forEach(brand => {
         const brandProducts = brandFiltered.filter(p => isProductOfBrand(p, brand.name));
@@ -5419,7 +5419,7 @@ class ProductList extends HTMLElement {
         wishlist.forEach(item => {
           window.dispatchEvent(new CustomEvent('cart:add', { detail: item }));
         });
-        localStorage.setItem('SWEETOS_wishlist', JSON.stringify([]));
+        sessionStorage.setItem('SWEETOS_wishlist', JSON.stringify([]));
         window.dispatchEvent(new CustomEvent('wishlist:updated', { detail: [] }));
         window.dispatchEvent(new CustomEvent('toast:show', { detail: `Tous les articles (${wishlist.length}) ont été ajoutés à votre panier ! 🛒` }));
         this.renderPageContent();
@@ -5440,7 +5440,7 @@ class ProductList extends HTMLElement {
     const clearWishlistBtn = shadow.getElementById('wishlist-clear-btn');
     if (clearWishlistBtn) {
       clearWishlistBtn.addEventListener('click', () => {
-        localStorage.setItem('SWEETOS_wishlist', JSON.stringify([]));
+        sessionStorage.setItem('SWEETOS_wishlist', JSON.stringify([]));
         window.dispatchEvent(new CustomEvent('wishlist:updated', { detail: [] }));
         window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Liste de souhaits vidée.' }));
         this.renderPageContent();
@@ -5480,25 +5480,25 @@ class ProductList extends HTMLElement {
     if (!tabArea) return;
 
     if (this.activeAboutTab === 'about-us') {
-      const storeName = localStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
-      const storeAboutStory = localStorage.getItem('SWEETOS_store_about_story') || 'We believe that your physical workspace is a direct reflection of your mind. Every tactile keystroke on our mechanical layouts, every frequency shift in our custom studio audio monitors, and every ambient ray of smart lighting is calibrated to enhance focus, creativity, and deep flow.\n\nSWEETOS was founded to rescue professionals from cluttered, generic desks. By sourcing only the finest premium materials — including solid oak, CNC-milled aluminum, and artisan felt wool — we deliver functional luxury that is made to last a lifetime.';
-      const storeEntranceImage = localStorage.getItem('SWEETOS_store_entrance_image') || './assets/desk_mat_1786712444512.jpg';
+      const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
+      const storeAboutStory = sessionStorage.getItem('SWEETOS_store_about_story') || 'We believe that your physical workspace is a direct reflection of your mind. Every tactile keystroke on our mechanical layouts, every frequency shift in our custom studio audio monitors, and every ambient ray of smart lighting is calibrated to enhance focus, creativity, and deep flow.\n\nSWEETOS was founded to rescue professionals from cluttered, generic desks. By sourcing only the finest premium materials — including solid oak, CNC-milled aluminum, and artisan felt wool — we deliver functional luxury that is made to last a lifetime.';
+      const storeEntranceImage = sessionStorage.getItem('SWEETOS_store_entrance_image') || './assets/desk_mat_1786712444512.jpg';
       
-      const s1Val = localStorage.getItem('SWEETOS_about_stat_1_val') || '15,000+';
-      const s1Lbl = localStorage.getItem('SWEETOS_about_stat_1_lbl') || 'Workspace upgrades';
-      const s2Val = localStorage.getItem('SWEETOS_about_stat_2_val') || '50+';
-      const s2Lbl = localStorage.getItem('SWEETOS_about_stat_2_lbl') || 'Countries shipped';
-      const s3Val = localStorage.getItem('SWEETOS_about_stat_3_val') || '99.4%';
-      const s3Lbl = localStorage.getItem('SWEETOS_about_stat_3_lbl') || 'Satisfaction Rate';
-      const s4Val = localStorage.getItem('SWEETOS_about_stat_4_val') || '24/7';
-      const s4Lbl = localStorage.getItem('SWEETOS_about_stat_4_lbl') || 'Concierge support';
+      const s1Val = sessionStorage.getItem('SWEETOS_about_stat_1_val') || '15,000+';
+      const s1Lbl = sessionStorage.getItem('SWEETOS_about_stat_1_lbl') || 'Workspace upgrades';
+      const s2Val = sessionStorage.getItem('SWEETOS_about_stat_2_val') || '50+';
+      const s2Lbl = sessionStorage.getItem('SWEETOS_about_stat_2_lbl') || 'Countries shipped';
+      const s3Val = sessionStorage.getItem('SWEETOS_about_stat_3_val') || '99.4%';
+      const s3Lbl = sessionStorage.getItem('SWEETOS_about_stat_3_lbl') || 'Satisfaction Rate';
+      const s4Val = sessionStorage.getItem('SWEETOS_about_stat_4_val') || '24/7';
+      const s4Lbl = sessionStorage.getItem('SWEETOS_about_stat_4_lbl') || 'Concierge support';
 
-      const p1Title = localStorage.getItem('SWEETOS_about_p1_title') || 'Authentic Sourcing';
-      const p1Desc = localStorage.getItem('SWEETOS_about_p1_desc') || 'Solid wood, premium wool felt, and genuine electronic components sourced ethically from certified sustainable forestry and fabricators.';
-      const p2Title = localStorage.getItem('SWEETOS_about_p2_title') || 'Ergonomic Tactility';
-      const p2Desc = localStorage.getItem('SWEETOS_about_p2_desc') || 'Designed to optimize hand postures, wrist health, and auditory acoustics for high-productivity workspace layouts and mechanical switches.';
-      const p3Title = localStorage.getItem('SWEETOS_about_p3_title') || 'Global Shipping';
-      const p3Desc = localStorage.getItem('SWEETOS_about_p3_desc') || 'Swift shipping to over 50 African countries and globally with secure tracking and reliable express courier partners.';
+      const p1Title = sessionStorage.getItem('SWEETOS_about_p1_title') || 'Authentic Sourcing';
+      const p1Desc = sessionStorage.getItem('SWEETOS_about_p1_desc') || 'Solid wood, premium wool felt, and genuine electronic components sourced ethically from certified sustainable forestry and fabricators.';
+      const p2Title = sessionStorage.getItem('SWEETOS_about_p2_title') || 'Ergonomic Tactility';
+      const p2Desc = sessionStorage.getItem('SWEETOS_about_p2_desc') || 'Designed to optimize hand postures, wrist health, and auditory acoustics for high-productivity workspace layouts and mechanical switches.';
+      const p3Title = sessionStorage.getItem('SWEETOS_about_p3_title') || 'Global Shipping';
+      const p3Desc = sessionStorage.getItem('SWEETOS_about_p3_desc') || 'Swift shipping to over 50 African countries and globally with secure tracking and reliable express courier partners.';
 
       const storyParagraphs = storeAboutStory.split('\n\n').map(p => `
         <p style="font-size: 15.5px; color: var(--text-gray); line-height: 1.8; margin: 0;">${p.trim()}</p>
@@ -5846,12 +5846,12 @@ class ProductList extends HTMLElement {
 
       // Acceptance Actions
       shadow.getElementById('terms-accept-btn').addEventListener('click', () => {
-        localStorage.setItem('SWEETOS_terms_accepted', 'true');
+        sessionStorage.setItem('SWEETOS_terms_accepted', 'true');
         window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Conditions générales acceptées ! Merci de faire confiance à SWEETOS. 📄' }));
       });
 
       shadow.getElementById('terms-decline-btn').addEventListener('click', () => {
-        localStorage.setItem('SWEETOS_terms_accepted', 'false');
+        sessionStorage.setItem('SWEETOS_terms_accepted', 'false');
         window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Vous avez refusé les conditions générales.' }));
       });
 
@@ -5965,12 +5965,12 @@ class ProductList extends HTMLElement {
       `;
 
     } else if (this.activeAboutTab === 'contact') {
-      const storeName = localStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
-      const storeAddress = localStorage.getItem('SWEETOS_store_addr') || 'Abidjan, Cocody Mermoz';
-      const storePhone = localStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23';
-      const storeEmail = localStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com';
-      const storeHours = localStorage.getItem('SWEETOS_store_hours') || 'Mon - Fri: 7:00 AM - 8:00 PM | Sun: Closed';
-      const storeEntranceImage = localStorage.getItem('SWEETOS_store_entrance_image') || './assets/succes_technology_store_1786799642676.jpg';
+      const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
+      const storeAddress = sessionStorage.getItem('SWEETOS_store_addr') || 'Abidjan, Cocody Mermoz';
+      const storePhone = sessionStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23';
+      const storeEmail = sessionStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com';
+      const storeHours = sessionStorage.getItem('SWEETOS_store_hours') || 'Mon - Fri: 7:00 AM - 8:00 PM | Sun: Closed';
+      const storeEntranceImage = sessionStorage.getItem('SWEETOS_store_entrance_image') || './assets/succes_technology_store_1786799642676.jpg';
 
       tabArea.innerHTML = `
         <div class="about-contact-tab animate-in" style="display: flex; flex-direction: column; gap: 32px;">
@@ -6172,7 +6172,7 @@ class ProductList extends HTMLElement {
         const profileObj = this.loadUserProfile();
         profileObj.address = val;
         this.saveUserProfile(profileObj);
-        localStorage.setItem('SWEETOS_store_addr', val);
+        sessionStorage.setItem('SWEETOS_store_addr', val);
       });
 
       // Phone input sync
@@ -6181,7 +6181,7 @@ class ProductList extends HTMLElement {
         const profileObj = this.loadUserProfile();
         profileObj.phone = val;
         this.saveUserProfile(profileObj);
-        localStorage.setItem('SWEETOS_store_phone', val);
+        sessionStorage.setItem('SWEETOS_store_phone', val);
       });
 
       // Email input sync
@@ -6190,7 +6190,7 @@ class ProductList extends HTMLElement {
         const profileObj = this.loadUserProfile();
         profileObj.email = val;
         this.saveUserProfile(profileObj);
-        localStorage.setItem('SWEETOS_store_email', val);
+        sessionStorage.setItem('SWEETOS_store_email', val);
       });
 
       // Store name input sync
@@ -6198,7 +6198,7 @@ class ProductList extends HTMLElement {
         const val = e.target.value;
         shadow.getElementById('contact-banner-title').textContent = `Contact ${val || 'Store'}`;
         shadow.getElementById('contact-map-store').textContent = `Store: ${val || 'Store'}`;
-        localStorage.setItem('SWEETOS_store_name', val);
+        sessionStorage.setItem('SWEETOS_store_name', val);
       });
 
       shadow.getElementById('contact-map-btn').addEventListener('click', triggerMap);
@@ -6318,7 +6318,7 @@ class ProductList extends HTMLElement {
           
           try {
             const scratchKey = getScratchcardsStorageKey();
-            let scratchcards = JSON.parse(localStorage.getItem(scratchKey) || '[]');
+            let scratchcards = JSON.parse(sessionStorage.getItem(scratchKey) || '[]');
             const rawCardId = canvas.getAttribute('data-scratchcard-id');
             const idx = scratchcards.findIndex(sc => String(sc.id) === String(rawCardId));
             if (idx > -1 && !scratchcards[idx].scratched) {
@@ -6327,7 +6327,7 @@ class ProductList extends HTMLElement {
               const card = scratchcards[idx];
               const totalCFA = card.amount || 0;
               
-              const loggedInUserStr = localStorage.getItem('SWEETOS_logged_in_user');
+              const loggedInUserStr = sessionStorage.getItem('SWEETOS_logged_in_user');
               let userEmail = 'guest@sweetos.com';
               if (loggedInUserStr) {
                 try {
@@ -6353,7 +6353,7 @@ class ProductList extends HTMLElement {
                   status: 'active',
                   description: `5% de réduction (${uses}/${wonReward?.totalUses || uses} utilisations)`
                 };
-                localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
+                sessionStorage.setItem(scratchKey, JSON.stringify(scratchcards));
                 window.dispatchEvent(new CustomEvent('toast:show', { 
                   detail: `🎉 FÉLICITATIONS ! Badge gratté avec succès ! Coupon de 5% OFF débloqué (Code: ${rewardCode}) disponible dans votre panier ! 🎟️✨` 
                 }));
@@ -6384,14 +6384,14 @@ class ProductList extends HTMLElement {
 
                   let adminCoupons = [];
                   try {
-                    adminCoupons = JSON.parse(localStorage.getItem('SWEETOS_coupons') || '[]');
+                    adminCoupons = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
                   } catch(e) {}
                   adminCoupons.unshift(dealCoupon);
-                  localStorage.setItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
+                  sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
 
                   scratchcards[idx].scratched = true;
                   scratchcards[idx].couponWon = dealCoupon;
-                  localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
+                  sessionStorage.setItem(scratchKey, JSON.stringify(scratchcards));
 
                   window.dispatchEvent(new CustomEvent('toast:show', { 
                     detail: `🎉 FÉLICITATIONS ! Palier Offre du Jour atteint ! Coupon de ${dealCoupon.value}% OFF débloqué (Code: ${code}) ! 🎟️✨` 
@@ -6402,7 +6402,7 @@ class ProductList extends HTMLElement {
                   scratchcards[idx].couponWon = 'lost';
                   const emptyMessage = `Oups ! Bonne chance pour la prochaine fois ! 🍀 (Pour débloquer ce coupon, achetez pour au moins ${requiredDealSpend.toLocaleString()} FCFA dans les Offres du Jour).`;
                   scratchcards[idx].emptyMessage = emptyMessage;
-                  localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
+                  sessionStorage.setItem(scratchKey, JSON.stringify(scratchcards));
                   window.dispatchEvent(new CustomEvent('toast:show', { detail: `📦 ${emptyMessage}` }));
                 }
               }
@@ -6415,7 +6415,7 @@ class ProductList extends HTMLElement {
                 // Check Admin Market for active valid coupon
                 let adminCoupons = [];
                 try {
-                  adminCoupons = JSON.parse(localStorage.getItem('SWEETOS_coupons') || '[]');
+                  adminCoupons = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
                 } catch(e) {}
 
                 const expiry7Days = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -6434,7 +6434,7 @@ class ProductList extends HTMLElement {
                 };
                 
                 adminCoupons.unshift(newCoupon);
-                localStorage.setItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
+                sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
                 
                 scratchcards[idx].couponWon = newCoupon;
                 const winMsg = `🎉 Félicitations ! Vous avez débloqué le ${customerTier.label} avec un coupon de ${couponValue}% OFF (Code: ${code}) valable 7 jours ! 🎟️`;
@@ -6445,11 +6445,11 @@ class ProductList extends HTMLElement {
                 scratchcards[idx].couponWon = 'lost';
                 const emptyMessage = 'Oops! Good luck next time! / Oups ! Bonne chance pour la prochaine fois ! 🍀✨';
                 scratchcards[idx].emptyMessage = emptyMessage;
-                localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
+                sessionStorage.setItem(scratchKey, JSON.stringify(scratchcards));
                 window.dispatchEvent(new CustomEvent('toast:show', { detail: `📦 ${emptyMessage}` }));
               }
 
-              localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
+              sessionStorage.setItem(scratchKey, JSON.stringify(scratchcards));
               
               setTimeout(() => {
                 this.renderPageContent();
@@ -6591,18 +6591,18 @@ class ProductList extends HTMLElement {
     
     let logs = [];
     try {
-      logs = JSON.parse(localStorage.getItem('SWEETOS_activity_logs') || '[]');
+      logs = JSON.parse(sessionStorage.getItem('SWEETOS_activity_logs') || '[]');
     } catch (err) {}
     
     let userName = 'Guest User';
     let loginType = 'Not Logged In';
     
-    const loggedIn = localStorage.getItem('SWEETOS_logged_in_user');
+    const loggedIn = sessionStorage.getItem('SWEETOS_logged_in_user');
     if (loggedIn) {
       try {
         const userObj = JSON.parse(loggedIn);
         userName = userObj.email;
-        const creds = JSON.parse(localStorage.getItem('SWEETOS_customer_credentials') || '[]');
+        const creds = JSON.parse(sessionStorage.getItem('SWEETOS_customer_credentials') || '[]');
         const userCred = creds.find(c => c.email.toLowerCase() === userObj.email.toLowerCase());
         if (userCred) {
           userName = userCred.fullname || userCred.email;
@@ -6668,7 +6668,7 @@ class ProductList extends HTMLElement {
       sessionRecord.visits.push(pageName);
     }
     
-    localStorage.setItem('SWEETOS_activity_logs', JSON.stringify(logs));
+    sessionStorage.setItem('SWEETOS_activity_logs', JSON.stringify(logs));
   }
 
   // --- Functional Notifications Event Handlers ---
@@ -6702,7 +6702,7 @@ class ProductList extends HTMLElement {
       const wishlist = this.loadWishlistFromStorage();
       
       const notifKey = 'SWEETOS_notifications';
-      const savedNotif = localStorage.getItem(notifKey);
+      const savedNotif = sessionStorage.getItem(notifKey);
       let notifCount = 3;
       if (savedNotif) {
         try {
@@ -7257,8 +7257,8 @@ class ProductList extends HTMLElement {
     const signOutBtn = shadow.getElementById('profile-sign-out-btn');
     if (signOutBtn) {
       signOutBtn.addEventListener('click', () => {
-        localStorage.removeItem('SWEETOS_logged_in_user');
-        localStorage.removeItem('SWEETOS_user_profile');
+        sessionStorage.removeItem('SWEETOS_logged_in_user');
+        sessionStorage.removeItem('SWEETOS_user_profile');
         sessionStorage.clear();
         window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: false } }));
         window.dispatchEvent(new CustomEvent('notifications:updated'));
@@ -7272,7 +7272,7 @@ class ProductList extends HTMLElement {
 
   // --- Functional Orders Dashboard Handlers ---
   injectOrdersDashboardList() {
-    const loggedIn = localStorage.getItem('SWEETOS_logged_in_user');
+    const loggedIn = sessionStorage.getItem('SWEETOS_logged_in_user');
     if (!loggedIn) {
       this.renderOrdersDashboardList();
       return;
@@ -7322,8 +7322,8 @@ class ProductList extends HTMLElement {
           
           if (profileChanged) {
             const profileKey = getProfileStorageKey();
-            localStorage.setItem(profileKey, JSON.stringify(profile));
-            localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+            sessionStorage.setItem(profileKey, JSON.stringify(profile));
+            sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
           }
         }
         this.renderOrdersDashboardList();
@@ -8228,7 +8228,7 @@ class ProductList extends HTMLElement {
         
         const targetProduct = this.products.find(p => p.id === productId);
         if (targetProduct) {
-          const cartSaved = localStorage.getItem(getCartStorageKey());
+          const cartSaved = sessionStorage.getItem(getCartStorageKey());
           let cart = [];
           if (cartSaved) {
             try {
@@ -8243,7 +8243,7 @@ class ProductList extends HTMLElement {
             cart.push({ ...targetProduct, quantity: 1 });
           }
           
-          localStorage.setItem(getCartStorageKey(), JSON.stringify(cart));
+          sessionStorage.setItem(getCartStorageKey(), JSON.stringify(cart));
           window.dispatchEvent(new CustomEvent('cart:updated', { detail: cart }));
           window.dispatchEvent(new CustomEvent('toast:show', { detail: `Added ${targetProduct.name} to cart!` }));
           overlay.classList.remove('open');
@@ -8271,8 +8271,8 @@ class ProductList extends HTMLElement {
             
             // 1. Save customer profile to correct key
             const profileKey = getProfileStorageKey();
-            localStorage.setItem(profileKey, JSON.stringify(profile));
-            localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+            sessionStorage.setItem(profileKey, JSON.stringify(profile));
+            sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
             
             // 2. Fetch latest orders from server, update and POST back
             fetch('/api/orders')
@@ -8283,7 +8283,7 @@ class ProductList extends HTMLElement {
                 if (globalOrder) {
                   globalOrder.customerAddress = newAddress;
                 }
-                localStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders));
+                sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders));
 
                 return fetch('/api/orders', {
                   method: 'POST',
@@ -8315,8 +8315,8 @@ class ProductList extends HTMLElement {
             
             // 1. Save customer profile to correct key
             const profileKey = getProfileStorageKey();
-            localStorage.setItem(profileKey, JSON.stringify(profile));
-            localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+            sessionStorage.setItem(profileKey, JSON.stringify(profile));
+            sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
             
             // 2. Fetch latest orders from server, update and POST back
             fetch('/api/orders')
@@ -8327,7 +8327,7 @@ class ProductList extends HTMLElement {
                 if (globalOrder) {
                   globalOrder.status = 'Cancelled';
                 }
-                localStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders));
+                sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders));
 
                 return fetch('/api/orders', {
                   method: 'POST',
@@ -8356,8 +8356,8 @@ class ProductList extends HTMLElement {
           const profile = this.loadUserProfile();
           profile.orders = profile.orders.filter(order => order.id !== o.id);
           const profileKey = getProfileStorageKey();
-          localStorage.setItem(profileKey, JSON.stringify(profile));
-          localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+          sessionStorage.setItem(profileKey, JSON.stringify(profile));
+          sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
           
            // 2. Fetch latest orders from server, update and POST back
            fetch('/api/orders')
@@ -8368,7 +8368,7 @@ class ProductList extends HTMLElement {
                if (globalOrder) {
                  globalOrder.status = 'Deleted';
                }
-               localStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders));
+               sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders));
 
                return fetch('/api/orders', {
                  method: 'POST',
@@ -8397,8 +8397,8 @@ class ProductList extends HTMLElement {
         if (targetOrder) {
           targetOrder.status = 'Done';
           const profileKey = getProfileStorageKey();
-          localStorage.setItem(profileKey, JSON.stringify(profile));
-          localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+          sessionStorage.setItem(profileKey, JSON.stringify(profile));
+          sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
           
           // 2. Fetch latest orders from server, update and POST back
           fetch('/api/orders')
@@ -8409,7 +8409,7 @@ class ProductList extends HTMLElement {
               if (globalOrder) {
                 globalOrder.status = 'Done';
               }
-              localStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders));
+              sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders));
 
               return fetch('/api/orders', {
                 method: 'POST',
@@ -8441,7 +8441,7 @@ class ProductList extends HTMLElement {
             const notifKey = getNotificationsStorageKey();
             let customerNotifs = [];
             try {
-              customerNotifs = JSON.parse(localStorage.getItem(notifKey) || '[]');
+              customerNotifs = JSON.parse(sessionStorage.getItem(notifKey) || '[]');
             } catch(e) {}
             
             const currentHour = new Date().getHours();
@@ -8481,7 +8481,7 @@ class ProductList extends HTMLElement {
               unread: true
             });
             
-            localStorage.setItem(notifKey, JSON.stringify(customerNotifs));
+            sessionStorage.setItem(notifKey, JSON.stringify(customerNotifs));
             window.dispatchEvent(new CustomEvent('notifications:updated'));
 
             window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Order marked as Received! Thank you! 🎁' }));
@@ -8559,7 +8559,7 @@ class ProductList extends HTMLElement {
   }
 
   loadCustomCollections() {
-    const saved = localStorage.getItem('SWEETOS_custom_collections');
+    const saved = sessionStorage.getItem('SWEETOS_custom_collections');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -8626,7 +8626,7 @@ class ProductList extends HTMLElement {
   }
 
   saveCustomCollections(collections) {
-    localStorage.setItem('SWEETOS_custom_collections', JSON.stringify(collections));
+    sessionStorage.setItem('SWEETOS_custom_collections', JSON.stringify(collections));
   }
 
   populatePdpColDropdown(productId) {
@@ -8837,11 +8837,11 @@ export default ProductList;
 
 // Global styled receipt generator for storefront
 function printOrderReceipt(order) {
-  const storeName = localStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
-  const storePhone = localStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23';
-  const storeEmail = localStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com';
-  const storeAddress = localStorage.getItem('SWEETOS_store_addr') || 'Abidjan, Cocody Mermoz';
-  const currency = localStorage.getItem('SWEETOS_currency') || 'CFA';
+  const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
+  const storePhone = sessionStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23';
+  const storeEmail = sessionStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com';
+  const storeAddress = sessionStorage.getItem('SWEETOS_store_addr') || 'Abidjan, Cocody Mermoz';
+  const currency = sessionStorage.getItem('SWEETOS_currency') || 'CFA';
   
   let clientName = order.customerName || order.name;
   let clientPhone = order.customerPhone || order.phone;
@@ -8853,14 +8853,14 @@ function printOrderReceipt(order) {
   const emailKey = clientEmail || (order.email ? order.email : '');
   if (emailKey) {
     const safeKey = emailKey.replace(/[^a-zA-Z0-9]/g, '_');
-    const profileSaved = localStorage.getItem(`SWEETOS_user_profile_${safeKey}`) || localStorage.getItem(`SWEETOS_user_profile`);
+    const profileSaved = sessionStorage.getItem(`SWEETOS_user_profile_${safeKey}`) || sessionStorage.getItem(`SWEETOS_user_profile`);
     if (profileSaved) {
       try {
         resolvedProfile = JSON.parse(profileSaved);
       } catch(e) {}
     }
   } else {
-    const profileSaved = localStorage.getItem(`SWEETOS_user_profile`);
+    const profileSaved = sessionStorage.getItem(`SWEETOS_user_profile`);
     if (profileSaved) {
       try {
         resolvedProfile = JSON.parse(profileSaved);
@@ -8928,12 +8928,12 @@ function printOrderReceipt(order) {
     `;
   });
 
-  const shippingRate = parseFloat(localStorage.getItem('SWEETOS_shipping_rate') || '2000');
-  const freeThreshold = parseFloat(localStorage.getItem('SWEETOS_free_shipping_threshold') || '15000');
+  const shippingRate = parseFloat(sessionStorage.getItem('SWEETOS_shipping_rate') || '2000');
+  const freeThreshold = parseFloat(sessionStorage.getItem('SWEETOS_free_shipping_threshold') || '15000');
   const shippingFee = subtotal >= freeThreshold ? 0 : shippingRate;
   
-  const vatRate = parseFloat(localStorage.getItem('SWEETOS_vat_rate') || '18');
-  const taxMode = localStorage.getItem('SWEETOS_tax_mode') || 'inclusive';
+  const vatRate = parseFloat(sessionStorage.getItem('SWEETOS_vat_rate') || '18');
+  const taxMode = sessionStorage.getItem('SWEETOS_tax_mode') || 'inclusive';
   
   let taxAmount = 0;
   if (taxMode === 'exclusive') {
