@@ -1514,19 +1514,37 @@ export function attachAdminProductsListeners(context, shadow) {
       fileInput.click();
     });
 
-    fileInput.addEventListener('change', () => {
+    fileInput.addEventListener('change', async () => {
       const file = fileInput.files[0];
       if (file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const dataUrl = e.target.result;
-          imgUrlVal.value = dataUrl;
-          previewImg.src = dataUrl;
-          if (imgUrlInput) imgUrlInput.value = '';
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Uploading file to Supabase Cloud Storage...' }));
+        try {
+          const { uploadFileToSupabaseStorage } = await import('../../utils/supabase.js');
+          const cloudUrl = await uploadFileToSupabaseStorage(file);
+          const finalUrl = cloudUrl || await new Promise(resolve => {
+            const reader = new FileReader();
+            reader.onload = (e) => resolve(e.target.result);
+            reader.readAsDataURL(file);
+          });
+
+          imgUrlVal.value = finalUrl;
+          previewImg.src = finalUrl;
+          if (imgUrlInput) imgUrlInput.value = finalUrl;
           dropzoneEmpty.style.display = 'none';
           dropzonePreview.style.display = 'block';
-        };
-        reader.readAsDataURL(file);
+          window.dispatchEvent(new CustomEvent('toast:show', { detail: cloudUrl ? 'File saved to Supabase Cloud Storage! ☁️' : 'Image loaded!' }));
+        } catch(err) {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            const dataUrl = e.target.result;
+            imgUrlVal.value = dataUrl;
+            previewImg.src = dataUrl;
+            if (imgUrlInput) imgUrlInput.value = '';
+            dropzoneEmpty.style.display = 'none';
+            dropzonePreview.style.display = 'block';
+          };
+          reader.readAsDataURL(file);
+        }
       }
     });
   }

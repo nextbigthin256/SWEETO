@@ -910,3 +910,222 @@ export async function checkAdminSessionVersionInSupabase(localVersion) {
   }
   return { valid: true };
 }
+
+// ==========================================
+// 10. SUPABASE CLOUD FILE STORAGE ENGINE
+// ==========================================
+
+export async function uploadFileToSupabaseStorage(fileOrBlob, fileName = null) {
+  try {
+    if (!supabase) return null;
+
+    const ext = (fileOrBlob.name ? fileOrBlob.name.split('.').pop() : 'png').toLowerCase();
+    const name = fileName || `upload_${Date.now()}_${Math.random().toString(36).substring(2, 8)}.${ext}`;
+
+    let targetBucket = 'uploads';
+    let { data, error } = await supabase.storage
+      .from(targetBucket)
+      .upload(name, fileOrBlob, {
+        cacheControl: '3600',
+        upsert: true
+      });
+
+    if (error) {
+      console.warn(`[Supabase Storage] Bucket '${targetBucket}' upload notice:`, error.message);
+      targetBucket = 'public';
+      const res = await supabase.storage.from(targetBucket).upload(name, fileOrBlob, { cacheControl: '3600', upsert: true });
+      data = res.data;
+      error = res.error;
+    }
+
+    if (!error && data) {
+      const { data: publicUrlData } = supabase.storage.from(targetBucket).getPublicUrl(data.path || name);
+      if (publicUrlData && publicUrlData.publicUrl) {
+        console.log('[Supabase Storage] File uploaded successfully to Cloud:', publicUrlData.publicUrl);
+        return publicUrlData.publicUrl;
+      }
+    }
+  } catch (err) {
+    console.error('[Supabase Storage Upload Error]:', err);
+  }
+  return null;
+}
+
+export async function uploadBase64OrFileToSupabase(input, fileName = null) {
+  if (!input) return input;
+  if (typeof input === 'string') {
+    if (input.startsWith('http://') || input.startsWith('https://')) {
+      return input;
+    }
+    if (input.startsWith('data:')) {
+      try {
+        const arr = input.split(',');
+        const mimeMatch = arr[0].match(/:(.*?);/);
+        const mime = mimeMatch ? mimeMatch[1] : 'image/png';
+        const bstr = atob(arr[1]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        const uploadedUrl = await uploadFileToSupabaseStorage(blob, fileName);
+        if (uploadedUrl) return uploadedUrl;
+      } catch (e) {
+        console.error('[Base64 to Supabase Storage Error]:', e);
+      }
+    }
+  } else if (input instanceof File || input instanceof Blob) {
+    const uploadedUrl = await uploadFileToSupabaseStorage(input, fileName);
+    if (uploadedUrl) return uploadedUrl;
+  }
+  return input;
+}
+
+// ==========================================
+// 11. SITE SETTINGS & ENTITY CLOUD PERSISTENCE
+// ==========================================
+
+export async function saveSiteSettingInSupabase(key, value) {
+  try {
+    if (!supabase || !key) return false;
+    const strVal = typeof value === 'string' ? value : JSON.stringify(value);
+    const { error } = await supabase
+      .from('site_settings')
+      .upsert({ key, value: strVal, updated_at: new Date().toISOString() }, { onConflict: 'key' });
+
+    if (!error) {
+      console.log(`[Supabase Cloud] site_setting '${key}' updated successfully.`);
+      return true;
+    }
+  } catch (err) {
+    console.error(`[Supabase Cloud] saveSiteSetting error for '${key}':`, err);
+  }
+  return false;
+}
+
+export async function fetchSiteSettingFromSupabase(key) {
+  try {
+    if (!supabase || !key) return null;
+    const { data } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', key)
+      .maybeSingle();
+
+    if (data && data.value) {
+      try {
+        return JSON.parse(data.value);
+      } catch (e) {
+        return data.value;
+      }
+    }
+  } catch (err) {}
+  return null;
+}
+
+export async function syncSectionsToSupabase(sections) {
+  return saveSiteSettingInSupabase('homepage_sections', sections);
+}
+
+export async function fetchSectionsFromSupabase() {
+  return fetchSiteSettingFromSupabase('homepage_sections');
+}
+
+export async function syncCouponsToSupabase(coupons) {
+  try {
+    saveSiteSettingInSupabase('coupons', coupons);
+    if (supabase && Array.isArray(coupons)) {
+      const records = coupons.map(c => ({
+        code: c.code,
+        discount_type: c.type || 'percentage',
+        discount_value: parseFloat(c.value) || 0,
+        min_order_amount: parseFloat(c.minOrder) || 0,
+        usage_limit: c.limit ? parseInt(c.limit) : 50,
+        used_count: c.used ? parseInt(c.used) : 0,
+        expires_at: c.expiry || null,
+        status: c.status || 'active'
+      }));
+      await supabase.from('coupons').upsert(records, { onConflict: 'code' }).catch(() => {});
+    }
+  } catch(e) {}
+}
+
+export async function fetchCouponsFromSupabase() {
+  try {
+    if (!supabase) return null;
+    const { data, error } = await supabase.from('coupons').select('*');
+    if (!error && Array.isArray(data) && data.length > 0) {
+      return data.map(c => ({
+        code: c.code,
+        type: c.discount_type || 'percentage',
+        value: parseFloat(c.discount_value) || 0,
+        minOrder: parseFloat(c.min_order_amount) || 0,
+        limit: c.usage_limit || 50,
+        used: c.used_count || 0,
+        expiry: c.expires_at || '2026-12-31',
+        status: c.status || 'active'
+      }));
+    }
+  } catch(e) {}
+  return fetchSiteSettingFromSupabase('coupons');
+}
+
+export async function syncReviewsToSupabase(reviews) {
+  try {
+    saveSiteSettingInSupabase('reviews_all', reviews);
+    if (supabase && Array.isArray(reviews)) {
+      const records = reviews.map(r => ({
+        legacy_id: r.id || Date.now(),
+        product_id: r.productId || null,
+        author_name: r.user || r.name || 'Anonymous',
+        rating: parseInt(r.rating) || 5,
+        comment: r.comment || '',
+        created_at: r.date || new Date().toISOString()
+      }));
+      await supabase.from('reviews').upsert(records, { onConflict: 'legacy_id' }).catch(() => {});
+    }
+  } catch(e) {}
+}
+
+export async function fetchReviewsFromSupabase() {
+  try {
+    if (!supabase) return null;
+    const { data, error } = await supabase.from('reviews').select('*');
+    if (!error && Array.isArray(data) && data.length > 0) {
+      return data.map(r => ({
+        id: r.legacy_id || r.id,
+        productId: r.product_id,
+        user: r.author_name,
+        rating: r.rating,
+        comment: r.comment,
+        date: r.created_at ? new Date(r.created_at).toLocaleDateString('fr-FR') : 'Recently'
+      }));
+    }
+  } catch(e) {}
+  return fetchSiteSettingFromSupabase('reviews_all');
+}
+
+export async function syncInventoryLogsToSupabase(logs) {
+  return saveSiteSettingInSupabase('inventory_logs', logs);
+}
+
+export async function fetchInventoryLogsFromSupabase() {
+  return fetchSiteSettingFromSupabase('inventory_logs');
+}
+
+export async function syncTodaysDealsToSupabase(config) {
+  return saveSiteSettingInSupabase('todays_deals_config', config);
+}
+
+export async function fetchTodaysDealsFromSupabase() {
+  return fetchSiteSettingFromSupabase('todays_deals_config');
+}
+
+export async function syncMoreToLoveToSupabase(config) {
+  return saveSiteSettingInSupabase('more_to_love_config', config);
+}
+
+export async function fetchMoreToLoveFromSupabase() {
+  return fetchSiteSettingFromSupabase('more_to_love_config');
+}

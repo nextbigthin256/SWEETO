@@ -6820,20 +6820,38 @@ class ProductList extends HTMLElement {
       const fileInput = tabArea.querySelector('#profile-avatar-file-input');
       if (uploadTrigger && fileInput) {
         uploadTrigger.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => {
+        fileInput.addEventListener('change', async (e) => {
           const file = e.target.files[0];
           if (file) {
-            const reader = new FileReader();
-            reader.onload = (loadEvt) => {
-              const base64 = loadEvt.target.result;
-              profile.avatar = base64;
+            window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Uploading avatar to Supabase Cloud Storage...' }));
+            try {
+              const { uploadFileToSupabaseStorage } = await import('../../utils/supabase.js');
+              const cloudUrl = await uploadFileToSupabaseStorage(file);
+              const finalUrl = cloudUrl || await new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = (loadEvt) => resolve(loadEvt.target.result);
+                reader.readAsDataURL(file);
+              });
+
+              profile.avatar = finalUrl;
               this.saveUserProfile(profile);
               window.dispatchEvent(new CustomEvent('profile:updated'));
               window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: true } }));
-              window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Photo de profil mise à jour avec succès ! 📷✨' }));
+              window.dispatchEvent(new CustomEvent('toast:show', { detail: cloudUrl ? 'Photo de profil enregistrée dans Supabase Storage! 📷✨' : 'Photo de profil mise à jour ! 📷✨' }));
               this.injectProfileTabContent();
-            };
-            reader.readAsDataURL(file);
+            } catch(err) {
+              const reader = new FileReader();
+              reader.onload = (loadEvt) => {
+                const base64 = loadEvt.target.result;
+                profile.avatar = base64;
+                this.saveUserProfile(profile);
+                window.dispatchEvent(new CustomEvent('profile:updated'));
+                window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: true } }));
+                window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Photo de profil mise à jour avec succès ! 📷✨' }));
+                this.injectProfileTabContent();
+              };
+              reader.readAsDataURL(file);
+            }
           }
         });
       }
@@ -6911,19 +6929,38 @@ class ProductList extends HTMLElement {
 
       if (settingsUploadBtn && settingsFileInput) {
         settingsUploadBtn.addEventListener('click', () => settingsFileInput.click());
-        settingsFileInput.addEventListener('change', (e) => {
+        settingsFileInput.addEventListener('change', async (e) => {
           const file = e.target.files[0];
           if (file) {
-            const reader = new FileReader();
-            reader.onload = (loadEvt) => {
-              profile.avatar = loadEvt.target.result;
+            window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Uploading avatar to Supabase Cloud Storage...' }));
+            try {
+              const { uploadFileToSupabaseStorage } = await import('../../utils/supabase.js');
+              const cloudUrl = await uploadFileToSupabaseStorage(file);
+              const finalUrl = cloudUrl || await new Promise(resolve => {
+                const reader = new FileReader();
+                reader.onload = (loadEvt) => resolve(loadEvt.target.result);
+                reader.readAsDataURL(file);
+              });
+
+              profile.avatar = finalUrl;
               this.saveUserProfile(profile);
               window.dispatchEvent(new CustomEvent('profile:updated'));
               window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: true } }));
-              window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Photo de profil mise à jour ! 📷' }));
+              window.dispatchEvent(new CustomEvent('toast:show', { detail: cloudUrl ? 'Photo de profil enregistrée dans Supabase Storage! 📷✨' : 'Photo de profil mise à jour ! 📷✨' }));
               this.injectProfileTabContent();
-            };
-            reader.readAsDataURL(file);
+            } catch(err) {
+              const reader = new FileReader();
+              reader.onload = (loadEvt) => {
+                const base64 = loadEvt.target.result;
+                profile.avatar = base64;
+                this.saveUserProfile(profile);
+                window.dispatchEvent(new CustomEvent('profile:updated'));
+                window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: true } }));
+                window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Photo de profil mise à jour ! 📷' }));
+                this.injectProfileTabContent();
+              };
+              reader.readAsDataURL(file);
+            }
           }
         });
       }

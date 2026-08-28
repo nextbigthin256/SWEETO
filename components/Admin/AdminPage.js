@@ -811,13 +811,16 @@ class AdminPage extends HTMLElement {
     } else if (type === 'coupons') {
       localStorage.setItem('SWEETOS_coupons', JSON.stringify(this.coupons));
       this.syncCouponsToServer();
+      import('../../utils/supabase.js').then(m => m.syncCouponsToSupabase(this.coupons));
     } else if (type === 'categories') {
       localStorage.setItem('SWEETOS_categories', JSON.stringify(this.categories));
       this.syncCategoriesToServer();
     } else if (type === 'inventory') {
       localStorage.setItem('SWEETOS_inventory_logs', JSON.stringify(this.inventoryLogs));
+      import('../../utils/supabase.js').then(m => m.syncInventoryLogsToSupabase(this.inventoryLogs));
     } else if (type === 'sections') {
       localStorage.setItem('SWEETOS_homepage_sections', JSON.stringify(this.homepageSections));
+      import('../../utils/supabase.js').then(m => m.syncSectionsToSupabase(this.homepageSections));
     } else if (type === 'brands') {
       localStorage.setItem('SWEETOS_brands', JSON.stringify(this.brands));
       window.dispatchEvent(new CustomEvent('brands:updated', { detail: this.brands }));
@@ -825,6 +828,7 @@ class AdminPage extends HTMLElement {
     } else if (type === 'reviews') {
       localStorage.setItem('SWEETOS_reviews_all', JSON.stringify(this.reviews));
       this.syncReviewsToServer();
+      import('../../utils/supabase.js').then(m => m.syncReviewsToSupabase(this.reviews));
     }
   }
 
@@ -835,27 +839,22 @@ class AdminPage extends HTMLElement {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify(this.coupons)
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        console.log('Coupons synced to server successfully.');
-      } else {
-        console.error('Failed to sync coupons to server:', data.error);
-      }
-    })
-    .catch(err => console.error('Error syncing coupons to server:', err));
+    }).catch(() => {});
+
+    try {
+      import('../../utils/supabase.js').then(({ syncCouponsToSupabase }) => {
+        syncCouponsToSupabase(this.coupons);
+      });
+    } catch(e) {}
   }
 
   syncProductsToServer() {
-    // 1. Sync to local backend server if active
     fetch('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(this.products)
     }).catch(() => {});
 
-    // 2. Sync directly to Supabase Database
     try {
       import('../../utils/supabase.js').then(({ supabase }) => {
         if (!supabase) return;
@@ -936,39 +935,31 @@ class AdminPage extends HTMLElement {
   syncReviewsToServer() {
     fetch('/api/reviews', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(this.reviews)
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        console.log('Reviews synced to server successfully.');
-      } else {
-        console.error('Failed to sync reviews to server:', data.error);
-      }
-    })
-    .catch(err => console.error('Error syncing reviews to server:', err));
+    }).catch(() => {});
+
+    try {
+      import('../../utils/supabase.js').then(({ syncReviewsToSupabase }) => {
+        syncReviewsToSupabase(this.reviews);
+      });
+    } catch(e) {}
   }
 
   syncOrdersToServer() {
     fetch('/api/orders', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(this.orders)
-    })
-    .then(res => res.json())
-    .then(data => {
-      if (data.success) {
-        console.log('Orders synced to server successfully.');
-      } else {
-        console.error('Failed to sync orders to server:', data.error);
-      }
-    })
-    .catch(err => console.error('Error syncing orders to server:', err));
+    }).catch(() => {});
+
+    try {
+      import('../../utils/supabase.js').then(({ createOrderInSupabase }) => {
+        if (Array.isArray(this.orders)) {
+          this.orders.forEach(o => createOrderInSupabase(o));
+        }
+      });
+    } catch(e) {}
   }
 
   initRealTimeNotificationStream() {
