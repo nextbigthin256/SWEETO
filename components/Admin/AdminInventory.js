@@ -343,7 +343,7 @@ export function renderAdminInventory(context) {
       <div class="filter-controls-group">
         <div class="clean-search-box">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="inventory-search-input" placeholder="Search SKU, item name, brand..." value="${context.searchQuery || ''}">
+          <input type="text" id="inventory-search-input" name="inv_search_query_no_autofill" placeholder="Search SKU, item name, brand..." value="${(context.searchQuery || '').includes('@') ? '' : (context.searchQuery || '')}" autocomplete="new-password" aria-autocomplete="none" spellcheck="false">
         </div>
 
         <select class="select-filter-btn" id="inv-category-select" title="Filter category" style="font-weight:700;">
@@ -594,6 +594,17 @@ export function attachAdminInventoryListeners(context, shadow) {
   // 1. Search Input
   const searchInput = shadow.getElementById('inventory-search-input');
   if (searchInput) {
+    if (searchInput.value.includes('@')) {
+      searchInput.value = '';
+      context.searchQuery = '';
+    }
+    searchInput.addEventListener('focus', () => {
+      if (searchInput.value.includes('@')) {
+        searchInput.value = '';
+        context.searchQuery = '';
+      }
+    });
+
     searchInput.addEventListener('input', (e) => {
       context.searchQuery = e.target.value;
       context.currentPageIndex = 1;

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * components/Admin/AdminMoreToLove.js
  * Studio Admin for the "More to Love" homepage recommendations section:
  * - ON / OFF Switch
@@ -166,7 +166,7 @@ export function renderAdminMoreToLove(context) {
         <!-- Search & Filter Controls -->
         <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
           <div style="flex: 1; min-width: 240px; position: relative;">
-            <input type="text" id="more-love-catalog-search" value="${searchQuery}" placeholder="Rechercher par nom, catégorie, marque..." style="width: 100%; padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--border); font-size: 13.5px;">
+            <input type="text" id="more-love-catalog-search" name="more_love_search_query_no_autofill" value="${searchQuery.includes('@') ? '' : searchQuery}" placeholder="Rechercher par nom, catégorie, marque..." autocomplete="new-password" aria-autocomplete="none" spellcheck="false" style="width: 100%; padding: 10px 14px; border-radius: 12px; border: 1.5px solid var(--border); font-size: 13.5px;">
           </div>
           <div style="display: flex; gap: 6px; overflow-x: auto; max-width: 100%; padding-bottom: 4px;">
             ${categories.map(cat => `
@@ -368,6 +368,17 @@ export function attachAdminMoreToLoveListeners(context, shadow) {
   // Live search input
   const searchInput = shadow.getElementById('more-love-catalog-search');
   if (searchInput) {
+    if (searchInput.value.includes('@')) {
+      searchInput.value = '';
+      searchQuery = '';
+    }
+    searchInput.addEventListener('focus', () => {
+      if (searchInput.value.includes('@')) {
+        searchInput.value = '';
+        searchQuery = '';
+      }
+    });
+
     searchInput.addEventListener('input', (e) => {
       searchQuery = e.target.value;
       context.render();

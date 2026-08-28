@@ -276,7 +276,7 @@ export function renderAdminLoyalty(context) {
             </div>
             
             <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-              <input type="text" id="loyalty-search-input" class="admin-input" placeholder="Rechercher par nom ou email..." value="${searchQuery}" style="width: 240px; font-size: 12.5px;">
+              <input type="text" id="loyalty-search-input" name="loyalty_search_query_no_autofill" class="admin-input" placeholder="Rechercher par nom ou email..." value="${searchQuery.includes('@') ? '' : searchQuery}" autocomplete="new-password" aria-autocomplete="none" spellcheck="false" style="width: 240px; font-size: 12.5px;">
               
               <select id="loyalty-filter-tier" class="admin-input" style="font-size: 12px; font-weight: 700;">
                 <option value="all" ${filterTier === 'all' ? 'selected' : ''}>Tous les Niveaux</option>
@@ -388,6 +388,17 @@ export function attachAdminLoyaltyListeners(context, shadow) {
   // 1. Search Input
   const searchInput = shadow.getElementById('loyalty-search-input');
   if (searchInput) {
+    if (searchInput.value.includes('@')) {
+      searchInput.value = '';
+      searchQuery = '';
+    }
+    searchInput.addEventListener('focus', () => {
+      if (searchInput.value.includes('@')) {
+        searchInput.value = '';
+        searchQuery = '';
+      }
+    });
+
     searchInput.addEventListener('input', (e) => {
       searchQuery = e.target.value;
       context.render();

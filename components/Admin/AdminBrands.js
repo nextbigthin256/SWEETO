@@ -310,7 +310,7 @@ export function renderAdminBrands(context) {
         <!-- Search Box -->
         <div class="clean-search-box">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="brand-search-input" placeholder="Search brands, slugs, websites..." value="${context.searchQuery || ''}">
+          <input type="text" id="brand-search-input" name="brand_search_query_no_autofill" placeholder="Search brands, slugs, websites..." value="${(context.searchQuery || '').includes('@') ? '' : (context.searchQuery || '')}" autocomplete="new-password" aria-autocomplete="none" spellcheck="false">
         </div>
 
         <!-- Sorting -->
@@ -612,6 +612,17 @@ export function attachAdminBrandsListeners(context, shadow) {
   // 1. Search Input
   const searchInput = shadow.getElementById('brand-search-input');
   if (searchInput) {
+    if (searchInput.value.includes('@')) {
+      searchInput.value = '';
+      context.searchQuery = '';
+    }
+    searchInput.addEventListener('focus', () => {
+      if (searchInput.value.includes('@')) {
+        searchInput.value = '';
+        context.searchQuery = '';
+      }
+    });
+
     searchInput.addEventListener('input', (e) => {
       context.searchQuery = e.target.value;
       context.render();
