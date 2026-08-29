@@ -6134,8 +6134,52 @@ h2.big em { font-style: italic; color: var(--accent); }
   .feat:nth-child(even) .feat-img { order: 0; }
 }
 @media(max-width: 720px) {
+  .pdp-premium-container .wrap {
+    padding: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+  .stage, .pdp-media-panel {
+    border-radius: 0 !important;
+    border-left: none !important;
+    border-right: none !important;
+    width: 100% !important;
+  }
+  .stage img, .pdp-main-image {
+    border-radius: 0 !important;
+  }
+  .crumb, .eyebrow, h1.pname, .rate-row, .price-row, .pdesc, .opt-label, .swatches, .col-dropdown-wrap, .btn-buy-now, .trust, .accordion-pdp-section, .feat, .rev-sum, .rev-cards, .rev-header {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+    box-sizing: border-box !important;
+  }
+  .buy-row {
+    padding-left: 14px !important;
+    padding-right: 14px !important;
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    align-items: center !important;
+    box-sizing: border-box !important;
+  }
+  .qty {
+    flex-shrink: 0 !important;
+  }
+  .btn-add {
+    flex: 1 !important;
+    min-width: 0 !important;
+    font-size: 11px !important;
+    padding: 14px 10px !important;
+    height: 48px !important;
+    white-space: nowrap !important;
+  }
+  .btn-wish, .btn-share, .btn-col {
+    width: 48px !important;
+    height: 48px !important;
+    flex-shrink: 0 !important;
+  }
   .rev-cards { grid-template-columns: 1fr; }
-  .rel-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .rel-grid { grid-template-columns: 1fr 1fr; gap: 12px; padding: 0 14px; }
   .trust { grid-template-columns: 1fr; }
   .sb-in .price { display: none; }
   .f-row { grid-template-columns: 1fr; }
