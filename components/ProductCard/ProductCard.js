@@ -112,9 +112,11 @@ class ProductCard extends HTMLElement {
         <div class="image-wrapper">
           <img src="${p.image}" alt="${p.name}" class="card-image" loading="lazy">
           
-          <span class="category-badge ${isOutOfStock ? 'out-of-stock' : ''}">
-            ${isOutOfStock ? '✕ Rupture' : (p.category || 'Workspace')}
-          </span>
+          ${isOutOfStock ? `
+            <span class="category-badge out-of-stock">
+              ✕ Rupture
+            </span>
+          ` : ''}
           
           <div class="status-badge-container">
             ${hasCustomBadge ? `<span class="status-badge custom-badge" style="background: linear-gradient(135deg, #0052cc 0%, #00b4d8 100%);">✨ ${customBadgeText.toUpperCase()}</span>` : ''}
@@ -139,11 +141,7 @@ class ProductCard extends HTMLElement {
         </div>
         
         <div class="card-content">
-          <div class="rating-container">
-            <svg class="star-icon" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-            <span class="rating-score">${ratingVal}</span>
-            <span class="rating-count">(${reviewsDisplayCount})</span>
-          </div>
+          <div class="category-name">${p.category || 'Workspace'}</div>
           
           <h2 class="product-title" id="title-click">${p.name}</h2>
           

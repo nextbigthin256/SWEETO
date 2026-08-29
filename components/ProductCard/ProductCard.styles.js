@@ -178,28 +178,13 @@ export const productCardCSS = `
   flex-grow: 1;
 }
 
-.rating-container {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-}
-
-.star-icon {
-  width: 16px;
-  height: 16px;
-  fill: #fbbf24;
-}
-
-.rating-score {
-  font-size: 14px;
-  font-weight: 750;
-  color: #f59e0b;
-}
-
-.rating-count {
-  font-size: 13px;
-  color: #9ca3af;
+.category-name {
+  font-size: 12.5px;
+  font-weight: 400;
+  color: #2563eb;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
 }
 
 .product-title {
