@@ -167,7 +167,11 @@ class ProductCard extends HTMLElement {
           </div>
           
           <h3 class="product-title" id="title-click">${p.name}</h3>
-          <p class="product-desc">${p.shortDesc}</p>
+          ${(() => {
+            const rawDesc = p.shortDesc || p.short_description || p.description || '';
+            const cleanDesc = (rawDesc && rawDesc !== 'undefined' && rawDesc !== 'null') ? String(rawDesc).trim() : '';
+            return cleanDesc ? `<p class="product-desc">${cleanDesc}</p>` : '';
+          })()}
           
           <div class="price-row">
             <div class="price-box" style="display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;">
