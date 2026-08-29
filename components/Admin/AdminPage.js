@@ -14,6 +14,8 @@ import {
   fetchBrandsFromSupabase,
   fetchOrdersFromSupabase,
   fetchCustomersFromSupabase,
+  fetchCouponsFromSupabase,
+  fetchSectionsFromSupabase,
   fetchSettingsFromSupabase
 } from '../../utils/supabase.js';
 
@@ -670,12 +672,14 @@ class AdminPage extends HTMLElement {
   async loadDatabase() {
     console.log('[Supabase Cloud] Loading database state from Cloud...');
     try {
-      const [prods, cats, brands, ords, custs] = await Promise.allSettled([
+      const [prods, cats, brands, ords, custs, cpps, secs] = await Promise.allSettled([
         fetchProductsFromSupabase(),
         fetchCategoriesFromSupabase(),
         fetchBrandsFromSupabase(),
         fetchOrdersFromSupabase(),
-        fetchCustomersFromSupabase()
+        fetchCustomersFromSupabase(),
+        fetchCouponsFromSupabase(),
+        fetchSectionsFromSupabase()
       ]);
 
       if (prods.status === 'fulfilled' && Array.isArray(prods.value) && prods.value.length > 0) {
@@ -711,11 +715,19 @@ class AdminPage extends HTMLElement {
         this.customers = this.loadCustomers();
       }
 
-      const storedCoupons = getStorageItem('SWEETOS_coupons');
-      if (storedCoupons) try { this.coupons = JSON.parse(storedCoupons); } catch(e) {}
+      if (cpps.status === 'fulfilled' && Array.isArray(cpps.value) && cpps.value.length > 0) {
+        this.coupons = cpps.value;
+      } else {
+        const storedCoupons = getStorageItem('SWEETOS_coupons');
+        if (storedCoupons) try { this.coupons = JSON.parse(storedCoupons); } catch(e) {}
+      }
 
-      const storedSections = sessionStorage.getItem('SWEETOS_homepage_sections');
-      if (storedSections) try { this.homepageSections = JSON.parse(storedSections); } catch(e) {}
+      if (secs.status === 'fulfilled' && Array.isArray(secs.value) && secs.value.length > 0) {
+        this.homepageSections = secs.value;
+      } else {
+        const storedSections = sessionStorage.getItem('SWEETOS_homepage_sections');
+        if (storedSections) try { this.homepageSections = JSON.parse(storedSections); } catch(e) {}
+      }
 
       const storedReviews = sessionStorage.getItem('SWEETOS_reviews_all');
       if (storedReviews) try { this.reviews = JSON.parse(storedReviews); } catch(e) {}
