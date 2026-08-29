@@ -1,4 +1,4 @@
-import { getProfileStorageKey, formatPrice, getAllOrdersFromStorage } from '../../utils/storage.js';
+import { getProfileStorageKey, formatPrice, getAllOrdersFromStorage, getStorageItem, saveStorageItem } from '../../utils/storage.js';
 
 
 class AccountModal extends HTMLElement {

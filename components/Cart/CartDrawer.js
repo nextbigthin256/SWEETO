@@ -1,5 +1,5 @@
 import products from '../../data/products.js';
-import { getCartStorageKey, getScratchcardsStorageKey, formatPrice } from '../../utils/storage.js';
+import { getCartStorageKey, getScratchcardsStorageKey, formatPrice, getStorageItem, saveStorageItem } from '../../utils/storage.js';
 import { getBadgeRewardCoupon } from '../../utils/badges.js';
 
 class CartDrawer extends HTMLElement {

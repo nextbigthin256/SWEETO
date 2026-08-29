@@ -1,5 +1,5 @@
 import products from '../../data/products.js';
-import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getNotificationsFromStorage, formatPrice, getAllOrdersFromStorage } from '../../utils/storage.js';
+import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getNotificationsFromStorage, formatPrice, getAllOrdersFromStorage, getStorageItem, saveStorageItem } from '../../utils/storage.js';
 import { loadStyles } from '../../utils/cssLoader.js';
 import { headerCSS } from './Header.styles.js';
 import { renderVerificationBadge, getCustomerBadge, getCustomerLevel, getCustomerAvatarStyle, renderLevelChevronV } from '../../utils/badges.js';
