@@ -1055,6 +1055,17 @@ export function attachAdminCustomersListeners(context, shadow) {
 
       sessionStorage.setItem('SWEETOS_customers', JSON.stringify(customers));
 
+      // Sync customer profile directly to Supabase Cloud
+      import('../../utils/supabase.js').then(({ saveCustomerToSupabase }) => {
+        saveCustomerToSupabase({
+          email: custEmail,
+          name: foundCust ? foundCust.name : 'Client',
+          level: selectedLevel,
+          badgeType: selectedBadge,
+          unlockedBadges: checkedBadges
+        });
+      }).catch(() => {});
+
       // Sync customer user profile in sessionStorage if matches
       try {
         const safeKey = custEmail.replace(/[^a-zA-Z0-9]/g, '_');
