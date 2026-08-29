@@ -902,7 +902,7 @@ class ProductList extends HTMLElement {
     if (this.currentPage === 'home') {
       let sectionsList = [];
       try {
-        const storedSecs = sessionStorage.getItem('SWEETOS_homepage_sections');
+        const storedSecs = getStorageItem('SWEETOS_homepage_sections');
         sectionsList = storedSecs ? JSON.parse(storedSecs) : [];
       } catch(e) {}
 
@@ -2644,7 +2644,7 @@ class ProductList extends HTMLElement {
   injectHomeProducts() {
     let sectionsList = [];
     try {
-      const storedSecs = sessionStorage.getItem('SWEETOS_homepage_sections');
+      const storedSecs = getStorageItem('SWEETOS_homepage_sections');
       sectionsList = storedSecs ? JSON.parse(storedSecs) : [];
     } catch(e) {}
 
@@ -2674,7 +2674,13 @@ class ProductList extends HTMLElement {
 
     sectionsList.filter(s => s.active).forEach(s => {
       // Check if any product has explicitly been assigned to this section
-      const assignedProducts = this.products.filter(p => p.homepageSections && p.homepageSections.includes(s.id));
+      const assignedProducts = this.products.filter(p => {
+        if (!p) return false;
+        if (Array.isArray(p.homepageSections) && p.homepageSections.length > 0) {
+          return p.homepageSections.includes(s.id) || p.homepageSections.includes(s.type) || p.homepageSections.includes(s.name);
+        }
+        return false;
+      });
       const hasAssigned = assignedProducts.length > 0;
 
       if (s.type === 'deals') {
@@ -2717,6 +2723,7 @@ class ProductList extends HTMLElement {
           gridDynamic.innerHTML = '';
           let displayProducts = [];
           if (hasAssigned) {
+            displayProducts = assignedProducts.slice(0, 12);
           } else {
             if (s.category === 'All' || !s.category) {
               displayProducts = this.products.slice(0, 12);
