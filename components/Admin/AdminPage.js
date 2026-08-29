@@ -653,17 +653,32 @@ class AdminPage extends HTMLElement {
         if (storedBrands) try { this.brands = JSON.parse(storedBrands); } catch(e) {}
       }
 
-      if (ords.status === 'fulfilled' && Array.isArray(ords.value)) {
-        this.orders = ords.value;
-      } else {
-        this.orders = getAllOrdersFromStorage();
-      }
+      // Merge Cloud + Local Storage Orders
+      const cloudOrders = (ords.status === 'fulfilled' && Array.isArray(ords.value)) ? ords.value : [];
+      const localOrders = getAllOrdersFromStorage();
+      const ordersMap = new Map();
+      cloudOrders.forEach(o => { if (o && (o.id || o.order_number)) ordersMap.set(o.id || o.order_number, o); });
+      localOrders.forEach(o => { if (o && (o.id || o.order_number)) ordersMap.set(o.id || o.order_number, o); });
+      this.orders = Array.from(ordersMap.values());
 
-      if (custs.status === 'fulfilled' && Array.isArray(custs.value)) {
-        this.customers = custs.value;
-      } else {
-        this.customers = this.loadCustomers();
-      }
+      // Merge Cloud + Local Storage Customers
+      const cloudCusts = (custs.status === 'fulfilled' && Array.isArray(custs.value)) ? custs.value : [];
+      const localCusts = this.loadCustomers();
+      const custsMap = new Map();
+      cloudCusts.forEach(c => { if (c && c.email) custsMap.set(c.email.trim().toLowerCase(), c); });
+      localCusts.forEach(c => {
+        if (c && c.email) {
+          const emailLower = c.email.trim().toLowerCase();
+          if (!custsMap.has(emailLower)) {
+            custsMap.set(emailLower, c);
+          } else {
+            const existing = custsMap.get(emailLower);
+            existing.ordersCount = Math.max(existing.ordersCount || 0, c.ordersCount || 0);
+            existing.totalSpent = Math.max(existing.totalSpent || 0, c.totalSpent || 0);
+          }
+        }
+      });
+      this.customers = Array.from(custsMap.values());
 
       if (cpps.status === 'fulfilled' && Array.isArray(cpps.value) && cpps.value.length > 0) {
         this.coupons = cpps.value;
