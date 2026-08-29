@@ -8223,8 +8223,12 @@ class ProductList extends HTMLElement {
     
     contentArea.appendChild(wrapper);
 
-    const productMap = new Map(this.products.map(p => [p.id, p]));
-    const moreToLove = (config.productIds || []).map(id => productMap.get(id)).filter(Boolean);
+    const productMap = new Map((this.products || []).map(p => [p.id, p]));
+    let moreToLove = (config.productIds || []).map(id => productMap.get(id)).filter(Boolean);
+    if (moreToLove.length < 2 && (this.products || []).length >= 2) {
+      const currentId = this.currentProductId;
+      moreToLove = (this.products || []).filter(p => p.id !== currentId).slice(0, 4);
+    }
     const gridMore = this.shadowRoot.getElementById('global-more-to-love-grid');
     if (gridMore) {
       moreToLove.forEach(p => {

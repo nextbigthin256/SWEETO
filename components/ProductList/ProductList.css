@@ -3270,8 +3270,8 @@ input:checked + .toggle-slider:before {
   }
   #global-more-to-love-grid {
     display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
-    gap: 12px !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
     width: 100% !important;
     padding: 0 !important;
   }
@@ -3287,8 +3287,8 @@ input:checked + .toggle-slider:before {
   }
   .rel-grid {
     display: grid !important;
-    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
-    gap: 12px !important;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
     width: 100% !important;
   }
   .home-grid-4,
