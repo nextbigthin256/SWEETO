@@ -287,13 +287,92 @@
 }
 
 @media (max-width: 768px) {
-  .image-wrapper { height: 160px; }
-  .heart-btn { width: 50px; height: 50px; }
-  .heart-btn svg { width: 22px; height: 22px; }
-  .card-content { padding: 12px; }
-  .product-title { font-size: 14px; }
-  .current-price { font-size: 16px; }
-  .add-btn { width: 44px; height: 44px; }
-  .add-btn-text { font-size: 10px; }
-  .add-btn-icon { font-size: 14px; }
+  .card {
+    border-radius: 12px;
+    border-width: 1px;
+  }
+  .image-wrapper {
+    height: 135px !important;
+  }
+  .heart-btn {
+    width: 42px !important;
+    height: 42px !important;
+  }
+  .heart-btn svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+  .card-content {
+    padding: 8px 10px 10px 10px !important;
+  }
+  .category-name {
+    font-size: 10.5px !important;
+    margin-bottom: 2px !important;
+  }
+  .product-title {
+    font-size: 12.5px !important;
+    line-height: 1.25 !important;
+    margin-bottom: 4px !important;
+    -webkit-line-clamp: 2 !important;
+  }
+  .divider {
+    margin-top: 2px !important;
+    margin-bottom: 6px !important;
+  }
+  .price-row {
+    gap: 6px !important;
+  }
+  .current-price {
+    font-size: 14px !important;
+    margin-bottom: 1px !important;
+  }
+  .old-price {
+    font-size: 10.5px !important;
+  }
+  .discount-badge {
+    font-size: 9.5px !important;
+    padding: 1px 4px !important;
+  }
+  .add-btn {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 9px !important;
+  }
+  .add-btn-text {
+    font-size: 9.5px !important;
+  }
+  .add-btn-icon {
+    font-size: 13px !important;
+  }
+  .status-badge {
+    font-size: 8.5px !important;
+    padding: 2px 6px !important;
+    border-radius: 6px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .image-wrapper {
+    height: 120px !important;
+  }
+  .card-content {
+    padding: 6px 8px 8px 8px !important;
+  }
+  .product-title {
+    font-size: 12px !important;
+  }
+  .current-price {
+    font-size: 13px !important;
+  }
+  .add-btn {
+    width: 34px !important;
+    height: 34px !important;
+    border-radius: 8px !important;
+  }
+  .add-btn-text {
+    display: none !important;
+  }
+  .add-btn-icon {
+    font-size: 16px !important;
+  }
 }
