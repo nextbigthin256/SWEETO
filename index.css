@@ -322,7 +322,7 @@ cart-drawer.closed, notification-drawer.closed {
   .main-content {
     margin-left: 0 !important;
     margin-right: 0 !important;
-    padding: 0 !important;
+    padding: 0 10px !important;
   }
   cart-drawer, notification-drawer {
     bottom: 72px;
