@@ -19,6 +19,8 @@ import {
   fetchSettingsFromSupabase
 } from '../../utils/supabase.js';
 
+import { bootstrapFromSupabase } from '../../utils/supabaseBootstrap.js';
+
 import products from '../../data/products.js';
 import categories from '../../data/categories.js';
 import brands from '../../data/brands.js';
@@ -546,7 +548,7 @@ class AdminPage extends HTMLElement {
     window.addEventListener('storage', this._storageOrdersListener);
 
     // Load database state from Supabase Cloud on mount
-    this.loadDatabase().then(() => {
+    bootstrapFromSupabase(this).then(() => {
       this.render();
       this.attachListeners();
     });
