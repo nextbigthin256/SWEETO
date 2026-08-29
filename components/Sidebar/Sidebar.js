@@ -1,4 +1,4 @@
-import { getScratchcardsStorageKey, getAllOrdersFromStorage } from '../../utils/storage.js';
+import { getScratchcardsStorageKey, getAllOrdersFromStorage, getStorageItem } from '../../utils/storage.js';
 
 
 class Sidebar extends HTMLElement {
@@ -37,7 +37,7 @@ class Sidebar extends HTMLElement {
   }
 
   syncActivePage() {
-    const activePage = sessionStorage.getItem('SWEETOS_current_page') || 'home';
+    const activePage = getStorageItem('SWEETOS_current_page') || 'home';
     const items = this.shadowRoot.querySelectorAll('.sidebar-item');
     items.forEach(item => {
       const page = item.getAttribute('data-page');
@@ -56,7 +56,7 @@ class Sidebar extends HTMLElement {
     // 1. Real Customer Orders badge (Shows real in-transit / placed orders or total, or nothing if 0)
     const ordersBadge = shadow.getElementById('sidebar-orders-badge');
     if (ordersBadge) {
-      const loggedIn = sessionStorage.getItem('SWEETOS_logged_in_user');
+      const loggedIn = getStorageItem('SWEETOS_logged_in_user');
       let userOrders = [];
       if (loggedIn) {
         try {
@@ -92,7 +92,8 @@ class Sidebar extends HTMLElement {
     if (wishBadge) {
       let wishList = [];
       try {
-        wishList = JSON.parse(sessionStorage.getItem('SWEETOS_wishlist') || '[]');
+        const wishRaw = getStorageItem('SWEETOS_wishlist');
+        wishList = wishRaw ? JSON.parse(wishRaw) : [];
       } catch(e) {}
       
       if (wishList.length > 0) {
@@ -112,11 +113,12 @@ class Sidebar extends HTMLElement {
 
       // A. Real Unscratched Mystery Scratchcards owned by user
       let unscratchedCount = 0;
-      const loggedInStr = sessionStorage.getItem('SWEETOS_logged_in_user');
+      const loggedInStr = getStorageItem('SWEETOS_logged_in_user');
       if (loggedInStr) {
         try {
           const scratchKey = getScratchcardsStorageKey();
-          const scratchcards = JSON.parse(sessionStorage.getItem(scratchKey) || '[]');
+          const rawScratch = getStorageItem(scratchKey);
+          const scratchcards = rawScratch ? JSON.parse(rawScratch) : [];
           unscratchedCount = scratchcards.filter(sc => !sc.scratched && (!sc.expiresAt || sc.expiresAt > now)).length;
         } catch(e) {}
       }
@@ -124,7 +126,8 @@ class Sidebar extends HTMLElement {
       // B. Real Active Won Coupons owned by user (e.g. LOYAL or SAVE codes)
       let wonCouponsCount = 0;
       try {
-        const coupons = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
+        const rawCoupons = getStorageItem('SWEETOS_coupons');
+        const coupons = rawCoupons ? JSON.parse(rawCoupons) : [];
         wonCouponsCount = coupons.filter(c => 
           c.status === 'active' && 
           (c.code.startsWith('LOYAL') || c.code.startsWith('SAVE')) &&
@@ -397,7 +400,7 @@ class Sidebar extends HTMLElement {
     const link = this.shadowRoot.getElementById('sidebar-account-link');
     if (!label || !link) return;
 
-    const isLoggedIn = sessionStorage.getItem('SWEETOS_logged_in_user') !== null;
+    const isLoggedIn = getStorageItem('SWEETOS_logged_in_user') !== null;
     if (isLoggedIn) {
       label.textContent = "Account Settings";
       link.setAttribute('data-page', 'profile');

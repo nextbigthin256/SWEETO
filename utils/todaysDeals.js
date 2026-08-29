@@ -7,7 +7,7 @@
  * - Auto-hide on expiration & Admin On/Off switch
  */
 
-import { getNotificationsStorageKey, getScratchcardsStorageKey, isLocalDevHost } from './storage.js';
+import { getNotificationsStorageKey, getScratchcardsStorageKey, isLocalDevHost, saveStorageItem, getStorageItem } from './storage.js';
 import { saveSiteSettingInSupabase, fetchSiteSettingFromSupabase } from './supabase.js';
 
 const STORAGE_KEY = 'SWEETOS_todays_deals';
@@ -142,14 +142,14 @@ export function getTodaysDealsConfig() {
   try {
     fetchSiteSettingFromSupabase('todays_deals_config').then(cloudConf => {
       if (cloudConf) {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(cloudConf));
+        saveStorageItem(STORAGE_KEY, JSON.stringify(cloudConf));
       }
     }).catch(() => {});
 
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = getStorageItem(STORAGE_KEY);
     if (!raw) {
       const def = getDefaultTodaysDealsConfig();
-      sessionStorage.setItem(STORAGE_KEY, JSON.stringify(def));
+      saveStorageItem(STORAGE_KEY, JSON.stringify(def));
       return def;
     }
     const parsed = JSON.parse(raw);
@@ -181,7 +181,7 @@ export function notifyCustomersDealsActive(config) {
     const notifKey = 'SWEETOS_notifications';
     let notifs = [];
     try {
-      notifs = JSON.parse(sessionStorage.getItem(notifKey) || '[]');
+      notifs = JSON.parse(getStorageItem(notifKey) || '[]');
     } catch(e) {}
 
     const totalCoupons = config.couponPool?.totalCoupons || 5;
@@ -200,7 +200,7 @@ export function notifyCustomersDealsActive(config) {
     const isDuplicate = notifs.some(n => n.type === 'deal' && (Date.now() - n.id) < 2 * 60 * 1000);
     if (!isDuplicate) {
       notifs.unshift(newNotif);
-      sessionStorage.setItem(notifKey, JSON.stringify(notifs));
+      saveStorageItem(notifKey, JSON.stringify(notifs));
       window.dispatchEvent(new CustomEvent('notifications:updated'));
     }
   } catch(e) {
@@ -213,7 +213,7 @@ export function saveTodaysDealsConfig(config) {
     const prevCfg = getTodaysDealsConfig();
     const wasOff = !prevCfg.enabled || (prevCfg.endsAt && Date.now() >= prevCfg.endsAt);
     
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    saveStorageItem(STORAGE_KEY, JSON.stringify(config));
     saveSiteSettingInSupabase('todays_deals_config', config);
     window.dispatchEvent(new CustomEvent('todays_deals:updated', { detail: config }));
     

@@ -1,4 +1,4 @@
-import { getProfileStorageKey } from '../../utils/storage.js';
+import { getProfileStorageKey, saveStorageItem, getStorageItem, loadUserDataFromSupabase } from '../../utils/storage.js';
 
 export function getAuthPageHTML() {
   return `
@@ -500,7 +500,7 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
 
       setTimeout(() => {
         const safeKey = email.replace(/[^a-zA-Z0-9]/g, '_');
-        const savedProfileStr = sessionStorage.getItem(`SWEETOS_user_profile_${safeKey}`) || sessionStorage.getItem('SWEETOS_user_profile');
+        const savedProfileStr = getStorageItem(`SWEETOS_user_profile_${safeKey}`) || getStorageItem('SWEETOS_user_profile');
         let savedProfile = null;
         if (savedProfileStr) {
           try {
@@ -519,8 +519,8 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
 
         if (hasCompleteProfile) {
           // Complete profile exists, log in immediately
-          sessionStorage.setItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
-          sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(savedProfile));
+          saveStorageItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
+          saveStorageItem('SWEETOS_user_profile', JSON.stringify(savedProfile));
 
           window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: true, email } }));
           window.dispatchEvent(new CustomEvent('toast:show', { detail: `Bon retour, ${savedProfile.firstName} ! Connecté via Google.` }));
@@ -583,12 +583,12 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
         btn.classList.remove('opacity-70');
 
         // Log in user state
-        sessionStorage.setItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
+        saveStorageItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
 
         // Save credentials to database (so Admin can manage and see them)
         let creds = [];
         try {
-          creds = JSON.parse(sessionStorage.getItem('SWEETOS_customer_credentials') || '[]');
+          creds = JSON.parse(getStorageItem('SWEETOS_customer_credentials') || '[]');
         } catch (err) {}
 
         const existingCredIdx = creds.findIndex(c => c.email.toLowerCase() === email);
@@ -610,7 +610,7 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
         } else {
           creds[existingCredIdx] = userCred;
         }
-        sessionStorage.setItem('SWEETOS_customer_credentials', JSON.stringify(creds));
+        saveStorageItem('SWEETOS_customer_credentials', JSON.stringify(creds));
 
         // Create complete user profile
         const newProfile = {
@@ -640,8 +640,8 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
         };
         
         const safeKey = email.replace(/[^a-zA-Z0-9]/g, '_');
-        sessionStorage.setItem(`SWEETOS_user_profile_${safeKey}`, JSON.stringify(newProfile));
-        sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(newProfile));
+        saveStorageItem(`SWEETOS_user_profile_${safeKey}`, JSON.stringify(newProfile));
+        saveStorageItem('SWEETOS_user_profile', JSON.stringify(newProfile));
 
         // Save to Supabase Cloud Database (profiles table)
         import('../../utils/supabase.js').then(({ saveCustomerToSupabase }) => {
@@ -666,9 +666,9 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
 
   // Initialize customer credentials database if not present
   const initializeCredentials = () => {
-    const savedCreds = sessionStorage.getItem('SWEETOS_customer_credentials');
+    const savedCreds = getStorageItem('SWEETOS_customer_credentials');
     if (!savedCreds) {
-      sessionStorage.setItem('SWEETOS_customer_credentials', JSON.stringify([]));
+      saveStorageItem('SWEETOS_customer_credentials', JSON.stringify([]));
     }
   };
 
@@ -684,7 +684,7 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
       const originalText = btn.innerText;
 
       // Validate credentials
-      const creds = JSON.parse(sessionStorage.getItem('SWEETOS_customer_credentials') || '[]');
+      const creds = JSON.parse(getStorageItem('SWEETOS_customer_credentials') || '[]');
       let userMatch = creds.find(u => u.email.toLowerCase() === email);
 
       if (!userMatch) {
@@ -701,7 +701,8 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
         btn.disabled = false;
         btn.classList.remove('opacity-70');
         
-        sessionStorage.setItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
+        saveStorageItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
+        loadUserDataFromSupabase(email);
 
         // Clear any previous session revocation signal upon authenticating
         import('../../utils/supabase.js').then(({ clearCustomerRevocationInSupabase, fetchProfileFromSupabase }) => {
@@ -710,7 +711,7 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
         }).catch(() => {});
 
         const profileKey = `SWEETOS_user_profile_${email.replace(/[^a-zA-Z0-9]/g, '_')}`;
-        let saved = sessionStorage.getItem(profileKey);
+        let saved = getStorageItem(profileKey);
         if (!saved) {
           const parts = (userMatch.name || 'Client').split(' ');
           const first = parts[0] || 'Client';
@@ -741,10 +742,10 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
             ],
             orders: []
           };
-          sessionStorage.setItem(profileKey, JSON.stringify(defaultProfile));
-          sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(defaultProfile));
+          saveStorageItem(profileKey, JSON.stringify(defaultProfile));
+          saveStorageItem('SWEETOS_user_profile', JSON.stringify(defaultProfile));
         } else {
-          sessionStorage.setItem('SWEETOS_user_profile', saved);
+          saveStorageItem('SWEETOS_user_profile', saved);
         }
 
         window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: true, email } }));
@@ -784,7 +785,7 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
       }
 
       // Check if email already exists
-      const creds = JSON.parse(sessionStorage.getItem('SWEETOS_customer_credentials') || '[]');
+      const creds = JSON.parse(getStorageItem('SWEETOS_customer_credentials') || '[]');
       const emailExists = creds.some(u => u.email.toLowerCase() === email);
       if (emailExists) {
         window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Cet e-mail est déjà enregistré ! Veuillez vous connecter. ⚠️' }));
@@ -831,7 +832,7 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
           address: fullFormattedAddress,
           joinedDate: joinedDate
         });
-        sessionStorage.setItem('SWEETOS_customer_credentials', JSON.stringify(creds));
+        saveStorageItem('SWEETOS_customer_credentials', JSON.stringify(creds));
 
         const newProfile = {
           firstName: first,
@@ -859,11 +860,11 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
           orders: []
         };
         
-        sessionStorage.setItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
+        saveStorageItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
         
         const safeKey = email.replace(/[^a-zA-Z0-9]/g, '_');
-        sessionStorage.setItem(`SWEETOS_user_profile_${safeKey}`, JSON.stringify(newProfile));
-        sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(newProfile));
+        saveStorageItem(`SWEETOS_user_profile_${safeKey}`, JSON.stringify(newProfile));
+        saveStorageItem('SWEETOS_user_profile', JSON.stringify(newProfile));
 
         window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: true, email } }));
         window.dispatchEvent(new CustomEvent('profile:updated'));

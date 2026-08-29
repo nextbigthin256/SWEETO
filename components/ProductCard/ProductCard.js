@@ -1,4 +1,4 @@
-import { formatPrice } from '../../utils/storage.js';
+import { formatPrice, getStorageItem } from '../../utils/storage.js';
 
 class ProductCard extends HTMLElement {
   constructor() {
@@ -41,7 +41,7 @@ class ProductCard extends HTMLElement {
 
     // Load reviews with fallback to product rating
     const key = `SWEETOS_reviews_${p.id}`;
-    const saved = sessionStorage.getItem(key);
+    const saved = getStorageItem(key);
     let reviewsList = [];
     if (saved) {
       try {
@@ -92,7 +92,7 @@ class ProductCard extends HTMLElement {
     const originalPriceVal = hasDiscount ? origPrice : 0;
     const discountVal = hasDiscount ? Math.round(((originalPriceVal - p.price) / originalPriceVal) * 100) : 0;
 
-    const wishlistSaved = sessionStorage.getItem('SWEETOS_wishlist');
+    const wishlistSaved = getStorageItem('SWEETOS_wishlist');
     let isWishlisted = false;
     if (wishlistSaved) {
       try {

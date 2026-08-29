@@ -1,4 +1,4 @@
-import { getScratchcardsStorageKey } from './storage.js';
+import { getScratchcardsStorageKey, saveStorageItem, getStorageItem } from './storage.js';
 
 export const CUSTOMER_LEVELS = {
   starter: { id: 'starter', levelNum: 0, label: 'Nouveau Client', icon: '🥉', color: '#64748b', bg: '#f8fafc', border: '#e2e8f0', minSpent: 0, rewardDiscount: 0 },
@@ -310,7 +310,7 @@ export function getBadgeRewardCoupon(email) {
   if (!email) return null;
   const safeEmail = email.toLowerCase();
   try {
-    const rewards = JSON.parse(sessionStorage.getItem('SWEETOS_badge_rewards') || '{}');
+    const rewards = JSON.parse(getStorageItem('SWEETOS_badge_rewards') || '{}');
     return rewards[safeEmail] || null;
   } catch(e) {
     return null;
@@ -326,17 +326,17 @@ export function scratchBadgeReward(email) {
   if (!email) return null;
   const safeEmail = email.toLowerCase();
   try {
-    const rewards = JSON.parse(sessionStorage.getItem('SWEETOS_badge_rewards') || '{}');
+    const rewards = JSON.parse(getStorageItem('SWEETOS_badge_rewards') || '{}');
     const userReward = rewards[safeEmail];
     if (userReward) {
       userReward.scratched = true;
       userReward.status = userReward.remainingUses > 0 ? 'active' : 'exhausted';
       rewards[safeEmail] = userReward;
-      sessionStorage.setItem('SWEETOS_badge_rewards', JSON.stringify(rewards));
+      saveStorageItem('SWEETOS_badge_rewards', JSON.stringify(rewards));
 
       // Also mark in scratchcards
       const scratchKey = getScratchcardsStorageKey();
-      let scratchcards = JSON.parse(sessionStorage.getItem(scratchKey) || '[]');
+      let scratchcards = JSON.parse(getStorageItem(scratchKey) || '[]');
       let updatedCards = false;
       scratchcards.forEach(sc => {
         if (sc.email && sc.email.toLowerCase() === safeEmail && (sc.badgeReward || (sc.rewardCode === userReward.code))) {
@@ -357,11 +357,11 @@ export function scratchBadgeReward(email) {
         }
       });
       if (updatedCards) {
-        sessionStorage.setItem(scratchKey, JSON.stringify(scratchcards));
+        saveStorageItem(scratchKey, JSON.stringify(scratchcards));
       }
 
       // Sync into SWEETOS_coupons
-      let adminCoupons = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
+      let adminCoupons = JSON.parse(getStorageItem('SWEETOS_coupons') || '[]');
       const existingIdx = adminCoupons.findIndex(c => c.code === userReward.code);
       const couponEntry = {
         code: userReward.code,
@@ -382,7 +382,11 @@ export function scratchBadgeReward(email) {
       } else {
         adminCoupons.unshift(couponEntry);
       }
-      sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
+      saveStorageItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
+
+      import('./supabase.js').then(({ saveSiteSettingInSupabase }) => {
+        saveSiteSettingInSupabase(`sweetos_badge_reward_${safeEmail.replace(/[^a-zA-Z0-9]/g, '_')}`, userReward);
+      }).catch(() => {});
 
       window.dispatchEvent(new CustomEvent('badge_reward:updated', { detail: { email: safeEmail, reward: userReward } }));
       window.dispatchEvent(new CustomEvent('cart:updated'));
@@ -404,7 +408,7 @@ export function grantBadgeReward(email, badgeInput) {
   if (badgeList.length === 0) return null;
 
   try {
-    const rewards = JSON.parse(sessionStorage.getItem('SWEETOS_badge_rewards') || '{}');
+    const rewards = JSON.parse(getStorageItem('SWEETOS_badge_rewards') || '{}');
     let userReward = rewards[safeEmail];
 
     if (!userReward) {
@@ -447,13 +451,13 @@ export function grantBadgeReward(email, badgeInput) {
     }
 
     rewards[safeEmail] = userReward;
-    sessionStorage.setItem('SWEETOS_badge_rewards', JSON.stringify(rewards));
+    saveStorageItem('SWEETOS_badge_rewards', JSON.stringify(rewards));
 
     // Register Mystery Box scratch card in user scratchcards
     const scratchKey = getScratchcardsStorageKey();
     let scratchcards = [];
     try {
-      scratchcards = JSON.parse(sessionStorage.getItem(scratchKey) || '[]');
+      scratchcards = JSON.parse(getStorageItem(scratchKey) || '[]');
     } catch(e) {}
 
     const existingCardIdx = scratchcards.findIndex(sc => 
@@ -492,10 +496,10 @@ export function grantBadgeReward(email, badgeInput) {
     } else {
       scratchcards.unshift(cardPayload);
     }
-    sessionStorage.setItem(scratchKey, JSON.stringify(scratchcards));
+    saveStorageItem(scratchKey, JSON.stringify(scratchcards));
 
     // Also register / sync in SWEETOS_coupons (marked as unscratched if not yet scratched)
-    let adminCoupons = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
+    let adminCoupons = JSON.parse(getStorageItem('SWEETOS_coupons') || '[]');
     const existingIdx = adminCoupons.findIndex(c => c.code === userReward.code);
     const couponEntry = {
       code: userReward.code,
@@ -516,7 +520,11 @@ export function grantBadgeReward(email, badgeInput) {
     } else {
       adminCoupons.unshift(couponEntry);
     }
-    sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
+    saveStorageItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
+
+    import('./supabase.js').then(({ saveSiteSettingInSupabase }) => {
+      saveSiteSettingInSupabase(`sweetos_badge_reward_${safeEmail.replace(/[^a-zA-Z0-9]/g, '_')}`, userReward);
+    }).catch(() => {});
 
     window.dispatchEvent(new CustomEvent('badge_reward:updated', { detail: { email: safeEmail, reward: userReward } }));
     
@@ -546,7 +554,7 @@ export function notifyCustomerAchievement(email, data = {}) {
   const notifKey = `SWEETOS_notifications`;
   let notifs = [];
   try {
-    notifs = JSON.parse(sessionStorage.getItem(notifKey) || '[]');
+    notifs = JSON.parse(getStorageItem(notifKey) || '[]');
   } catch(e) {}
 
   const desc = `

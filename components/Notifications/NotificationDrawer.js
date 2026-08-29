@@ -1,4 +1,4 @@
-import { getNotificationsStorageKey, getNotificationsFromStorage, saveNotificationsToStorage, getScratchcardsStorageKey, formatTimeAgo, getAllOrdersFromStorage } from '../../utils/storage.js';
+import { getNotificationsStorageKey, getNotificationsFromStorage, saveNotificationsToStorage, getScratchcardsStorageKey, formatTimeAgo, getAllOrdersFromStorage, getStorageItem } from '../../utils/storage.js';
 
 
 class NotificationDrawer extends HTMLElement {
@@ -99,7 +99,8 @@ class NotificationDrawer extends HTMLElement {
     let scratchcards = [];
     try {
       const scratchKey = getScratchcardsStorageKey();
-      scratchcards = JSON.parse(sessionStorage.getItem(scratchKey) || '[]');
+      const rawScratch = getStorageItem(scratchKey);
+      scratchcards = rawScratch ? JSON.parse(rawScratch) : [];
     } catch(e) {}
     
     const now = Date.now();
@@ -131,7 +132,8 @@ class NotificationDrawer extends HTMLElement {
 
     let coupons = [];
     try {
-      coupons = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
+      const rawCoupons = getStorageItem('SWEETOS_coupons');
+      coupons = rawCoupons ? JSON.parse(rawCoupons) : [];
     } catch(e) {}
     
     coupons.forEach(c => {

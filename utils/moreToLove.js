@@ -3,7 +3,7 @@
  * Centralized configuration & storage helper for the "More to Love" storefront section.
  */
 
-import { isLocalDevHost } from './storage.js';
+import { isLocalDevHost, saveStorageItem, getStorageItem } from './storage.js';
 import { saveSiteSettingInSupabase, fetchSiteSettingFromSupabase } from './supabase.js';
 
 const STORAGE_KEY = 'SWEETOS_more_to_love_config';
@@ -19,11 +19,11 @@ export function getMoreToLoveConfig() {
   try {
     fetchSiteSettingFromSupabase('more_to_love_config').then(cloudConf => {
       if (cloudConf) {
-        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(cloudConf));
+        saveStorageItem(STORAGE_KEY, JSON.stringify(cloudConf));
       }
     }).catch(() => {});
 
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = getStorageItem(STORAGE_KEY);
     if (!raw) return { ...DEFAULT_MORE_TO_LOVE_CONFIG };
     const parsed = JSON.parse(raw);
     return {
@@ -45,7 +45,7 @@ export function saveMoreToLoveConfig(config) {
       subtitle: (config.subtitle || '').trim(),
       productIds: Array.isArray(config.productIds) ? config.productIds : []
     };
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(safeConfig));
+    saveStorageItem(STORAGE_KEY, JSON.stringify(safeConfig));
     saveSiteSettingInSupabase('more_to_love_config', safeConfig);
 
     // Server sync
