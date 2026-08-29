@@ -3677,20 +3677,56 @@ class ProductList extends HTMLElement {
 
   getSectionProductPools() {
     const all = this.products || [];
-    
-    // 1. Hot Deals: high discount products or assigned to sec-deals
-    const dealIds = [5, 14, 28, 40, 7, 18, 32, 45];
-    const deals = all.filter(p => (p.homepageSections && p.homepageSections.includes('sec-deals')) || dealIds.includes(p.id) || (p.originalPrice && p.originalPrice > p.price * 1.2));
-    const dealIdSet = new Set(deals.map(p => p.id));
+    if (all.length === 0) return { deals: [], newArrivals: [], bestSellers: [] };
 
-    // 2. New Arrivals: newest product IDs, strictly excluding any Hot Deals
-    const newArrivalIds = [46, 47, 48, 49, 50, 41, 42, 43, 44];
-    const newArrivals = all.filter(p => !dealIdSet.has(p.id) && ((p.homepageSections && p.homepageSections.includes('sec-new')) || newArrivalIds.includes(p.id)));
-    const newIdSet = new Set(newArrivals.map(p => p.id));
+    // Support both numeric IDs and string IDs safely
+    const dealIds = new Set([5, 14, 28, 40, 7, 18, 32, 45, "5", "14", "28", "40", "7", "18", "32", "45"]);
+    const newArrivalIds = new Set([46, 47, 48, 49, 50, 41, 42, 43, 44, "46", "47", "48", "49", "50", "41", "42", "43", "44"]);
+    const bestIds = new Set([1, 13, 26, 39, 2, 8, 15, 22, "1", "13", "26", "39", "2", "8", "15", "22"]);
 
-    // 3. Best Sellers: high rating / reviews, strictly excluding Deals & New Arrivals
-    const bestIds = [1, 13, 26, 39, 2, 8, 15, 22];
-    const bestSellers = all.filter(p => !dealIdSet.has(p.id) && !newIdSet.has(p.id) && ((p.homepageSections && p.homepageSections.includes('sec-best')) || bestIds.includes(p.id) || (p.rating >= 4.8 && p.reviews >= 50)));
+    // 1. Hot Deals: high discount, badge, or section assigned
+    let deals = all.filter(p => {
+      if (!p) return false;
+      const b = String(p.badge || '').toUpperCase();
+      const sec = Array.isArray(p.homepageSections) ? p.homepageSections : [];
+      return sec.includes('sec-deals') ||
+             dealIds.has(p.id) || dealIds.has(String(p.id)) ||
+             b.includes('DEAL') || b.includes('SALE') || b.includes('HOT') || b.includes('OFF') ||
+             (p.originalPrice && parseFloat(p.originalPrice) > parseFloat(p.price)) ||
+             (p.comparePrice && parseFloat(p.comparePrice) > parseFloat(p.price));
+    });
+    if (deals.length === 0) {
+      deals = all.slice(0, Math.min(12, all.length));
+    }
+    const dealIdSet = new Set(deals.map(p => String(p.id)));
+
+    // 2. New Arrivals: badge, section, ID match, or newest items
+    let newArrivals = all.filter(p => {
+      if (!p) return false;
+      const b = String(p.badge || '').toUpperCase();
+      const sec = Array.isArray(p.homepageSections) ? p.homepageSections : [];
+      return sec.includes('sec-new') ||
+             newArrivalIds.has(p.id) || newArrivalIds.has(String(p.id)) ||
+             b.includes('NEW') || b.includes('FRESH') || b.includes('ARRIV');
+    });
+    if (newArrivals.length === 0) {
+      newArrivals = [...all].reverse().slice(0, Math.min(12, all.length));
+    }
+    const newIdSet = new Set(newArrivals.map(p => String(p.id)));
+
+    // 3. Best Sellers: high rating, reviews, badge, or section
+    let bestSellers = all.filter(p => {
+      if (!p) return false;
+      const b = String(p.badge || '').toUpperCase();
+      const sec = Array.isArray(p.homepageSections) ? p.homepageSections : [];
+      return sec.includes('sec-best') ||
+             bestIds.has(p.id) || bestIds.has(String(p.id)) ||
+             b.includes('BEST') || b.includes('TOP') || b.includes('POPULAR') ||
+             (parseFloat(p.rating || 0) >= 4.5);
+    });
+    if (bestSellers.length === 0) {
+      bestSellers = [...all].sort((a, b) => (parseFloat(b.rating) || 5) - (parseFloat(a.rating) || 5)).slice(0, Math.min(12, all.length));
+    }
 
     return { deals, newArrivals, bestSellers };
   }
@@ -3714,6 +3750,10 @@ class ProductList extends HTMLElement {
     const grid = this.shadowRoot.getElementById(gridElementId);
     if (!grid) return;
     grid.innerHTML = '';
+
+    if (filteredList.length === 0) {
+      filteredList = (this.products || []).slice(0, 12);
+    }
 
     filteredList.forEach(p => {
       const card = document.createElement('product-card');
