@@ -494,9 +494,11 @@
   }
 
   .slide-card {
-    padding: 16px 14px 28px 14px;
-    gap: 10px;
+    position: relative !important;
+    padding: 18px 16px 36px 16px;
+    gap: 12px;
     flex-direction: column;
+    align-items: center;
   }
 
   .hero-tag {
@@ -523,7 +525,7 @@
     display: none !important;
   }
 
-  /* Show Product Image on Mobile */
+  /* Centered Square Product Image on Mobile with Top-Right Rating Badge */
   .hero-visual {
     display: flex !important;
     width: 100% !important;
@@ -534,23 +536,52 @@
     box-shadow: none !important;
     flex-direction: column !important;
     align-items: center !important;
+    justify-content: center !important;
     gap: 0 !important;
-    margin: 4px 0 !important;
+    margin: 10px 0 !important;
   }
 
   .hero-card-img-box {
-    width: 100% !important;
-    height: 135px !important;
-    background: rgba(255, 255, 255, 0.08) !important;
-    border-radius: 12px !important;
-    padding: 6px !important;
-    box-sizing: border-box !important;
+    width: 180px !important;
+    height: 180px !important;
+    max-width: 180px !important;
+    aspect-ratio: 1 / 1 !important;
+    background: transparent !important;
+    border-radius: 14px !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+    position: relative !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25) !important;
   }
 
   .hero-card-img-box img {
-    max-height: 100% !important;
+    width: 100% !important;
+    height: 100% !important;
     max-width: 100% !important;
-    object-fit: contain !important;
+    max-height: 100% !important;
+    object-fit: cover !important;
+    border-radius: 14px !important;
+  }
+
+  .hero-card-badge {
+    display: flex !important;
+    position: absolute !important;
+    top: 14px !important;
+    right: 16px !important;
+    background: rgba(15, 23, 42, 0.75) !important;
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+    color: #fbbf24 !important;
+    font-size: 12.5px !important;
+    font-weight: 850 !important;
+    padding: 5px 12px !important;
+    border-radius: 10px !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    z-index: 10 !important;
   }
 
   .hero-card-meta,
