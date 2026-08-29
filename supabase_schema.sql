@@ -28,6 +28,15 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ====================================================================
+-- TABLE: SITE_SETTINGS (CLOUD KEY-VALUE FALLBACK & ADMIN CONFIG)
+-- ====================================================================
+CREATE TABLE IF NOT EXISTS public.site_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL,
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ====================================================================
 -- TABLE: STORE_SETTINGS
 -- ====================================================================
 CREATE TABLE public.store_settings (
@@ -266,6 +275,7 @@ CREATE INDEX idx_notifications_read ON public.notifications(is_read);
 -- ====================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES - FULL CRUD ACCESS
 -- ====================================================================
+ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.store_settings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.categories ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.brands ENABLE ROW LEVEL SECURITY;
@@ -279,6 +289,7 @@ ALTER TABLE public.wishlists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
 -- Allow full CRUD for storefront and admin management
+CREATE POLICY "Full Site Settings Access" ON public.site_settings FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Full Products Access" ON public.products FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Full Categories Access" ON public.categories FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Full Brands Access" ON public.brands FOR ALL USING (true) WITH CHECK (true);
