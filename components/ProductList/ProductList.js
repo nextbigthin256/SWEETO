@@ -2300,7 +2300,7 @@ class ProductList extends HTMLElement {
                   </div>
                   <div class="badges">
                     ${savingsVal > 0 ? `<span class="badge sale">Save ${discountPercentage}%</span>` : ''}
-                    <span class="badge new">Best Seller</span>
+                    <span class="badge new">${p.badge ? p.badge.toUpperCase() : 'PREMIUM'}</span>
                   </div>
                   <span class="zoom-hint">Hover to zoom</span>
                 </div>

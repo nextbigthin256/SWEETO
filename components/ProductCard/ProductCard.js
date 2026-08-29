@@ -60,20 +60,25 @@ class ProductCard extends HTMLElement {
       : (p.reviews || 24);
 
     // Cute signs / status badge determination
+    const hasCustomBadge = Boolean(p.badge && String(p.badge).trim() !== '');
+    const customBadgeText = hasCustomBadge ? String(p.badge).trim() : '';
+
     const dealIds = [5, 14, 28, 40, 7, 18, 32, 45];
     const bestIds = [1, 13, 26, 39, 2, 8, 15, 22];
     const newIds = [46, 47, 48, 49, 50, 41, 42, 43, 44];
 
     const isHotDeal = Boolean(
-      this._isHotDeal || 
-      p.isHotDeal || 
-      (p.homepageSections && p.homepageSections.includes('sec-deals')) || 
-      dealIds.includes(p.id) || 
-      (p.originalPrice && p.originalPrice > p.price)
+      !hasCustomBadge && (
+        this._isHotDeal || 
+        p.isHotDeal || 
+        (p.homepageSections && p.homepageSections.includes('sec-deals')) || 
+        dealIds.includes(p.id) || 
+        (p.originalPrice && p.originalPrice > p.price)
+      )
     );
 
     const isNew = Boolean(
-      !isHotDeal && (
+      !hasCustomBadge && !isHotDeal && (
         p.isNewArrival || 
         (p.homepageSections && p.homepageSections.includes('sec-new')) || 
         newIds.includes(p.id) || 
@@ -82,11 +87,9 @@ class ProductCard extends HTMLElement {
     );
 
     const isBestSeller = Boolean(
-      !isHotDeal && !isNew && (
+      !hasCustomBadge && !isHotDeal && !isNew && (
         p.isBestSeller || 
-        (p.homepageSections && p.homepageSections.includes('sec-best')) || 
-        bestIds.includes(p.id) || 
-        parseFloat(ratingVal) >= 4.8
+        (p.homepageSections && p.homepageSections.includes('sec-best'))
       )
     );
 
@@ -116,11 +119,12 @@ class ProductCard extends HTMLElement {
           
           <!-- Status Signs on right -->
           <div class="status-badge-container">
-            ${p.isDeal ? `<span class="status-badge hot-deal" style="background: linear-gradient(135deg, #0052cc 0%, #00b4d8 100%); color: white; border: none; font-weight: 900; box-shadow: 0 4px 10px rgba(0,82,204,0.3);">⚡ FLASH DEAL</span>` : ''}
-            ${!p.isDeal && isHotDeal ? `<span class="status-badge hot-deal">🔥 -${discountVal || 20}% OFF</span>` : ''}
-            ${!p.isDeal && isBestSeller ? `<span class="status-badge bestseller">⭐ BEST SELLER</span>` : ''}
-            ${!p.isDeal && isNew ? `<span class="status-badge new">✨ NEW</span>` : ''}
-          </div>
+            ${hasCustomBadge ? `<span class="status-badge custom-badge" style="background: linear-gradient(135deg, #0052cc 0%, #00b4d8 100%); color: white; border: none; font-weight: 850;">✨ ${customBadgeText.toUpperCase()}</span>` : ''}
+            ${!hasCustomBadge && p.isDeal ? `<span class="status-badge hot-deal" style="background: linear-gradient(135deg, #0052cc 0%, #00b4d8 100%); color: white; border: none; font-weight: 900; box-shadow: 0 4px 10px rgba(0,82,204,0.3);">⚡ FLASH DEAL</span>` : ''}
+            ${!hasCustomBadge && !p.isDeal && isHotDeal ? `<span class="status-badge hot-deal">🔥 -${discountVal || 20}% OFF</span>` : ''}
+            ${!hasCustomBadge && !p.isDeal && isBestSeller ? `<span class="status-badge bestseller">⭐ BEST SELLER</span>` : ''}
+            ${!hasCustomBadge && !p.isDeal && isNew ? `<span class="status-badge new">✨ NEW</span>` : ''}
+          </div>`,StartLine:62,TargetContent:
           
           <div class="overlay-actions">
             <button class="action-btn" id="quick-view-btn" title="Quick View">
