@@ -255,13 +255,16 @@
     aspect-ratio: 1 / 1 !important;
     padding: 0 !important;
     width: 100% !important;
+    background: #ffffff !important;
+    border-radius: 16px !important;
     overflow: hidden !important;
-    border-radius: 20px 20px 0 0 !important;
   }
   .details-img {
     width: 100% !important;
     height: 100% !important;
-    object-fit: cover !important;
+    object-fit: contain !important;
+    padding: 10px !important;
+    box-sizing: border-box !important;
   }
   .modal-info {
     padding: 24px;
