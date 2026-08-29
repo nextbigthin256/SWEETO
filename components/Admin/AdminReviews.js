@@ -624,6 +624,11 @@ export function attachAdminReviewsListeners(context, shadow) {
     sessionStorage.setItem('SWEETOS_reviews', JSON.stringify(list));
     sessionStorage.setItem('SWEETOS_reviews_all', JSON.stringify(list));
     window.dispatchEvent(new CustomEvent('reviews:updated', { detail: list }));
+    try {
+      import('../../utils/supabase.js').then(({ syncReviewsToSupabase }) => {
+        syncReviewsToSupabase(list);
+      });
+    } catch(e) {}
   };
 
   // Clear all mock / test reviews handler
