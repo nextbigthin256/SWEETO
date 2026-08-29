@@ -1081,30 +1081,92 @@ export async function adminSignInWithSupabase(email, password) {
 
 export async function fetchCustomersFromSupabase() {
   try {
-    if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*');
+    if (!supabase) return [];
+    
+    let allCustomersMap = new Map();
 
-    if (!error && Array.isArray(data)) {
-      const formatted = data.map(p => ({
-        name: p.full_name || p.name || p.email?.split('@')[0] || 'Client',
-        email: p.email,
-        phone: p.phone || '',
-        addresses: p.address ? [p.address] : [],
-        ordersCount: p.orders_count || 0,
-        totalSpent: p.total_spent || 0,
-        registrationDate: p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR') : '2026',
-        badgeType: p.badge_type || 'none',
-        level: p.level || 'starter',
-        unlockedBadges: p.unlocked_badges || []
-      }));
-      return formatted;
-    }
+    // 1. Fetch from profiles table
+    try {
+      const { data, error } = await supabase.from('profiles').select('*');
+      if (!error && Array.isArray(data)) {
+        data.forEach(p => {
+          if (p && p.email) {
+            allCustomersMap.set(p.email.trim().toLowerCase(), {
+              name: p.full_name || p.name || p.email.split('@')[0] || 'Client',
+              email: p.email,
+              phone: p.phone || '',
+              addresses: Array.isArray(p.addresses) ? p.addresses : (p.address ? [p.address] : []),
+              ordersCount: p.orders_count || (Array.isArray(p.orders) ? p.orders.length : 0),
+              totalSpent: p.total_spent || (Array.isArray(p.orders) ? p.orders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0) : 0),
+              registrationDate: p.created_at ? new Date(p.created_at).toLocaleDateString('fr-FR') : '2026',
+              badgeType: p.badge_type || 'none',
+              level: p.level || 'starter',
+              unlockedBadges: p.unlocked_badges || []
+            });
+          }
+        });
+      }
+    } catch(e) {}
+
+    // 2. Fetch from site_settings cloud fallback (sweetos_cloud_customers)
+    try {
+      const { data: s } = await supabase.from('site_settings').select('*').eq('key', 'sweetos_cloud_customers').maybeSingle();
+      if (s && s.value) {
+        let cloudCusts = typeof s.value === 'string' ? JSON.parse(s.value) : s.value;
+        if (Array.isArray(cloudCusts)) {
+          cloudCusts.forEach(c => {
+            if (c && c.email) {
+              const emailLower = c.email.trim().toLowerCase();
+              if (!allCustomersMap.has(emailLower)) {
+                allCustomersMap.set(emailLower, c);
+              }
+            }
+          });
+        }
+      }
+    } catch(e) {}
+
+    // 3. Extract customers from cloud orders
+    try {
+      const cloudOrders = await fetchOrdersFromSupabase();
+      if (Array.isArray(cloudOrders)) {
+        cloudOrders.forEach(order => {
+          if (order && order.customerEmail) {
+            const emailLower = order.customerEmail.trim().toLowerCase();
+            const matchingOrders = cloudOrders.filter(o => o && String(o.customerEmail || '').trim().toLowerCase() === emailLower);
+            const totalSpent = matchingOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+
+            if (allCustomersMap.has(emailLower)) {
+              const existing = allCustomersMap.get(emailLower);
+              existing.ordersCount = Math.max(existing.ordersCount || 0, matchingOrders.length);
+              existing.totalSpent = Math.max(existing.totalSpent || 0, totalSpent);
+              if (order.customerName && (!existing.name || existing.name === 'Guest User' || existing.name === 'Client')) {
+                existing.name = order.customerName;
+              }
+              if (order.customerPhone && !existing.phone) {
+                existing.phone = order.customerPhone;
+              }
+            } else {
+              allCustomersMap.set(emailLower, {
+                name: order.customerName || 'Client',
+                email: order.customerEmail,
+                phone: order.customerPhone || '',
+                ordersCount: matchingOrders.length,
+                totalSpent: totalSpent,
+                registrationDate: order.date || '2026',
+                addresses: order.customerAddress ? [order.customerAddress] : []
+              });
+            }
+          }
+        });
+      }
+    } catch(e) {}
+
+    return Array.from(allCustomersMap.values());
   } catch (e) {
     console.error('[Supabase Customers Fetch Error]:', e);
+    return [];
   }
-  return null;
 }
 
 export async function saveCustomerToSupabase(customerData) {
@@ -1127,7 +1189,29 @@ export async function saveCustomerToSupabase(customerData) {
     if (customerData.addresses && Array.isArray(customerData.addresses)) {
       record.addresses = customerData.addresses;
     }
+    
+    // Upsert into profiles table
     await supabase.from('profiles').upsert([record], { onConflict: 'email' });
+
+    // Persist into site_settings cloud master list under 'sweetos_cloud_customers'
+    try {
+      const existingCusts = await fetchCustomersFromSupabase();
+      const map = new Map(existingCusts.map(c => [c.email.trim().toLowerCase(), c]));
+      map.set(emailLower, {
+        name: record.full_name,
+        email: emailLower,
+        phone: record.phone,
+        addresses: record.addresses || [],
+        ordersCount: record.orders_count || 0,
+        totalSpent: record.total_spent || 0,
+        registrationDate: new Date().toLocaleDateString('fr-FR'),
+        badgeType: record.badge_type,
+        level: record.level,
+        unlockedBadges: record.unlocked_badges
+      });
+      const updatedList = Array.from(map.values());
+      await saveSiteSettingInSupabase('sweetos_cloud_customers', updatedList);
+    } catch(e) {}
   } catch(e) {}
 }
 

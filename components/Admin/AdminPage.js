@@ -653,13 +653,13 @@ class AdminPage extends HTMLElement {
         if (storedBrands) try { this.brands = JSON.parse(storedBrands); } catch(e) {}
       }
 
-      if (ords.status === 'fulfilled' && Array.isArray(ords.value) && ords.value.length > 0) {
+      if (ords.status === 'fulfilled' && Array.isArray(ords.value)) {
         this.orders = ords.value;
       } else {
         this.orders = getAllOrdersFromStorage();
       }
 
-      if (custs.status === 'fulfilled' && Array.isArray(custs.value) && custs.value.length > 0) {
+      if (custs.status === 'fulfilled' && Array.isArray(custs.value)) {
         this.customers = custs.value;
       } else {
         this.customers = this.loadCustomers();
@@ -696,7 +696,7 @@ class AdminPage extends HTMLElement {
       try {
         for (let i = 0; i < storageObj.length; i++) {
           const key = storageObj.key(i);
-          if (key && key.startsWith('SWEETOS_user_profile_') && !key.endsWith('_guest')) {
+          if (key && (key.startsWith('SWEETOS_user_profile_') || key === 'SWEETOS_logged_in_user') && !key.endsWith('_guest')) {
             try {
               const profile = JSON.parse(storageObj.getItem(key));
               if (profile && profile.email) {

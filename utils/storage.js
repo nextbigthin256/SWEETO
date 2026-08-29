@@ -325,7 +325,34 @@ export function getAllOrdersFromStorage() {
     } catch(e) {}
   }
   
-  return Array.isArray(orders) ? orders : [];
+  const ordersMap = new Map((Array.isArray(orders) ? orders : []).map(o => [o.id || o.order_number, o]));
+
+  const scanProfileOrders = (storageObj) => {
+    if (!storageObj) return;
+    try {
+      for (let i = 0; i < storageObj.length; i++) {
+        const key = storageObj.key(i);
+        if (key && (key.startsWith('SWEETOS_user_profile_') || key === 'SWEETOS_logged_in_user')) {
+          try {
+            const p = JSON.parse(storageObj.getItem(key));
+            if (p && Array.isArray(p.orders)) {
+              p.orders.forEach(o => {
+                const oid = o.id || o.order_number;
+                if (oid && !ordersMap.has(oid)) {
+                  ordersMap.set(oid, o);
+                }
+              });
+            }
+          } catch(e) {}
+        }
+      }
+    } catch(e) {}
+  };
+
+  scanProfileOrders(localStorage);
+  scanProfileOrders(sessionStorage);
+
+  return Array.from(ordersMap.values());
 }
 
 export function isLocalDevHost() {
