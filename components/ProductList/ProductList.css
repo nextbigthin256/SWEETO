@@ -225,15 +225,24 @@ h3.more-to-love-title em {
   width: 100%;
 }
 
-/* Adjust desktop product grids to 3 columns when cart/notification drawer is open */
+/* Maintain 4 columns on desktop for all product grids, dynamically scaling down card size when drawer opens */
 @media (min-width: 969px) {
+  .home-grid-4,
+  .product-grid,
+  .catalog-grid-4,
+  .rel-grid {
+    grid-template-columns: repeat(4, 1fr) !important;
+  }
+
   .main-content:not(.cart-closed) .home-grid-4,
   .main-content:not(.cart-closed) .product-grid,
   .main-content:not(.cart-closed) .catalog-grid-4,
   .main-content:not(.cart-closed) .rel-grid {
-    grid-template-columns: repeat(3, 1fr) !important;
+    grid-template-columns: repeat(4, 1fr) !important;
+    gap: 16px !important;
   }
 }
+
 
 
 /* ================= CHILLING WISHLIST PAGE LAYOUTS ================= */
@@ -1588,11 +1597,7 @@ h3.more-to-love-title em {
   width: 100%;
 }
 
-@media (max-width: 1200px) {
-  .product-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
+
 
 @media (max-width: 860px) {
   .product-grid {
