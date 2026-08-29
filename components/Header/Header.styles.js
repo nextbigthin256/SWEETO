@@ -659,6 +659,8 @@ export const headerCSS = `
   .camera-search-btn,
   .voice-search-btn,
   #wishlist-btn,
+  #cart-btn,
+  .nav-btn-cart,
   .user-profile {
     display: none !important;
   }
@@ -670,16 +672,6 @@ export const headerCSS = `
     flex-shrink: 0;
   }
   #notification-bell-btn {
-    display: flex !important;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    padding: 0;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-  #cart-btn {
     display: flex !important;
     align-items: center;
     justify-content: center;

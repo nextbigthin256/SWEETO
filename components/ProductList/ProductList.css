@@ -3255,6 +3255,42 @@ input:checked + .toggle-slider:before {
 }
 
 @media (max-width: 768px) {
+  .more-to-love-recommendations-section {
+    padding: 0 16px !important;
+    margin: 24px 0 20px !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .more-to-love-recommendations-section .section-header {
+    margin-bottom: 16px !important;
+    align-items: center !important;
+  }
+  .more-to-love-title {
+    font-size: 20px !important;
+  }
+  #global-more-to-love-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+    gap: 12px !important;
+    width: 100% !important;
+    padding: 0 !important;
+  }
+  #global-more-to-love-grid product-card {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+  .related.wrap {
+    padding: 0 16px !important;
+    margin: 24px 0 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+  .rel-grid {
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)) !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
   .home-grid-4,
   .product-grid,
   .catalog-grid-4,
