@@ -371,37 +371,72 @@ export function getOrderCategory(statusStr) {
 
 export async function loadUserDataFromSupabase(email) {
   if (!email) return false;
-  console.log('[Supabase Cloud] Loading user data across devices for:', email);
+  const userEmailLower = email.toLowerCase().trim();
+  console.log('[Supabase Cloud] Loading user data across devices for:', userEmailLower);
 
   try {
     const { fetchProfileFromSupabase, fetchOrdersFromSupabase, fetchSiteSettingFromSupabase } = await import('./supabase.js');
-    const safeKey = email.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+    const safeKey = userEmailLower.replace(/[^a-z0-9]/g, '_');
 
     const [profile, cloudOrders, cloudCart, cloudNotifs, cloudScratchcards, cloudCoupons] = await Promise.allSettled([
-      fetchProfileFromSupabase(email),
-      fetchOrdersFromSupabase(email),
+      fetchProfileFromSupabase(userEmailLower),
+      fetchOrdersFromSupabase(userEmailLower),
       fetchSiteSettingFromSupabase(`sweetos_cart_${safeKey}`),
       fetchSiteSettingFromSupabase(`sweetos_notifications_${safeKey}`),
       fetchSiteSettingFromSupabase(`sweetos_scratchcards_${safeKey}`),
       fetchSiteSettingFromSupabase(`sweetos_coupons_${safeKey}`)
     ]);
 
+    let fetchedOrders = [];
+    if (cloudOrders.status === 'fulfilled' && Array.isArray(cloudOrders.value)) {
+      fetchedOrders = cloudOrders.value;
+    }
+
+    // 1. Merge cloud orders into SWEETOS_all_orders without dropping existing local orders
+    let currentAllOrders = getAllOrdersFromStorage();
+    fetchedOrders.forEach(co => {
+      const idx = currentAllOrders.findIndex(o => o.id === co.id);
+      if (idx > -1) {
+        currentAllOrders[idx] = { ...currentAllOrders[idx], ...co };
+      } else {
+        currentAllOrders.unshift(co);
+      }
+    });
+    
+    if (fetchedOrders.length > 0) {
+      saveAllOrdersToStorage(currentAllOrders, false); // Triggers orders:updated event!
+    }
+
+    // 2. Hydrate user profile with cloud profile & cloud orders
+    let userProf = null;
     if (profile.status === 'fulfilled' && profile.value) {
-      saveStorageItem(`SWEETOS_user_profile_${safeKey}`, profile.value);
-      saveStorageItem('SWEETOS_user_profile', profile.value);
+      userProf = profile.value;
+    } else {
+      const existingProfStr = getStorageItem(`SWEETOS_user_profile_${safeKey}`) || getStorageItem('SWEETOS_user_profile');
+      if (existingProfStr) {
+        try { userProf = JSON.parse(existingProfStr); } catch(e) {}
+      }
     }
 
-    if (cloudOrders.status === 'fulfilled' && Array.isArray(cloudOrders.value) && cloudOrders.value.length > 0) {
-      saveAllOrdersToStorage(cloudOrders.value, true);
+    if (userProf) {
+      if (!Array.isArray(userProf.orders)) userProf.orders = [];
+      fetchedOrders.forEach(co => {
+        if (!userProf.orders.some(po => po.id === co.id)) {
+          userProf.orders.unshift(co);
+        }
+      });
+      saveStorageItem(`SWEETOS_user_profile_${safeKey}`, userProf);
+      saveStorageItem('SWEETOS_user_profile', userProf);
     }
 
+    // 3. Hydrate cart, notifications, scratchcards & coupons
     if (cloudCart.status === 'fulfilled' && Array.isArray(cloudCart.value)) {
       saveStorageItem(`SWEETOS_cart_${safeKey}`, cloudCart.value);
       window.dispatchEvent(new CustomEvent('cart:updated', { detail: cloudCart.value }));
     }
 
     if (cloudNotifs.status === 'fulfilled' && Array.isArray(cloudNotifs.value)) {
-      saveNotificationsToStorage(cloudNotifs.value, email);
+      saveNotificationsToStorage(cloudNotifs.value, userEmailLower);
     }
 
     if (cloudScratchcards.status === 'fulfilled' && Array.isArray(cloudScratchcards.value)) {
@@ -412,10 +447,11 @@ export async function loadUserDataFromSupabase(email) {
       saveStorageItem(`SWEETOS_coupons_${safeKey}`, cloudCoupons.value);
     }
 
-    window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: true, email } }));
+    window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: true, email: userEmailLower } }));
     window.dispatchEvent(new CustomEvent('profile:updated'));
+    window.dispatchEvent(new CustomEvent('orders:updated', { detail: currentAllOrders }));
 
-    console.log('🎉 [Supabase Cloud] User data successfully synced across devices for:', email);
+    console.log('🎉 [Supabase Cloud] User data successfully synced across devices for:', userEmailLower);
     return true;
   } catch (err) {
     console.error('[Supabase Cloud Sync Error]:', err);

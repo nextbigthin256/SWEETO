@@ -487,7 +487,7 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
 
   const googleForm = shadow.getElementById('google-oauth-form');
   if (googleForm) {
-    googleForm.addEventListener('submit', (e) => {
+    googleForm.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = shadow.getElementById('google-email').value.trim().toLowerCase();
       const fullName = shadow.getElementById('google-fullname').value.trim();
@@ -498,55 +498,56 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
       closeGoogleOverlay();
       window.dispatchEvent(new CustomEvent('toast:show', { detail: `Authentification Google : ${email}... 🌐` }));
 
-      setTimeout(() => {
-        const safeKey = email.replace(/[^a-zA-Z0-9]/g, '_');
-        const savedProfileStr = getStorageItem(`SWEETOS_user_profile_${safeKey}`) || getStorageItem('SWEETOS_user_profile');
-        let savedProfile = null;
-        if (savedProfileStr) {
-          try {
-            savedProfile = JSON.parse(savedProfileStr);
-          } catch (err) {}
-        }
+      saveStorageItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
+      await loadUserDataFromSupabase(email);
 
-        // Check if user already has complete profile (phone, commune, address, and city)
-        const hasCompleteProfile = savedProfile && 
-                                   savedProfile.phone && 
-                                   savedProfile.phone.length >= 8 &&
-                                   savedProfile.address && 
-                                   savedProfile.address.length >= 5 &&
-                                   savedProfile.phone !== "+225 600 000 000" && 
-                                   savedProfile.address !== "Ivory Coast";
+      const safeKey = email.replace(/[^a-zA-Z0-9]/g, '_');
+      const savedProfileStr = getStorageItem(`SWEETOS_user_profile_${safeKey}`) || getStorageItem('SWEETOS_user_profile');
+      let savedProfile = null;
+      if (savedProfileStr) {
+        try {
+          savedProfile = JSON.parse(savedProfileStr);
+        } catch (err) {}
+      }
 
-        if (hasCompleteProfile) {
-          // Complete profile exists, log in immediately
-          saveStorageItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
-          saveStorageItem('SWEETOS_user_profile', JSON.stringify(savedProfile));
+      // Check if user already has complete profile (phone, commune, address, and city)
+      const hasCompleteProfile = savedProfile && 
+                                 savedProfile.phone && 
+                                 savedProfile.phone.length >= 8 &&
+                                 savedProfile.address && 
+                                 savedProfile.address.length >= 5 &&
+                                 savedProfile.phone !== "+225 600 000 000" && 
+                                 savedProfile.address !== "Ivory Coast";
 
-          window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: true, email } }));
-          window.dispatchEvent(new CustomEvent('toast:show', { detail: `Bon retour, ${savedProfile.firstName} ! Connecté via Google.` }));
+      if (hasCompleteProfile) {
+        // Complete profile exists, log in immediately
+        saveStorageItem('SWEETOS_user_profile', JSON.stringify(savedProfile));
+
+        window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: true, email } }));
+        window.dispatchEvent(new CustomEvent('orders:updated'));
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: `Bon retour, ${savedProfile.firstName} ! Connecté via Google.` }));
+        
+        onLoginSuccess();
+      } else {
+        // Profile is incomplete -> Pop up Complete Profile Form!
+        formSignin.classList.add('hidden');
+        formSignup.classList.add('hidden');
+        
+        if (completeForm) {
+          completeForm.classList.remove('hidden');
+          completeForm.classList.remove('fade-in-up');
+          void completeForm.offsetWidth;
+          completeForm.classList.add('fade-in-up');
+
+          shadow.getElementById('complete-email').value = email;
+          shadow.getElementById('complete-fullname').value = fullName;
           
-          onLoginSuccess();
-        } else {
-          // Profile is incomplete -> Pop up Complete Profile Form!
-          formSignin.classList.add('hidden');
-          formSignup.classList.add('hidden');
+          const phoneInput = shadow.getElementById('complete-phone');
+          if (phoneInput) phoneInput.focus();
           
-          if (completeForm) {
-            completeForm.classList.remove('hidden');
-            completeForm.classList.remove('fade-in-up');
-            void completeForm.offsetWidth;
-            completeForm.classList.add('fade-in-up');
-
-            shadow.getElementById('complete-email').value = email;
-            shadow.getElementById('complete-fullname').value = fullName;
-            
-            const phoneInput = shadow.getElementById('complete-phone');
-            if (phoneInput) phoneInput.focus();
-            
-            window.dispatchEvent(new CustomEvent('toast:show', { detail: '⚠️ Veuillez compléter vos informations de livraison en Côte d\'Ivoire.' }));
-          }
+          window.dispatchEvent(new CustomEvent('toast:show', { detail: '⚠️ Veuillez compléter vos informations de livraison en Côte d\'Ivoire.' }));
         }
-      }, 900);
+      }
     });
   }
 
@@ -676,7 +677,7 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
 
   // Handle signin form submit
   if (formSignin) {
-    formSignin.addEventListener('submit', (e) => {
+    formSignin.addEventListener('submit', async (e) => {
       e.preventDefault();
       const email = shadow.getElementById('signin-email').value.trim().toLowerCase();
       const password = shadow.getElementById('signin-password').value;
@@ -696,13 +697,11 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
       btn.disabled = true;
       btn.classList.add('opacity-70');
 
-      setTimeout(() => {
-        btn.innerText = originalText;
-        btn.disabled = false;
-        btn.classList.remove('opacity-70');
-        
+      try {
         saveStorageItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
-        loadUserDataFromSupabase(email);
+        
+        // Await full user data & orders sync from Supabase Cloud
+        await loadUserDataFromSupabase(email);
 
         // Clear any previous session revocation signal upon authenticating
         import('../../utils/supabase.js').then(({ clearCustomerRevocationInSupabase, fetchProfileFromSupabase }) => {
@@ -750,10 +749,15 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
 
         window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: true, email } }));
         window.dispatchEvent(new CustomEvent('profile:updated'));
+        window.dispatchEvent(new CustomEvent('orders:updated'));
         window.dispatchEvent(new CustomEvent('toast:show', { detail: `Bon retour sur SWEETOS, ${userMatch.name || email} ! 🎉` }));
         
         onLoginSuccess();
-      }, 900);
+      } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+        btn.classList.remove('opacity-70');
+      }
     });
   }
 
