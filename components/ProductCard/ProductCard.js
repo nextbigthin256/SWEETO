@@ -54,12 +54,12 @@ class ProductCard extends HTMLElement {
     const realReviewsCount = reviewsList.length;
     const ratingVal = realReviewsCount > 0 
       ? (reviewsList.reduce((sum, r) => sum + r.rating, 0) / realReviewsCount).toFixed(1)
-      : (p.rating || 4.9).toFixed(1);
+      : (p.rating || 5.0).toFixed(1);
     const reviewsDisplayCount = realReviewsCount > 0 
       ? realReviewsCount 
       : (p.reviews || 24);
 
-    // Cute signs / status badge determination
+    // Badges determination
     const hasCustomBadge = Boolean(p.badge && String(p.badge).trim() !== '');
     const customBadgeText = hasCustomBadge ? String(p.badge).trim() : '';
 
@@ -109,80 +109,60 @@ class ProductCard extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <div class="card glass-panel">
-        <div class="image-container">
-          <img src="${p.image}" alt="${p.name}" class="product-img" loading="lazy">
+        <div class="image-wrapper">
+          <img src="${p.image}" alt="${p.name}" class="card-image" loading="lazy">
           
-          <!-- Category / Stock badge on left -->
           <span class="category-badge ${isOutOfStock ? 'out-of-stock' : ''}">
             ${isOutOfStock ? '✕ Rupture' : (p.category || 'Workspace')}
           </span>
           
-          <!-- Status Signs on right -->
           <div class="status-badge-container">
-            ${hasCustomBadge ? `<span class="status-badge custom-badge" style="background: linear-gradient(135deg, #0052cc 0%, #00b4d8 100%); color: white; border: none; font-weight: 850;">✨ ${customBadgeText.toUpperCase()}</span>` : ''}
-            ${!hasCustomBadge && p.isDeal ? `<span class="status-badge hot-deal" style="background: linear-gradient(135deg, #0052cc 0%, #00b4d8 100%); color: white; border: none; font-weight: 900; box-shadow: 0 4px 10px rgba(0,82,204,0.3);">⚡ FLASH DEAL</span>` : ''}
-            ${!hasCustomBadge && !p.isDeal && isHotDeal ? `<span class="status-badge hot-deal">🔥 -${discountVal || 20}% OFF</span>` : ''}
-            ${!hasCustomBadge && !p.isDeal && isBestSeller ? `<span class="status-badge bestseller">⭐ BEST SELLER</span>` : ''}
+            ${hasCustomBadge ? `<span class="status-badge custom-badge" style="background: linear-gradient(135deg, #0052cc 0%, #00b4d8 100%);">✨ ${customBadgeText.toUpperCase()}</span>` : ''}
+            ${!hasCustomBadge && p.isDeal ? `<span class="status-badge hot-deal">⚡ FLASH DEAL</span>` : ''}
+            ${!hasCustomBadge && !p.isDeal && isHotDeal ? `<span class="status-badge hot-deal">🔥 -${discountVal || 20}%</span>` : ''}
+            ${!hasCustomBadge && !p.isDeal && isBestSeller ? `<span class="status-badge bestseller">⭐ BEST</span>` : ''}
             ${!hasCustomBadge && !p.isDeal && isNew ? `<span class="status-badge new">✨ NEW</span>` : ''}
           </div>
           
-          <div class="overlay-actions">
-            <button class="action-btn" id="quick-view-btn" title="Quick View">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
-                <circle cx="12" cy="12" r="3"></circle>
-              </svg>
+          <button class="heart-btn ${isWishlisted ? 'active' : ''}" id="wishlist-add-btn" title="${isWishlisted ? 'Retirer des favoris' : 'Ajouter aux favoris'}">
+            <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+          </button>
+
+          <div class="overlay-side-actions">
+            <button class="action-btn-mini" id="quick-view-btn" title="Aperçu rapide">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
             </button>
-            <button class="action-btn ${isWishlisted ? 'wishlisted' : ''}" id="wishlist-add-btn" title="${isWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'}">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="${isWishlisted ? 'var(--red)' : 'none'}" stroke="${isWishlisted ? 'var(--red)' : 'currentColor'}" stroke-width="2">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-              </svg>
-            </button>
-            <button class="action-btn" id="share-card-btn" title="Share Product">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="18" cy="5" r="3"></circle>
-                <circle cx="6" cy="12" r="3"></circle>
-                <circle cx="18" cy="19" r="3"></circle>
-                <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
-                <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
-              </svg>
-            </button>
-            <button class="action-btn" id="add-to-cart-btn" title="${isOutOfStock ? 'Rupture de Stock / Out of Stock' : 'Add to Cart'}" ${isOutOfStock ? 'disabled style="opacity: 0.45; cursor: not-allowed; pointer-events: none;"' : ''}>
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
-                <line x1="3" y1="6" x2="21" y2="6"></line>
-                <path d="M16 10a4 4 0 0 1-8 0"></path>
-              </svg>
+            <button class="action-btn-mini" id="share-card-btn" title="Partager">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
             </button>
           </div>
         </div>
         
-        <div class="info-container">
-          <div class="rating-row">
-            <span class="stars" style="color: #f59e0b;">
-              <svg class="star-icon" viewBox="0 0 24 24" width="14" height="14" fill="#f59e0b" stroke="#f59e0b"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon></svg>
-              ${ratingVal}
-            </span>
-            <span class="reviews">(${reviewsDisplayCount})</span>
+        <div class="card-content">
+          <div class="rating-container">
+            <svg class="star-icon" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <span class="rating-score">${ratingVal}</span>
+            <span class="rating-count">(${reviewsDisplayCount})</span>
           </div>
           
-          <h3 class="product-title" id="title-click">${p.name}</h3>
-          ${(() => {
-            const rawDesc = p.shortDesc || p.short_description || p.description || '';
-            const cleanDesc = (rawDesc && rawDesc !== 'undefined' && rawDesc !== 'null') ? String(rawDesc).trim() : '';
-            return cleanDesc ? `<p class="product-desc">${cleanDesc}</p>` : '';
-          })()}
+          <h2 class="product-title" id="title-click">${p.name}</h2>
+          
+          <div class="divider"></div>
           
           <div class="price-row">
-            <div class="price-box" style="display: flex; align-items: baseline; gap: 6px; flex-wrap: wrap;">
-              <span class="price">${formatPrice(p.price)}</span>
+            <div class="price-info">
+              <p class="current-price">${formatPrice(p.price)}</p>
               ${hasDiscount ? `
-                <span class="original-price" style="text-decoration: line-through; color: #94a3b8; font-size: 0.85rem; font-weight: 550;">${formatPrice(originalPriceVal)}</span>
-                <span class="discount-pill" style="font-size: 10px; font-weight: 850; background: rgba(239, 68, 68, 0.1); color: #ef4444; padding: 1px 5px; border-radius: 5px;">-${discountVal}%</span>
+                <div class="old-price-row">
+                  <span class="old-price">${formatPrice(originalPriceVal)}</span>
+                  <span class="discount-badge">-${discountVal}%</span>
+                </div>
               ` : ''}
             </div>
-            <button class="buy-btn" id="buy-btn" ${isOutOfStock ? 'disabled style="background: #475569; border-color: #475569; opacity: 0.55; cursor: not-allowed; pointer-events: none;"' : ''}>
-              ${isOutOfStock ? 'Out' : 'Add +'}
+            
+            <button class="add-btn" id="add-to-cart-btn" ${isOutOfStock ? 'disabled style="opacity: 0.45; cursor: not-allowed; background: #64748b;"' : ''}>
+              <span class="add-btn-text">${isOutOfStock ? 'Out' : 'Add'}</span>
+              <span class="add-btn-icon">+</span>
             </button>
           </div>
         </div>
@@ -197,14 +177,12 @@ class ProductCard extends HTMLElement {
     const p = this._product;
 
     const addBtn = shadow.getElementById('add-to-cart-btn');
-    const buyBtn = shadow.getElementById('buy-btn');
     const triggerAddToCart = (e) => {
       e.stopPropagation();
       if (p.stock === 0) return;
       window.dispatchEvent(new CustomEvent('cart:add', { detail: p }));
     };
-    addBtn.addEventListener('click', triggerAddToCart);
-    buyBtn.addEventListener('click', triggerAddToCart);
+    if (addBtn) addBtn.addEventListener('click', triggerAddToCart);
 
     const wishBtn = shadow.getElementById('wishlist-add-btn');
     if (wishBtn) {
@@ -219,13 +197,13 @@ class ProductCard extends HTMLElement {
       shareCardBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
         const shareTitle = `SWEETOS | ${p.name}`;
-        const shareText = `Découvrez ${p.name} sur SWEETOS !\n${p.shortDesc || ''}\n\nPrix: $${p.price.toFixed(2)}`;
+        const shareText = `Découvrez ${p.name} sur SWEETOS !\n${p.shortDesc || ''}\n\nPrix: ${formatPrice(p.price)}`;
         const shareUrl = window.location.origin;
 
         const copyToClipboardFallback = () => {
           navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`)
             .then(() => {
-              window.dispatchEvent(new CustomEvent('toast:show', { detail: '📋 Lien du produit copié ! / Copied to clipboard! 🌟' }));
+              window.dispatchEvent(new CustomEvent('toast:show', { detail: '📋 Lien du produit copié ! 🌟' }));
             })
             .catch(() => {
               const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + '\n\n' + shareUrl)}`;
@@ -235,7 +213,6 @@ class ProductCard extends HTMLElement {
 
         if (navigator.share) {
           try {
-            // Fetch product image to share as file blob
             const response = await fetch(p.image);
             const blob = await response.blob();
             const extension = p.image.split('.').pop().split('?')[0] || 'jpg';
@@ -256,7 +233,6 @@ class ProductCard extends HTMLElement {
               });
             }
           } catch (err) {
-            console.log('Error sharing image file, falling back to text:', err);
             navigator.share({
               title: shareTitle,
               text: shareText,
@@ -272,12 +248,11 @@ class ProductCard extends HTMLElement {
     const updateCardWishlistState = (wishlist) => {
       const isCurrentlyWishlisted = wishlist.some(item => item.id === p.id);
       if (wishBtn) {
-        wishBtn.title = isCurrentlyWishlisted ? 'Remove from Wishlist' : 'Add to Wishlist';
-        wishBtn.classList.toggle('wishlisted', isCurrentlyWishlisted);
+        wishBtn.title = isCurrentlyWishlisted ? 'Retirer des favoris' : 'Ajouter aux favoris';
+        wishBtn.classList.toggle('active', isCurrentlyWishlisted);
         const svg = wishBtn.querySelector('svg');
         if (svg) {
-          svg.setAttribute('fill', isCurrentlyWishlisted ? 'var(--red)' : 'none');
-          svg.setAttribute('stroke', isCurrentlyWishlisted ? 'var(--red)' : 'currentColor');
+          svg.style.fill = isCurrentlyWishlisted ? 'white' : 'none';
         }
       }
     };
@@ -295,14 +270,16 @@ class ProductCard extends HTMLElement {
       window.dispatchEvent(new CustomEvent('product:view', { detail: p.id }));
     };
 
-    qvBtn.addEventListener('click', triggerViewDetails);
-    titleClick.addEventListener('click', triggerViewDetails);
-    cardEl.addEventListener('click', (e) => {
-      if (e.target.closest('#add-to-cart-btn') || e.target.closest('#buy-btn') || e.target.closest('#quick-view-btn') || e.target.closest('#wishlist-add-btn')) {
-        return;
-      }
-      triggerViewDetails(e);
-    });
+    if (qvBtn) qvBtn.addEventListener('click', triggerViewDetails);
+    if (titleClick) titleClick.addEventListener('click', triggerViewDetails);
+    if (cardEl) {
+      cardEl.addEventListener('click', (e) => {
+        if (e.target.closest('#add-to-cart-btn') || e.target.closest('#quick-view-btn') || e.target.closest('#wishlist-add-btn') || e.target.closest('#share-card-btn')) {
+          return;
+        }
+        triggerViewDetails(e);
+      });
+    }
   }
 }
 
