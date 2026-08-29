@@ -4915,8 +4915,8 @@ input:checked + .toggle-slider:before {
   .category-hero-banner-luxury,
   .brand-hero-banner-luxury {
     flex-direction: column;
-    padding: 34px 24px;
-    gap: 30px;
+    padding: 24px 20px;
+    gap: 20px;
   }
   .category-hero-featured-card,
   .brand-hero-featured-card {
@@ -4925,7 +4925,55 @@ input:checked + .toggle-slider:before {
   }
   .category-hero-title,
   .brand-hero-title {
-    font-size: 32px;
+    font-size: 26px;
+  }
+}
+
+@media (max-width: 768px) {
+  .category-hero-banner-luxury,
+  .brand-hero-banner-luxury,
+  .todays-deals-hero-banner,
+  .page-hero-banner {
+    padding: 16px 14px !important;
+    gap: 10px !important;
+    border-radius: 16px !important;
+    margin-bottom: 16px !important;
+    min-height: auto !important;
+  }
+
+  .category-hero-title,
+  .brand-hero-title {
+    font-size: 20px !important;
+    line-height: 1.25 !important;
+    margin-bottom: 4px !important;
+  }
+
+  .category-hero-desc,
+  .brand-hero-desc {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-bottom: 6px !important;
+  }
+
+  .category-hero-perks,
+  .brand-hero-perks {
+    display: none !important;
+  }
+
+  .category-hero-featured-card,
+  .brand-hero-featured-card {
+    display: none !important;
+  }
+
+  .category-hero-meta-badge,
+  .brand-hero-meta-badge {
+    font-size: 10.5px !important;
+    padding: 3px 8px !important;
+    margin-bottom: 6px !important;
   }
 }
 

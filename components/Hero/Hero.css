@@ -486,72 +486,60 @@
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
   .hero-carousel {
-    border-radius: 18px;
-    margin-bottom: 24px;
+    border-radius: 16px;
+    margin-bottom: 18px;
     border: 1px solid rgba(255, 255, 255, 0.15);
   }
 
   .slide-card {
-    padding: 22px 16px 36px 16px;
-    gap: 18px;
+    padding: 18px 16px 30px 16px;
+    gap: 12px;
   }
 
   .hero-tag {
-    font-size: 11px;
-    padding: 5px 12px;
+    font-size: 10.5px;
+    padding: 3px 10px;
   }
 
   .hero-title {
-    font-size: 22px;
-    line-height: 1.28;
+    font-size: 20px;
+    line-height: 1.25;
     letter-spacing: -0.3px;
   }
 
   .hero-subtitle {
-    font-size: 13px;
-    line-height: 1.45;
+    font-size: 12px;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 
   .hero-perks-row {
-    flex-wrap: wrap;
-    gap: 8px 12px;
+    display: none !important;
   }
 
-  .hero-perk-item {
-    font-size: 11.5px;
+  .hero-visual {
+    display: none !important;
   }
 
   .hero-cta-group {
     display: flex;
     flex-direction: row;
-    gap: 10px;
+    gap: 8px;
     width: 100%;
+    margin-top: 4px;
   }
 
-  .shop-btn {
-    flex: 1;
-    padding: 12px 14px;
-    font-size: 13px;
-    justify-content: center;
-  }
-
+  .shop-btn,
   .shop-btn-secondary {
     flex: 1;
-    padding: 12px 14px;
-    font-size: 13px;
+    padding: 10px 12px;
+    font-size: 12.5px;
     justify-content: center;
-  }
-
-  .hero-visual {
-    padding: 14px;
-    border-radius: 16px;
-    gap: 10px;
-  }
-
-  .hero-card-img-box {
-    height: 170px;
   }
 
   .hero-nav-arrow {
