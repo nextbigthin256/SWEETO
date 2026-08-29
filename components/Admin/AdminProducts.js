@@ -1,4 +1,4 @@
-import { formatPrice } from '../../utils/storage.js';
+import { formatPrice, getStorageItem, saveStorageItem } from '../../utils/storage.js';
 import { showConfirmModal, showPromptModal } from '../../utils/modal.js';
 import { deleteProductPermanentlyFromSupabase, deleteMultipleProductsPermanentlyFromSupabase } from '../../utils/supabase.js';
 
@@ -940,7 +940,7 @@ export function renderAdminProducts(context) {
                 <label>Show in Homepage Curated Sections</label>
                 <div class="sections-checkbox-grid" style="display:flex; flex-direction:column; gap:8px; background:#0c101b; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); max-height:140px; overflow-y:auto;">
                   ${(() => {
-                    const secs = JSON.parse(sessionStorage.getItem('SWEETOS_homepage_sections') || '[]');
+                    const secs = JSON.parse(getStorageItem('SWEETOS_homepage_sections') || '[]');
                     const targetSecs = secs.filter(s => s.type !== 'categories');
                     if (targetSecs.length === 0) {
                       return `<small style="color:#64748b;">No dynamic sections configured.</small>`;
@@ -1189,9 +1189,9 @@ export function attachAdminProductsListeners(context, shadow) {
 
         // 3. Clear curated sections
         try {
-          const secs = JSON.parse(sessionStorage.getItem('SWEETOS_homepage_sections') || '[]');
+          const secs = JSON.parse(getStorageItem('SWEETOS_homepage_sections') || '[]');
           secs.forEach(s => { s.productIds = []; });
-          sessionStorage.setItem('SWEETOS_homepage_sections', JSON.stringify(secs));
+          saveStorageItem('SWEETOS_homepage_sections', JSON.stringify(secs));
         } catch(e) {}
 
         window.dispatchEvent(new CustomEvent('toast:show', { detail: '🔥 All products permanently wiped from store and cloud! (0 Items)' }));
@@ -1264,7 +1264,7 @@ export function attachAdminProductsListeners(context, shadow) {
 
       // 3. Clean up from curated homepage sections
       try {
-        const secs = JSON.parse(sessionStorage.getItem('SWEETOS_homepage_sections') || '[]');
+        const secs = JSON.parse(getStorageItem('SWEETOS_homepage_sections') || '[]');
         let secMod = false;
         secs.forEach(s => {
           if (s.productIds && s.productIds.includes(prod.id)) {
@@ -1272,7 +1272,7 @@ export function attachAdminProductsListeners(context, shadow) {
             secMod = true;
           }
         });
-        if (secMod) sessionStorage.setItem('SWEETOS_homepage_sections', JSON.stringify(secs));
+        if (secMod) saveStorageItem('SWEETOS_homepage_sections', JSON.stringify(secs));
       } catch(e) {}
 
       window.dispatchEvent(new CustomEvent('toast:show', { detail: `🔥 "${prod.name}" permanently deleted forever.` }));
