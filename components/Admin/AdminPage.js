@@ -1,5 +1,21 @@
 import { formatPrice, getAllOrdersFromStorage, saveAllOrdersToStorage, isLocalDevHost, saveStorageItem, getStorageItem } from '../../utils/storage.js';
 import '../../utils/modal.js';
+import { 
+  syncProductsToSupabase, 
+  syncCategoriesToSupabase, 
+  syncBrandsToSupabase, 
+  syncCouponsToSupabase, 
+  syncReviewsToSupabase, 
+  syncInventoryLogsToSupabase, 
+  syncSectionsToSupabase, 
+  createOrderInSupabase,
+  fetchProductsFromSupabase,
+  fetchCategoriesFromSupabase,
+  fetchBrandsFromSupabase,
+  fetchOrdersFromSupabase,
+  fetchCustomersFromSupabase,
+  fetchSettingsFromSupabase
+} from '../../utils/supabase.js';
 
 import products from '../../data/products.js';
 import categories from '../../data/categories.js';
@@ -651,148 +667,62 @@ class AdminPage extends HTMLElement {
     });
   }
 
-  loadDatabase() {
-    const isFirstTime = sessionStorage.getItem('SWEETOS_db_initialized') === null && sessionStorage.getItem('SWEETOS_products') === null;
-
-    // 1. Product Catalog
-    const storedProds = getStorageItem('SWEETOS_products');
-    if (storedProds !== null) {
-      try {
-        this.products = JSON.parse(storedProds);
-      } catch (e) {
-        this.products = [];
-      }
-    } else {
-      this.products = isFirstTime ? products : [];
-      saveStorageItem('SWEETOS_products', this.products);
-    }
-    
-    // 2. Orders Pipeline
-    let loadedOrders = getAllOrdersFromStorage();
-    if (!Array.isArray(loadedOrders) || loadedOrders.length === 0) {
-      loadedOrders = [...orders];
-    }
-
-    // Scan all sessionStorage & localStorage profile keys to extract any customer orders
-    const storageSources = [sessionStorage, localStorage];
-    storageSources.forEach(store => {
-      try {
-        for (let i = 0; i < store.length; i++) {
-          const key = store.key(i);
-          if (key && key.startsWith('SWEETOS_user_profile_')) {
-            try {
-              const prof = JSON.parse(store.getItem(key));
-              if (prof && Array.isArray(prof.orders)) {
-                prof.orders.forEach(o => {
-                  if (o && o.id && !loadedOrders.some(existing => existing.id === o.id)) {
-                    loadedOrders.unshift(o);
-                  }
-                });
-              }
-            } catch(e) {}
-          }
-        }
-      } catch(e) {}
-    });
-
-    this.orders = loadedOrders;
-    saveAllOrdersToStorage(this.orders, true);
-    
-    // 3. Category Settings
-    const storedCats = getStorageItem('SWEETOS_categories');
-    if (storedCats !== null) {
-      try {
-        this.categories = JSON.parse(storedCats);
-      } catch (e) {
-        this.categories = [];
-      }
-    } else {
-      this.categories = isFirstTime ? categories : [];
-      saveStorageItem('SWEETOS_categories', this.categories);
-    }
-    
-    // 4. Coupon Database
-    const storedCoupons = getStorageItem('SWEETOS_coupons');
-    if (storedCoupons !== null) {
-      try {
-        this.coupons = JSON.parse(storedCoupons);
-      } catch (e) {
-        this.coupons = [];
-      }
-    } else {
-      this.coupons = isFirstTime ? [
-        { code: "SWEETWELCOME", type: "percentage", value: 10, minOrder: 15000, limit: 100, used: 24, expiry: "2026-12-31", status: "active" },
-        { code: "DESKSETUP", type: "fixed", value: 5000, minOrder: 45000, limit: 50, used: 12, expiry: "2026-10-15", status: "active" }
-      ] : [];
-      saveStorageItem('SWEETOS_coupons', this.coupons);
-    }
-
-    // 5. Stock Adjustments logs
-    const storedInvLogs = sessionStorage.getItem('SWEETOS_inventory_logs');
-    if (storedInvLogs !== null) {
-      try {
-        this.inventoryLogs = JSON.parse(storedInvLogs);
-      } catch (e) {
-        this.inventoryLogs = [];
-      }
-    } else {
-      this.inventoryLogs = isFirstTime ? [
-        { id: 1, date: "2026-08-16 10:14", sku: "KB-Q1PRO", action: "Restock", quantity: 15, user: "admin@sweetos.com" },
-        { id: 2, date: "2026-08-15 14:22", sku: "AU-MX4", action: "Fulfillment", quantity: -2, user: "System checkout" }
-      ] : [];
-      sessionStorage.setItem('SWEETOS_inventory_logs', JSON.stringify(this.inventoryLogs));
-    }
-    
-    // 6. Registered Customers list derived dynamically from SWEETOS profile keys + checkouts
-    this.customers = this.loadCustomers();
-
-    // 7. Homepage Sections configuration
-    const storedSections = sessionStorage.getItem('SWEETOS_homepage_sections');
-    let parsedSections = [];
+  async loadDatabase() {
+    console.log('[Supabase Cloud] Loading database state from Cloud...');
     try {
-      parsedSections = storedSections ? JSON.parse(storedSections) : [];
-    } catch(e) {}
+      const [prods, cats, brands, ords, custs] = await Promise.allSettled([
+        fetchProductsFromSupabase(),
+        fetchCategoriesFromSupabase(),
+        fetchBrandsFromSupabase(),
+        fetchOrdersFromSupabase(),
+        fetchCustomersFromSupabase()
+      ]);
 
-    const defaultSecs = [
-      { id: "sec-cat", name: "Shop by Category", type: "categories", category: "All", active: true, order: 0 },
-      { id: "sec-deals", name: "Hot Deals", type: "deals", category: "All", active: true, order: 1 },
-      { id: "sec-new", name: "New Arrivals", type: "new-arrivals", category: "All", active: true, order: 2 },
-      { id: "sec-best", name: "Best Sellers", type: "best-sellers", category: "All", active: true, order: 3 },
-      { id: "sec-1", name: "Apple Workspace Showcase", type: "grid", category: "Apple", active: true, order: 4 },
-      { id: "sec-2", name: "Featured Keyboards", type: "carousel", category: "Keyboards", active: true, order: 5 },
-      { id: "sec-3", name: "Trending Audio Accessories", type: "grid", category: "Audio", active: false, order: 6 }
-    ];
-
-    if (storedSections === null && isFirstTime) {
-      parsedSections = defaultSecs;
-      sessionStorage.setItem('SWEETOS_homepage_sections', JSON.stringify(parsedSections));
-    }
-
-    this.homepageSections = parsedSections;
-
-    // 8. Brand settings Directory
-    const storedBrands = getStorageItem('SWEETOS_brands');
-    if (storedBrands !== null) {
-      try {
-        this.brands = JSON.parse(storedBrands);
-      } catch (e) {
-        this.brands = [];
+      if (prods.status === 'fulfilled' && Array.isArray(prods.value) && prods.value.length > 0) {
+        this.products = prods.value;
+      } else {
+        const storedProds = getStorageItem('SWEETOS_products');
+        if (storedProds) try { this.products = JSON.parse(storedProds); } catch(e) {}
       }
-    } else {
-      this.brands = isFirstTime ? brands : [];
-      saveStorageItem('SWEETOS_brands', this.brands);
-    }
 
-    // 9. Review settings Directory
-    const storedReviews = sessionStorage.getItem('SWEETOS_reviews_all');
-    try {
-      this.reviews = storedReviews ? JSON.parse(storedReviews) : [];
-    } catch (e) {
-      this.reviews = [];
-    }
+      if (cats.status === 'fulfilled' && Array.isArray(cats.value) && cats.value.length > 0) {
+        this.categories = cats.value;
+      } else {
+        const storedCats = getStorageItem('SWEETOS_categories');
+        if (storedCats) try { this.categories = JSON.parse(storedCats); } catch(e) {}
+      }
 
-    if (isFirstTime) {
+      if (brands.status === 'fulfilled' && Array.isArray(brands.value) && brands.value.length > 0) {
+        this.brands = brands.value;
+      } else {
+        const storedBrands = getStorageItem('SWEETOS_brands');
+        if (storedBrands) try { this.brands = JSON.parse(storedBrands); } catch(e) {}
+      }
+
+      if (ords.status === 'fulfilled' && Array.isArray(ords.value) && ords.value.length > 0) {
+        this.orders = ords.value;
+      } else {
+        this.orders = getAllOrdersFromStorage();
+      }
+
+      if (custs.status === 'fulfilled' && Array.isArray(custs.value) && custs.value.length > 0) {
+        this.customers = custs.value;
+      } else {
+        this.customers = this.loadCustomers();
+      }
+
+      const storedCoupons = getStorageItem('SWEETOS_coupons');
+      if (storedCoupons) try { this.coupons = JSON.parse(storedCoupons); } catch(e) {}
+
+      const storedSections = sessionStorage.getItem('SWEETOS_homepage_sections');
+      if (storedSections) try { this.homepageSections = JSON.parse(storedSections); } catch(e) {}
+
+      const storedReviews = sessionStorage.getItem('SWEETOS_reviews_all');
+      if (storedReviews) try { this.reviews = JSON.parse(storedReviews); } catch(e) {}
+
       sessionStorage.setItem('SWEETOS_db_initialized', 'true');
+    } catch (err) {
+      console.warn('[Supabase Cloud] loadDatabase notice:', err);
     }
   }
 
@@ -851,31 +781,31 @@ class AdminPage extends HTMLElement {
     if (type === 'products') {
       saveStorageItem('SWEETOS_products', this.products);
       window.dispatchEvent(new CustomEvent('products:updated', { detail: this.products }));
-      this.syncProductsToServer();
+      syncProductsToSupabase(this.products);
     } else if (type === 'orders') {
       saveAllOrdersToStorage(this.orders);
-      this.syncOrdersToServer();
+      if (Array.isArray(this.orders)) {
+        this.orders.forEach(o => createOrderInSupabase(o));
+      }
     } else if (type === 'coupons') {
       saveStorageItem('SWEETOS_coupons', this.coupons);
-      this.syncCouponsToServer();
-      import('../../utils/supabase.js').then(m => m.syncCouponsToSupabase(this.coupons));
+      syncCouponsToSupabase(this.coupons);
     } else if (type === 'categories') {
       saveStorageItem('SWEETOS_categories', this.categories);
-      this.syncCategoriesToServer();
+      syncCategoriesToSupabase(this.categories);
     } else if (type === 'inventory') {
       saveStorageItem('SWEETOS_inventory_logs', this.inventoryLogs);
-      import('../../utils/supabase.js').then(m => m.syncInventoryLogsToSupabase(this.inventoryLogs));
+      syncInventoryLogsToSupabase(this.inventoryLogs);
     } else if (type === 'sections') {
       saveStorageItem('SWEETOS_homepage_sections', this.homepageSections);
-      import('../../utils/supabase.js').then(m => m.syncSectionsToSupabase(this.homepageSections));
+      syncSectionsToSupabase(this.homepageSections);
     } else if (type === 'brands') {
       saveStorageItem('SWEETOS_brands', this.brands);
       window.dispatchEvent(new CustomEvent('brands:updated', { detail: this.brands }));
-      this.syncBrandsToServer();
+      syncBrandsToSupabase(this.brands);
     } else if (type === 'reviews') {
       saveStorageItem('SWEETOS_reviews_all', this.reviews);
-      this.syncReviewsToServer();
-      import('../../utils/supabase.js').then(m => m.syncReviewsToSupabase(this.reviews));
+      syncReviewsToSupabase(this.reviews);
     }
   }
 
