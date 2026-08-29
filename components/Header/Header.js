@@ -1,6 +1,7 @@
 import products from '../../data/products.js';
 import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getNotificationsFromStorage, formatPrice, getAllOrdersFromStorage } from '../../utils/storage.js';
-
+import { loadStyles } from '../../utils/cssLoader.js';
+import { headerCSS } from './Header.styles.js';
 import { renderVerificationBadge, getCustomerBadge, getCustomerLevel, getCustomerAvatarStyle, renderLevelChevronV } from '../../utils/badges.js';
 
 class Header extends HTMLElement {
@@ -8,6 +9,7 @@ class Header extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     this.selectedScope = 'All';
+    loadStyles(this.shadowRoot, headerCSS);
   }
 
   connectedCallback() {
@@ -37,7 +39,6 @@ class Header extends HTMLElement {
     
     const loggedInUserStr = sessionStorage.getItem('SWEETOS_logged_in_user');
     
-    // If user is NOT logged in, display clean Guest Connexion/Registration state
     if (!loggedInUserStr) {
       profilePill.innerHTML = `
         <div class="user-avatar" style="background: rgba(0, 82, 204, 0.1); color: #0052cc; font-size: 13px; font-weight: 800;">👤</div>
@@ -58,72 +59,55 @@ class Header extends HTMLElement {
     }
 
     const profileKey = getProfileStorageKey();
-    let profileSaved = sessionStorage.getItem(profileKey);
+    const saved = sessionStorage.getItem(profileKey);
     let profile = null;
-    if (profileSaved) {
-      try { profile = JSON.parse(profileSaved); } catch (e) {}
+    if (saved) {
+      try { profile = JSON.parse(saved); } catch(e) {}
     }
 
-    if (!profile) {
-      profile = {
-        firstName: loggedObj.fullname ? loggedObj.fullname.split(' ')[0] : (loggedObj.email ? loggedObj.email.split('@')[0] : 'Client'),
-        lastName: loggedObj.fullname ? loggedObj.fullname.split(' ').slice(1).join(' ') : '',
-        email: loggedObj.email,
-        badgeType: 'none',
-        level: 'starter',
-        avatar: ''
-      };
-    }
-
-    const curEmail = (profile.email || loggedObj?.email || '').toLowerCase();
+    const currentEmail = loggedObj.email.toLowerCase().trim();
     let hasAdminBadgeOverride = false;
     let hasAdminLevelOverride = false;
 
-    // Always check SWEETOS_customers by email to get latest badge, level and avatar assigned by Admin
     try {
-      const custs = JSON.parse(sessionStorage.getItem('SWEETOS_customers') || '[]');
-      if (curEmail) {
-        const match = custs.find(c => c.email && c.email.toLowerCase() === curEmail);
-        if (match) {
-          if (match.badgeType) {
-            profile.badgeType = match.badgeType;
-            hasAdminBadgeOverride = true;
-          }
-          if (match.level) {
-            profile.level = match.level;
-            hasAdminLevelOverride = true;
-          }
-          if (match.avatar) profile.avatar = match.avatar;
+      const customersList = JSON.parse(sessionStorage.getItem('SWEETOS_customers') || '[]');
+      if (currentEmail) {
+        const custRecord = customersList.find(c => c.email && c.email.toLowerCase() === currentEmail);
+        if (custRecord) {
+          if (custRecord.level) hasAdminLevelOverride = true;
+          if (custRecord.badgeType) hasAdminBadgeOverride = true;
         }
       }
     } catch(e) {}
 
-    // Calculate customer total spent to compute dynamic level and 500k+ badge if not manually overridden
+    let userOrders = [];
     try {
       const allOrders = getAllOrdersFromStorage();
-      const userOrders = allOrders.filter(o => o.customerEmail && o.customerEmail.toLowerCase() === curEmail && (o.status || '').toLowerCase() !== 'deleted');
-      const totalSpent = userOrders.filter(o => (o.status || '').toLowerCase() !== 'cancelled').reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
-
-      if (!hasAdminLevelOverride) {
-        const lvl = getCustomerLevel(totalSpent);
-        profile.level = lvl.id;
-      }
-      if (!hasAdminBadgeOverride) {
-        profile.badgeType = profile.badgeType || 'none';
-      }
+      userOrders = allOrders.filter(o => {
+        const oEmail = (o.customerEmail || o.email || o.userEmail || '').toLowerCase().trim();
+        return oEmail === currentEmail && (o.status || '').toLowerCase() !== 'deleted';
+      });
     } catch(e) {}
 
-    const initials = (((profile.firstName || 'C')[0] || '') + ((profile.lastName || 'U')[0] || '')).toUpperCase();
-    const fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Client';
-    const badgeHtml = renderVerificationBadge(profile.badgeType || 'none', 18);
-    const avatarData = getCustomerAvatarStyle(profile, 34);
+    const totalSpent = userOrders.filter(o => (o.status || '').toLowerCase() !== 'cancelled').reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+
+    const calculatedLevelObj = getCustomerLevel(totalSpent);
+    const effectiveLevel = (hasAdminLevelOverride && profile?.level) ? profile.level : calculatedLevelObj.id;
+    const effectiveBadge = (hasAdminBadgeOverride && profile?.badgeType) ? profile.badgeType : (profile?.badgeType || 'none');
+
+    const fullName = profile ? `${profile.firstName || ''} ${profile.lastName || ''}`.trim() : (loggedObj.fullname || loggedObj.email.split('@')[0]);
+    const profileSaved = sessionStorage.getItem('SWEETOS_user_profile');
+    const badgeHtml = renderVerificationBadge(effectiveBadge, 14);
+
+    const avatarData = getCustomerAvatarStyle(profile, effectiveLevel);
+    const initials = (fullName || 'U').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     const avatarStyle = avatarData.style;
 
     if (loggedObj || profileSaved || profile) {
       profilePill.innerHTML = `
         <div style="position: relative; display: inline-flex; align-items: center; justify-content: center;">
           <div class="user-avatar" style="${avatarStyle}">
-            ${profile.avatar ? '' : initials}
+            ${profile?.avatar ? '' : initials}
           </div>
           ${renderLevelChevronV(avatarData.level, 15)}
         </div>
@@ -139,24 +123,16 @@ class Header extends HTMLElement {
   }
 
   syncCartBadge() {
-    const saved = sessionStorage.getItem(getCartStorageKey());
+    const cartKey = getCartStorageKey();
+    const cartSaved = sessionStorage.getItem(cartKey);
     let count = 0;
-    if (saved) {
+    if (cartSaved) {
       try {
-        const cart = JSON.parse(saved);
-        count = cart.reduce((acc, item) => acc + item.quantity, 0);
-      } catch(e) {}
+        const cart = JSON.parse(cartSaved);
+        count = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
+      } catch (e) {}
     }
-    const badge = this.shadowRoot.getElementById('cartBadge');
-    if (badge) {
-      badge.textContent = count;
-    }
-  }
-
-  syncNotificationBadge() {
-    const notifs = getNotificationsFromStorage();
-    const count = notifs.length > 0 ? notifs.filter(n => n.unread).length : 1;
-    const badge = this.shadowRoot.getElementById('notificationBadge');
+    const badge = this.shadowRoot.getElementById('cart-badge');
     if (badge) {
       if (count > 0) {
         badge.textContent = count;
@@ -167,16 +143,30 @@ class Header extends HTMLElement {
     }
   }
 
+  syncNotificationBadge() {
+    const notifs = getNotificationsFromStorage();
+    const unreadCount = notifs.filter(n => n.unread).length;
+    const badge = this.shadowRoot.getElementById('notification-badge');
+    if (badge) {
+      if (unreadCount > 0) {
+        badge.textContent = unreadCount;
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+  }
+
   syncWishlistBadge() {
-    const saved = sessionStorage.getItem('SWEETOS_wishlist');
+    const wishlistSaved = sessionStorage.getItem('SWEETOS_wishlist');
     let count = 0;
-    if (saved) {
+    if (wishlistSaved) {
       try {
-        const wishlist = JSON.parse(saved);
+        const wishlist = JSON.parse(wishlistSaved);
         count = wishlist.length;
       } catch (e) {}
     }
-    const badge = this.shadowRoot.getElementById('wishlistBadge');
+    const badge = this.shadowRoot.getElementById('wishlist-badge');
     if (badge) {
       if (count > 0) {
         badge.textContent = count;
@@ -192,7 +182,6 @@ class Header extends HTMLElement {
     const categories = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
 
     this.shadowRoot.innerHTML = `
-      <link rel="stylesheet" href="./components/Header/Header.css">
       <header class="top-nav">
         <!-- Left Zone: Logo & Official Badge -->
         <div class="header-left-zone">

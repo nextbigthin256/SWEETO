@@ -1,4 +1,6 @@
 import { getNotificationsStorageKey, getNotificationsFromStorage, saveNotificationsToStorage, getScratchcardsStorageKey, formatTimeAgo, getAllOrdersFromStorage, getStorageItem } from '../../utils/storage.js';
+import { loadStyles } from '../../utils/cssLoader.js';
+import { notificationDrawerCSS } from './NotificationDrawer.styles.js';
 
 
 class NotificationDrawer extends HTMLElement {
@@ -8,6 +10,7 @@ class NotificationDrawer extends HTMLElement {
     this.notifications = [];
     this.activeFilter = 'all'; // 'all', 'orders', 'promos', 'messages'
     this.liveTimer = null;
+    loadStyles(this.shadowRoot, notificationDrawerCSS);
   }
 
   connectedCallback() {
@@ -62,20 +65,6 @@ class NotificationDrawer extends HTMLElement {
 
   loadNotifications() {
     this.notifications = getNotificationsFromStorage();
-    if (!Array.isArray(this.notifications) || this.notifications.length === 0) {
-      // Default Welcome Notification
-      this.notifications = [
-        {
-          id: 1,
-          type: 'promo',
-          icon: '🎁',
-          title: `Bienvenue sur SWEETOS ! 🎉`,
-          desc: `Profitez de notre collection exclusive en Côte d'Ivoire avec 10% de réduction via le code <strong>WELCOME10</strong>.`,
-          createdAt: Date.now() - 60000,
-          unread: true
-        }
-      ];
-      saveNotificationsToStorage(this.notifications);
     }
 
     // Ensure all existing notifications have a numeric createdAt timestamp

@@ -1,10 +1,12 @@
 import { getScratchcardsStorageKey, getAllOrdersFromStorage, getStorageItem } from '../../utils/storage.js';
-
+import { loadStyles } from '../../utils/cssLoader.js';
+import { sidebarCSS } from './Sidebar.styles.js';
 
 class Sidebar extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
+    loadStyles(this.shadowRoot, sidebarCSS);
   }
 
   connectedCallback() {
@@ -58,62 +60,77 @@ class Sidebar extends HTMLElement {
     if (ordersBadge) {
       const loggedIn = getStorageItem('SWEETOS_logged_in_user');
       let userOrders = [];
+
       if (loggedIn) {
         try {
-          const userEmail = JSON.parse(loggedIn).email;
-          const allOrders = getAllOrdersFromStorage();
-          userOrders = allOrders.filter(o => o.customerEmail === userEmail && (o.status || '').toLowerCase() !== 'deleted');
+          const userObj = JSON.parse(loggedIn);
+          const email = userObj.email ? userObj.email.toLowerCase().trim() : '';
+          if (email) {
+            const allOrders = getAllOrdersFromStorage();
+            userOrders = allOrders.filter(o => {
+              const oEmail = (o.customerEmail || o.email || o.userEmail || '').toLowerCase().trim();
+              return oEmail === email && (o.status || '').toLowerCase() !== 'deleted';
+            });
+          }
         } catch(e) {}
       }
 
-      if (userOrders.length > 0) {
-        const activeOrders = userOrders.filter(o => {
-          const s = (o.status || '').toLowerCase();
-          return s !== 'livré' && s !== 'delivered' && s !== 'done' && s !== 'cancelled';
-        });
+      const activeOrdersCount = userOrders.filter(o => 
+        ['placed', 'confirm', 'processing', 'shipping'].includes((o.status || '').toLowerCase())
+      ).length;
 
-        if (activeOrders.length > 0) {
-          ordersBadge.innerHTML = `🚚 ${activeOrders.length}`;
-          ordersBadge.className = 'sidebar-badge orders-badge in-transit';
-          ordersBadge.title = `${activeOrders.length} commande(s) active(s) en cours de livraison`;
-        } else {
-          ordersBadge.innerHTML = `📦 ${userOrders.length}`;
-          ordersBadge.className = 'sidebar-badge orders-badge';
-          ordersBadge.title = `${userOrders.length} commande(s) passée(s)`;
-        }
+      const shippingCount = userOrders.filter(o => 
+        (o.status || '').toLowerCase() === 'shipping'
+      ).length;
+
+      if (shippingCount > 0) {
+        ordersBadge.textContent = `${shippingCount} En Route 🚚`;
+        ordersBadge.className = 'sidebar-badge orders-badge in-transit';
         ordersBadge.style.display = 'inline-flex';
+        ordersBadge.title = `${shippingCount} commande(s) en cours de livraison !`;
+      } else if (activeOrdersCount > 0) {
+        ordersBadge.textContent = `${activeOrdersCount} Actives`;
+        ordersBadge.className = 'sidebar-badge orders-badge';
+        ordersBadge.style.display = 'inline-flex';
+        ordersBadge.title = `${activeOrdersCount} commande(s) en cours de traitement`;
+      } else if (userOrders.length > 0) {
+        ordersBadge.textContent = `${userOrders.length}`;
+        ordersBadge.className = 'sidebar-badge orders-badge';
+        ordersBadge.style.display = 'inline-flex';
+        ordersBadge.title = `Total: ${userOrders.length} commande(s)`;
       } else {
         ordersBadge.style.display = 'none';
       }
     }
 
-    // 2. Real Customer Wishlist badge (Shows count if > 0, else completely hidden)
-    const wishBadge = shadow.getElementById('sidebar-wishlist-badge');
-    if (wishBadge) {
-      let wishList = [];
-      try {
-        const wishRaw = getStorageItem('SWEETOS_wishlist');
-        wishList = wishRaw ? JSON.parse(wishRaw) : [];
-      } catch(e) {}
-      
-      if (wishList.length > 0) {
-        wishBadge.innerHTML = `❤️ ${wishList.length}`;
-        wishBadge.style.display = 'inline-flex';
-        wishBadge.title = `${wishList.length} article(s) dans vos favoris`;
+    // 2. Real Wishlist Badge
+    const wishlistBadge = shadow.getElementById('sidebar-wishlist-badge');
+    if (wishlistBadge) {
+      const wishlistSaved = getStorageItem('SWEETOS_wishlist');
+      let count = 0;
+      if (wishlistSaved) {
+        try {
+          const list = JSON.parse(wishlistSaved);
+          count = list.length;
+        } catch(e) {}
+      }
+      if (count > 0) {
+        wishlistBadge.textContent = `${count}`;
+        wishlistBadge.style.display = 'inline-flex';
       } else {
-        wishBadge.style.display = 'none';
+        wishlistBadge.style.display = 'none';
       }
     }
 
-    // 3. Real Customer Coupons badge (Unscratched Mystery Cards or Won Active Coupons ONLY!)
+    // 3. Coupons & Mystery Boxes Badge
     const couponBadge = shadow.getElementById('sidebar-coupons-badge');
     if (couponBadge) {
       const now = Date.now();
       const today = new Date().toISOString().split('T')[0];
-
-      // A. Real Unscratched Mystery Scratchcards owned by user
-      let unscratchedCount = 0;
       const loggedInStr = getStorageItem('SWEETOS_logged_in_user');
+      
+      // A. Unscratched Mystery Boxes
+      let unscratchedCount = 0;
       if (loggedInStr) {
         try {
           const scratchKey = getScratchcardsStorageKey();
@@ -136,17 +153,16 @@ class Sidebar extends HTMLElement {
       } catch(e) {}
 
       if (unscratchedCount > 0) {
-        couponBadge.innerHTML = `🎁 ${unscratchedCount} à gratter`;
-        couponBadge.className = 'sidebar-badge coupon-badge in-transit';
+        couponBadge.textContent = `${unscratchedCount} 🎁`;
+        couponBadge.className = 'sidebar-badge coupon-badge';
         couponBadge.style.display = 'inline-flex';
-        couponBadge.title = `${unscratchedCount} boîte(s) mystère prête(s) à être grattée(s) !`;
+        couponBadge.title = `${unscratchedCount} Boîte(s) Mystère(s) non grattée(s) !`;
       } else if (wonCouponsCount > 0) {
-        couponBadge.innerHTML = `🎟️ ${wonCouponsCount}`;
+        couponBadge.textContent = `${wonCouponsCount} 🎟️`;
         couponBadge.className = 'sidebar-badge coupon-badge';
         couponBadge.style.display = 'inline-flex';
         couponBadge.title = `${wonCouponsCount} coupon(s) de réduction actif(s)`;
       } else {
-        // Nothing active or unscratched -> completely hide!
         couponBadge.style.display = 'none';
       }
     }
@@ -154,7 +170,6 @@ class Sidebar extends HTMLElement {
 
   render() {
     this.shadowRoot.innerHTML = `
-      <link rel="stylesheet" href="./components/Sidebar/Sidebar.css">
       <aside class="sidebar-wrapper" id="sidebarWrapper">
         <button class="sidebar-collapse-toggle" id="sidebarToggleBtn" title="Collapse Sidebar">
           <span class="toggle-text">Collapse Menu</span>

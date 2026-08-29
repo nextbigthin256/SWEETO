@@ -1,10 +1,13 @@
 import { formatPrice, getStorageItem } from '../../utils/storage.js';
+import { loadStyles } from '../../utils/cssLoader.js';
+import { productCardCSS } from './ProductCard.styles.js';
 
 class ProductCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
     this._product = null;
+    loadStyles(this.shadowRoot, productCardCSS);
   }
 
   set product(value) {
@@ -102,7 +105,6 @@ class ProductCard extends HTMLElement {
     }
 
     this.shadowRoot.innerHTML = `
-      <link rel="stylesheet" href="./components/ProductCard/ProductCard.css">
       <div class="card glass-panel">
         <div class="image-container">
           <img src="${p.image}" alt="${p.name}" class="product-img" loading="lazy">
