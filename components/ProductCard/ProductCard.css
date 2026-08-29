@@ -266,3 +266,80 @@
 .buy-btn:active {
   transform: scale(0.96);
 }
+
+/* ==========================================================================
+   COMPACT MOBILE RESPONSIVE CARD ELEVATION (Reduces vertical length on mobile)
+   ========================================================================== */
+@media (max-width: 768px) {
+  .card {
+    border-radius: 14px;
+  }
+
+  .image-container {
+    aspect-ratio: 1.05;
+  }
+
+  .product-img {
+    padding: 6px;
+  }
+
+  .category-badge {
+    top: 6px;
+    left: 6px;
+    padding: 2px 6px;
+    font-size: 9.5px;
+    border-radius: 6px;
+  }
+
+  .status-badge-container {
+    top: 6px;
+    right: 6px;
+    gap: 3px;
+  }
+
+  .status-badge {
+    font-size: 9px;
+    padding: 3px 6px;
+    border-radius: 6px;
+  }
+
+  .info-container {
+    padding: 8px 10px 10px 10px;
+  }
+
+  .rating-row {
+    font-size: 10.5px;
+    margin-bottom: 3px;
+    gap: 3px;
+  }
+
+  .product-title {
+    font-size: 13px;
+    line-height: 1.25;
+    margin-bottom: 4px;
+    -webkit-line-clamp: 2;
+  }
+
+  .product-desc {
+    display: none !important;
+  }
+
+  .price-row {
+    padding-top: 6px;
+    margin-top: 4px;
+  }
+
+  .price {
+    font-size: 13.5px;
+  }
+
+  .original-price {
+    font-size: 10px;
+  }
+
+  .buy-btn {
+    padding: 5px 9px;
+    font-size: 11px;
+    border-radius: 8px;
+  }
+}

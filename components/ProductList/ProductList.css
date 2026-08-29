@@ -3179,18 +3179,16 @@ input:checked + .toggle-slider:before {
   }
 }
 
-@media (max-width: 580px) {
-  .home-grid-4 {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
-  }
-  .product-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+@media (max-width: 768px) {
+  .home-grid-4,
+  .product-grid,
+  .catalog-grid-4 {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
   }
   .brands-grid, .collections-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 10px;
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
   }
   .section-title {
     font-size: 1.2rem;
