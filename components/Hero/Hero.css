@@ -494,33 +494,53 @@
 
 @media (max-width: 768px) {
   .hero-carousel {
-    border-radius: 16px;
-    margin-bottom: 18px;
-    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0 !important;
+    margin-bottom: 18px !important;
+    border: none !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   .slide-card {
     position: relative !important;
-    padding: 18px 16px 36px 16px;
-    gap: 12px;
-    flex-direction: column;
-    align-items: center;
+    padding: 12px 14px 28px 14px !important;
+    gap: 10px !important;
+    flex-direction: column !important;
+    align-items: center !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+  }
+
+  .hero-glow-1,
+  .hero-glow-2 {
+    display: none !important;
   }
 
   .hero-tag {
-    font-size: 10px;
-    padding: 3px 8px;
+    font-size: 10px !important;
+    padding: 3px 8px !important;
+    background: rgba(37, 99, 235, 0.08) !important;
+    color: #2563eb !important;
+    border: 1px solid rgba(37, 99, 235, 0.2) !important;
   }
 
   .hero-title {
-    font-size: 19px;
-    line-height: 1.2;
-    letter-spacing: -0.3px;
+    font-size: 20px !important;
+    line-height: 1.2 !important;
+    letter-spacing: -0.3px !important;
+    color: var(--text-dark, #0f172a) !important;
+    text-shadow: none !important;
   }
 
   .hero-subtitle {
-    font-size: 11.5px;
-    line-height: 1.35;
+    font-size: 11.5px !important;
+    line-height: 1.35 !important;
+    color: var(--text-gray, #64748b) !important;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
@@ -606,13 +626,27 @@
     margin-top: 4px;
   }
 
-  .shop-btn,
+  .shop-btn {
+    flex: 1;
+    padding: 9px 10px;
+    font-size: 12px;
+    justify-content: center;
+    border-radius: 10px;
+    background: #0052cc !important;
+    color: #ffffff !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(0, 82, 204, 0.25) !important;
+  }
+
   .shop-btn-secondary {
     flex: 1;
     padding: 9px 10px;
     font-size: 12px;
     justify-content: center;
     border-radius: 10px;
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+    border: 1.5px solid #cbd5e1 !important;
   }
 
   .hero-nav-arrow {
