@@ -486,10 +486,7 @@ export async function createOrderInSupabase(newOrder) {
       } else {
         sOrders.unshift(newOrder);
       }
-      await supabase.from('site_settings').upsert({
-        key: 'sweetos_cloud_orders',
-        value: sOrders
-      }, { onConflict: 'key' });
+      await saveSiteSettingInSupabase('sweetos_cloud_orders', sOrders);
     } catch(e) {}
 
     // 2. Try to upsert into Supabase orders table
@@ -505,7 +502,7 @@ export async function createOrderInSupabase(newOrder) {
         payment_method: newOrder.paymentMethod || 'cod',
         shipping_notes: newOrder.items || (newOrder.products || []).map(p => `${p.name} (x${p.quantity || 1})`).join(', ') || 'Product Order'
       };
-      await supabase.from('orders').upsert([record], { onConflict: 'order_number' });
+      await supabase.from('orders').upsert([record]);
     } catch(e) {}
 
     // 3. Upsert order into Supabase profiles table (embedded orders array)
