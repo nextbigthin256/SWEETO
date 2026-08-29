@@ -303,6 +303,15 @@ CREATE POLICY "Full Notifications Access" ON public.notifications FOR ALL USING 
 CREATE POLICY "Full Profiles Access" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
 
 -- ====================================================================
+-- STORAGE BUCKETS SETUP FOR IMAGE UPLOADS
+-- ====================================================================
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('uploads', 'uploads', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+CREATE POLICY "Public Uploads Access" ON storage.objects FOR ALL USING (bucket_id = 'uploads') WITH CHECK (bucket_id = 'uploads');
+
+-- ====================================================================
 -- SEED DATA (INITIAL CATEGORIES & BRANDS)
 -- ====================================================================
 INSERT INTO public.store_settings (store_name, currency, hero_title, hero_subtitle)
