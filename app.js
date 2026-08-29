@@ -410,7 +410,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Initial cart load synchronization
-  const initialSaved = sessionStorage.getItem(getCartStorageKey());
+  const initialSaved = getStorageItem(getCartStorageKey());
   if (initialSaved) {
     try {
       const parsed = JSON.parse(initialSaved);
@@ -418,7 +418,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch (e) {}
   } else {
     setTimeout(() => {
-      const saved = sessionStorage.getItem(getCartStorageKey());
+      const saved = getStorageItem(getCartStorageKey());
       if (saved) {
         try {
           const parsed = JSON.parse(saved);
@@ -430,7 +430,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Listen for user login/logout to update the cart badge count dynamically
   window.addEventListener('auth:changed', () => {
-    const saved = sessionStorage.getItem(getCartStorageKey());
+    const saved = getStorageItem(getCartStorageKey());
     let parsed = [];
     if (saved) {
       try {
@@ -666,12 +666,12 @@ document.addEventListener('DOMContentLoaded', () => {
       
       let scratchcards = [];
       try {
-        scratchcards = JSON.parse(sessionStorage.getItem('SWEETOS_user_scratchcards') || '[]');
+        scratchcards = JSON.parse(getStorageItem('SWEETOS_user_scratchcards') || '[]');
       } catch(e) {}
       
       let coupons = [];
       try {
-        coupons = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
+        coupons = JSON.parse(getStorageItem('SWEETOS_coupons') || '[]');
       } catch(e) {}
       
       const hasUnscratched = scratchcards.some(card => !card.scratched);
@@ -712,7 +712,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const productAdded = e.detail;
     let currentCart = [];
     try {
-      currentCart = JSON.parse(sessionStorage.getItem(getCartStorageKey()) || '[]');
+      currentCart = JSON.parse(getStorageItem(getCartStorageKey()) || '[]');
     } catch(err) {}
     
     const existing = currentCart.find(item => item.id === productAdded.id);
