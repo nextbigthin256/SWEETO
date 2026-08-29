@@ -5119,8 +5119,9 @@ input:checked + .toggle-slider:before {
     padding: 16px 14px !important;
     gap: 10px !important;
     border-radius: 16px !important;
-    margin-bottom: 16px !important;
+    margin-bottom: 14px !important;
     min-height: auto !important;
+    box-shadow: 0 4px 16px rgba(0, 82, 204, 0.08) !important;
   }
 
   .category-hero-title,
@@ -5139,13 +5140,11 @@ input:checked + .toggle-slider:before {
     -webkit-box-orient: vertical;
     overflow: hidden;
     margin-bottom: 6px !important;
+    opacity: 0.9;
   }
 
   .category-hero-perks,
-  .brand-hero-perks {
-    display: none !important;
-  }
-
+  .brand-hero-perks,
   .category-hero-featured-card,
   .brand-hero-featured-card {
     display: none !important;
@@ -5153,9 +5152,39 @@ input:checked + .toggle-slider:before {
 
   .category-hero-meta-badge,
   .brand-hero-meta-badge {
-    font-size: 10.5px !important;
-    padding: 3px 8px !important;
+    font-size: 10px !important;
+    padding: 2px 8px !important;
     margin-bottom: 6px !important;
+    border-radius: 6px !important;
+  }
+
+  /* Subcategory & Brand Smart Pills Horizontal Touch Carousel */
+  .category-pills-row,
+  .brand-pills-row,
+  #category-smart-pills-row {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    gap: 8px !important;
+    margin-bottom: 14px !important;
+    padding-bottom: 4px !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+  }
+  .category-pills-row::-webkit-scrollbar,
+  .brand-pills-row::-webkit-scrollbar,
+  #category-smart-pills-row::-webkit-scrollbar {
+    display: none !important;
+  }
+
+  .category-smart-pill,
+  .brand-smart-pill {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+    padding: 6px 14px !important;
+    font-size: 11.5px !important;
+    font-weight: 650 !important;
+    border-radius: 999px !important;
   }
 }
 
