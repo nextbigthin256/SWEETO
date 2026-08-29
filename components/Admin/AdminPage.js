@@ -907,36 +907,8 @@ class AdminPage extends HTMLElement {
     }
 
     try {
-      import('../../utils/supabase.js').then(({ supabase }) => {
-        if (!supabase) return;
-        const records = this.products.map(p => ({
-          legacy_id: typeof p.id === 'number' ? p.id : (parseInt(p.id) || Date.now()),
-          name: p.name || 'Product',
-          slug: p.slug || ((p.name || 'product').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + (p.id || Date.now())),
-          description: p.description || '',
-          price: parseFloat(p.price) || 0,
-          original_price: p.originalPrice || p.comparePrice ? parseFloat(p.originalPrice || p.comparePrice) : null,
-          category_name: p.category || '',
-          subcategory_name: p.subcategory || '',
-          brand_name: p.brand || '',
-          image: p.image || '',
-          gallery: p.gallery || [],
-          colors: p.colors || [],
-          specs: p.specs || {},
-          stock: p.stock ?? 10,
-          in_stock: p.inStock ?? (p.stock > 0),
-          is_bestseller: p.isBestseller ?? false,
-          is_hot_deal: p.isHotDeal ?? false,
-          is_new: p.isNew ?? true,
-          rating: p.rating || 5.0,
-          reviews_count: p.reviews || 0
-        }));
-
-        supabase.from('products').upsert(records, { onConflict: 'legacy_id' })
-          .then(({ error }) => {
-            if (!error) console.log('[Supabase] Products successfully synced to Supabase cloud!');
-            else console.warn('[Supabase] Products sync notice:', error.message);
-          });
+      import('../../utils/supabase.js').then(({ syncProductsToSupabase }) => {
+        syncProductsToSupabase(this.products);
       });
     } catch(e) {}
   }
@@ -951,15 +923,8 @@ class AdminPage extends HTMLElement {
     }
 
     try {
-      import('../../utils/supabase.js').then(({ supabase }) => {
-        if (!supabase) return;
-        const records = this.categories.map(c => ({
-          name: c.name,
-          slug: (c.slug || c.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
-          icon: c.icon || '📦',
-          description: c.description || ''
-        }));
-        supabase.from('categories').upsert(records, { onConflict: 'slug' }).catch(() => {});
+      import('../../utils/supabase.js').then(({ syncCategoriesToSupabase }) => {
+        syncCategoriesToSupabase(this.categories);
       });
     } catch(e) {}
   }
@@ -974,15 +939,8 @@ class AdminPage extends HTMLElement {
     }
 
     try {
-      import('../../utils/supabase.js').then(({ supabase }) => {
-        if (!supabase) return;
-        const records = this.brands.map(b => ({
-          name: b.name,
-          slug: (b.slug || b.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
-          description: b.description || '',
-          is_official: b.isOfficial ?? true
-        }));
-        supabase.from('brands').upsert(records, { onConflict: 'slug' }).catch(() => {});
+      import('../../utils/supabase.js').then(({ syncBrandsToSupabase }) => {
+        syncBrandsToSupabase(this.brands);
       });
     } catch(e) {}
   }

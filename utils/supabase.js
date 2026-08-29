@@ -15,52 +15,114 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export async function fetchProductsFromSupabase() {
   try {
-    const { data, error } = await supabase
-      .from('products')
-      .select('*')
-      .order('created_at', { ascending: true });
+    let formatted = null;
 
-    if (error) {
-      console.warn('[Supabase] Could not fetch products, falling back to local:', error.message);
-      return null;
+    // 1. Fetch from products Postgres table
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .order('created_at', { ascending: true });
+
+      if (!error && data && data.length > 0) {
+        formatted = data.map(p => ({
+          id: p.legacy_id || p.id,
+          uuid: p.id,
+          name: p.name,
+          slug: p.slug,
+          description: p.description,
+          price: parseFloat(p.price) || 0,
+          originalPrice: p.original_price ? parseFloat(p.original_price) : null,
+          category: p.category_name || '',
+          subcategory: p.subcategory_name || '',
+          brand: p.brand_name || '',
+          image: p.image,
+          gallery: p.gallery || [],
+          colors: p.colors || [],
+          specs: p.specs || {},
+          stock: p.stock ?? 10,
+          inStock: p.in_stock ?? true,
+          isBestseller: p.is_bestseller ?? false,
+          isHotDeal: p.is_hot_deal ?? false,
+          isNew: p.is_new ?? false,
+          rating: p.rating ? parseFloat(p.rating) : 5.0,
+          reviews: p.reviews_count ?? 0
+        }));
+      }
+    } catch(e) {}
+
+    // 2. Check site_settings cloud fallback (sweetos_cloud_products)
+    if (!formatted || formatted.length === 0) {
+      try {
+        const cloudFallback = await fetchSiteSettingFromSupabase('sweetos_cloud_products');
+        if (Array.isArray(cloudFallback) && cloudFallback.length > 0) {
+          formatted = cloudFallback;
+        }
+      } catch(e) {}
     }
 
-    if (data && data.length > 0) {
-      const formatted = data.map(p => ({
-        id: p.legacy_id || p.id,
-        uuid: p.id,
-        name: p.name,
-        slug: p.slug,
-        description: p.description,
-        price: parseFloat(p.price) || 0,
-        originalPrice: p.original_price ? parseFloat(p.original_price) : null,
-        category: p.category_name || '',
-        subcategory: p.subcategory_name || '',
-        brand: p.brand_name || '',
-        image: p.image,
-        gallery: p.gallery || [],
-        colors: p.colors || [],
-        specs: p.specs || {},
-        stock: p.stock ?? 10,
-        inStock: p.in_stock ?? true,
-        isBestseller: p.is_bestseller ?? false,
-        isHotDeal: p.is_hot_deal ?? false,
-        isNew: p.is_new ?? false,
-        rating: p.rating ? parseFloat(p.rating) : 5.0,
-        reviews: p.reviews_count ?? 0
-      }));
-
+    if (formatted) {
       sessionStorage.setItem('SWEETOS_products', JSON.stringify(formatted));
       return formatted;
-    } else if (data && data.length === 0) {
-      // Explicitly empty database (user wiped or permanently deleted products)
-      sessionStorage.setItem('SWEETOS_products', JSON.stringify([]));
-      return [];
     }
     return null;
   } catch (err) {
     console.error('[Supabase] fetchProducts error:', err);
     return null;
+  }
+}
+
+export async function syncProductsToSupabase(productsList) {
+  try {
+    if (!supabase || !Array.isArray(productsList)) return false;
+
+    const processedProducts = await Promise.all(productsList.map(async p => {
+      let finalImg = p.image;
+      if (finalImg && typeof finalImg === 'string' && finalImg.startsWith('data:')) {
+        const cloudUrl = await uploadBase64OrFileToSupabase(finalImg, `prod_${p.id || Date.now()}.png`);
+        if (cloudUrl) finalImg = cloudUrl;
+      }
+      return { ...p, image: finalImg };
+    }));
+
+    saveSiteSettingInSupabase('sweetos_cloud_products', processedProducts);
+
+    const records = processedProducts.map(p => {
+      const legId = typeof p.id === 'number' ? p.id : (parseInt(p.id) || Date.now());
+      const pName = p.name || 'Product';
+      const pSlug = p.slug || (pName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + legId);
+      return {
+        legacy_id: legId,
+        name: pName,
+        slug: pSlug,
+        description: p.description || '',
+        price: parseFloat(p.price) || 0,
+        original_price: p.originalPrice || p.comparePrice ? parseFloat(p.originalPrice || p.comparePrice) : null,
+        category_name: p.category || '',
+        subcategory_name: p.subcategory || '',
+        brand_name: p.brand || '',
+        image: p.image || '',
+        gallery: p.gallery || [],
+        colors: p.colors || [],
+        specs: p.specs || {},
+        stock: p.stock ?? 10,
+        in_stock: p.inStock ?? (p.stock > 0),
+        is_bestseller: p.isBestseller ?? false,
+        is_hot_deal: p.isHotDeal ?? false,
+        is_new: p.isNew ?? true,
+        rating: p.rating || 5.0,
+        reviews_count: p.reviews || 0
+      };
+    });
+
+    const { error } = await supabase.from('products').upsert(records, { onConflict: 'legacy_id' });
+    if (!error) {
+      console.log('[Supabase Cloud] Products synced across devices successfully!');
+    }
+    return true;
+  } catch (err) {
+    console.error('[Supabase Cloud] syncProducts error:', err);
+    return false;
   }
 }
 
@@ -193,17 +255,50 @@ export async function createProductInSupabase(prod) {
 
 export async function fetchCategoriesFromSupabase() {
   try {
-    const { data, error } = await supabase
-      .from('categories')
-      .select('*')
-      .order('display_order', { ascending: true });
+    let cats = null;
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select('*')
+        .order('display_order', { ascending: true });
 
-    if (!error && data && data.length > 0) {
-      sessionStorage.setItem('SWEETOS_categories', JSON.stringify(data));
-      return data;
+      if (!error && data && data.length > 0) {
+        cats = data;
+      }
+    } catch(e) {}
+
+    if (!cats || cats.length === 0) {
+      const fallback = await fetchSiteSettingFromSupabase('sweetos_cloud_categories');
+      if (Array.isArray(fallback) && fallback.length > 0) {
+        cats = fallback;
+      }
+    }
+
+    if (cats) {
+      sessionStorage.setItem('SWEETOS_categories', JSON.stringify(cats));
+      return cats;
     }
   } catch (e) {}
   return null;
+}
+
+export async function syncCategoriesToSupabase(categoriesList) {
+  try {
+    if (!supabase || !Array.isArray(categoriesList)) return false;
+    saveSiteSettingInSupabase('sweetos_cloud_categories', categoriesList);
+
+    const records = categoriesList.map(c => ({
+      name: c.name,
+      slug: (c.slug || c.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+      icon: c.icon || '📦',
+      description: c.description || ''
+    }));
+
+    await supabase.from('categories').upsert(records, { onConflict: 'slug' }).catch(() => {});
+    return true;
+  } catch (err) {
+    return false;
+  }
 }
 
 // ==========================================
@@ -212,17 +307,50 @@ export async function fetchCategoriesFromSupabase() {
 
 export async function fetchBrandsFromSupabase() {
   try {
-    const { data, error } = await supabase
-      .from('brands')
-      .select('*')
-      .order('display_order', { ascending: true });
+    let brands = null;
+    try {
+      const { data, error } = await supabase
+        .from('brands')
+        .select('*')
+        .order('display_order', { ascending: true });
 
-    if (!error && data && data.length > 0) {
-      sessionStorage.setItem('SWEETOS_brands', JSON.stringify(data));
-      return data;
+      if (!error && data && data.length > 0) {
+        brands = data;
+      }
+    } catch(e) {}
+
+    if (!brands || brands.length === 0) {
+      const fallback = await fetchSiteSettingFromSupabase('sweetos_cloud_brands');
+      if (Array.isArray(fallback) && fallback.length > 0) {
+        brands = fallback;
+      }
+    }
+
+    if (brands) {
+      sessionStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
+      return brands;
     }
   } catch (e) {}
   return null;
+}
+
+export async function syncBrandsToSupabase(brandsList) {
+  try {
+    if (!supabase || !Array.isArray(brandsList)) return false;
+    saveSiteSettingInSupabase('sweetos_cloud_brands', brandsList);
+
+    const records = brandsList.map(b => ({
+      name: b.name,
+      slug: (b.slug || b.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
+      description: b.description || '',
+      is_official: b.isOfficial ?? true
+    }));
+
+    await supabase.from('brands').upsert(records, { onConflict: 'slug' }).catch(() => {});
+    return true;
+  } catch (err) {
+    return false;
+  }
 }
 
 // ==========================================
@@ -539,11 +667,63 @@ export async function fetchProfileFromSupabase(email) {
 // 6. GLOBAL INITIALIZATION & REALTIME
 // ==========================================
 
+let realtimeChannel = null;
+
+export function subscribeToGlobalRealtimeSync() {
+  if (!supabase || realtimeChannel) return;
+
+  try {
+    realtimeChannel = supabase
+      .channel('sweetos-global-sync')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public' },
+        async (payload) => {
+          console.log('[Supabase Realtime Event Received]:', payload.table, payload.eventType);
+          
+          if (payload.table === 'products' || (payload.table === 'site_settings' && payload.new?.key === 'sweetos_cloud_products')) {
+            const updated = await fetchProductsFromSupabase();
+            if (updated) {
+              window.dispatchEvent(new CustomEvent('products:updated', { detail: updated }));
+            }
+          } else if (payload.table === 'categories' || (payload.table === 'site_settings' && payload.new?.key === 'sweetos_cloud_categories')) {
+            const updated = await fetchCategoriesFromSupabase();
+            if (updated) {
+              window.dispatchEvent(new CustomEvent('categories:updated', { detail: updated }));
+            }
+          } else if (payload.table === 'brands' || (payload.table === 'site_settings' && payload.new?.key === 'sweetos_cloud_brands')) {
+            const updated = await fetchBrandsFromSupabase();
+            if (updated) {
+              window.dispatchEvent(new CustomEvent('brands:updated', { detail: updated }));
+            }
+          } else if (payload.table === 'orders' || (payload.table === 'site_settings' && payload.new?.key === 'sweetos_cloud_orders')) {
+            const updated = await fetchOrdersFromSupabase();
+            if (updated) {
+              window.dispatchEvent(new CustomEvent('orders:updated', { detail: updated }));
+            }
+          } else if (payload.table === 'store_settings' || payload.table === 'site_settings') {
+            fetchSettingsFromSupabase();
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[Supabase Realtime Cloud Sync Active across devices]');
+        }
+      });
+  } catch (err) {
+    console.warn('[Supabase Realtime Subscription Notice]:', err);
+  }
+}
+
 export async function initSupabaseSync() {
   console.log('[Supabase] Connected to live cloud database:', SUPABASE_URL);
   
   // Start OAuth session listener
   initSupabaseAuthListener();
+
+  // Activate multi-device Realtime channel listener
+  subscribeToGlobalRealtimeSync();
 
   // Sync logged in user profile if available
   try {
