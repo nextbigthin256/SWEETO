@@ -37,9 +37,9 @@ export const productCardCSS = `
 .card-image {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
   display: block;
-  padding: 12px;
+  padding: 0;
   box-sizing: border-box;
   transition: transform 0.35s ease;
 }
