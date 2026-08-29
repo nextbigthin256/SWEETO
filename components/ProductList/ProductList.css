@@ -3182,13 +3182,15 @@ input:checked + .toggle-slider:before {
 @media (max-width: 768px) {
   .home-grid-4,
   .product-grid,
-  .catalog-grid-4 {
+  .catalog-grid-4,
+  .todays-deals-grid-2x6 {
     grid-template-columns: repeat(2, 1fr) !important;
-    gap: 10px !important;
+    gap: 0px !important;
+    padding: 0 !important;
   }
   .brands-grid, .collections-grid {
     grid-template-columns: repeat(2, 1fr) !important;
-    gap: 10px !important;
+    gap: 0px !important;
   }
   .section-title {
     font-size: 1.2rem;
@@ -5427,16 +5429,16 @@ input:checked + .toggle-slider:before {
 @media (max-width: 768px) {
   .slidable-product-row,
   .carousel-scroll-wrapper {
-    gap: 12px !important;
-    padding: 4px 2px 14px 2px !important;
+    gap: 0px !important;
+    padding: 0 !important;
     scroll-snap-type: x mandatory !important;
   }
 
   .slidable-product-row product-card,
   .carousel-scroll-wrapper product-card {
-    flex: 0 0 170px !important;
-    min-width: 165px !important;
-    max-width: 180px !important;
+    flex: 0 0 50% !important;
+    min-width: 50% !important;
+    max-width: 50% !important;
     scroll-snap-align: start !important;
   }
 }
@@ -5444,9 +5446,9 @@ input:checked + .toggle-slider:before {
 @media (max-width: 480px) {
   .slidable-product-row product-card,
   .carousel-scroll-wrapper product-card {
-    flex: 0 0 155px !important;
-    min-width: 150px !important;
-    max-width: 165px !important;
+    flex: 0 0 50% !important;
+    min-width: 50% !important;
+    max-width: 50% !important;
   }
 }
 
