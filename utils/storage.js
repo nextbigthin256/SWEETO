@@ -139,103 +139,117 @@ export function syncDeliveredNotifications() {
   
   const userEmail = profile.email;
   if (!userEmail) return;
-  
-  fetch('/api/orders')
-    .then(res => {
-      if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return [];
-      return res.json().catch(() => []);
-    })
-    .then(serverOrders => {
-      if (!Array.isArray(serverOrders)) return;
-      
-      let processedDeliveries = [];
-      try {
-        processedDeliveries = JSON.parse(sessionStorage.getItem('SWEETOS_processed_deliveries') || '[]');
-      } catch(e) {}
-      
-      const notifKey = getNotificationsStorageKey();
-      let customerNotifs = [];
-      try {
-        customerNotifs = JSON.parse(sessionStorage.getItem(notifKey) || '[]');
-      } catch(e) {}
-      
-      let changed = false;
-      
-      serverOrders.forEach(order => {
-        const isCompleted = order.status === 'Done' || order.status === 'Livré';
-        if (order.customerEmail === userEmail && isCompleted) {
-          if (!processedDeliveries.includes(order.id)) {
-            processedDeliveries.push(order.id);
-            
-            const currentHour = new Date().getHours();
-            let greeting = 'Bonjour';
-            if (currentHour >= 12 && currentHour < 18) {
-              greeting = 'Bon après-midi';
-            } else if (currentHour >= 18) {
-              greeting = 'Bonsoir';
-            }
-            
-            const totalCFA = parseFloat(order.total) || 0;
+
+  const processOrders = (ordersList) => {
+    if (!Array.isArray(ordersList)) return;
+    
+    let processedDeliveries = [];
+    try {
+      processedDeliveries = JSON.parse(sessionStorage.getItem('SWEETOS_processed_deliveries') || '[]');
+    } catch(e) {}
+    
+    const notifKey = getNotificationsStorageKey();
+    let customerNotifs = [];
+    try {
+      customerNotifs = JSON.parse(sessionStorage.getItem(notifKey) || '[]');
+    } catch(e) {}
+    
+    let changed = false;
+    
+    ordersList.forEach(order => {
+      const isCompleted = order.status === 'Done' || order.status === 'Livré' || order.status === 'completed';
+      const emailMatch = (order.customerEmail || order.customer_email || '').toLowerCase() === userEmail.toLowerCase();
+      const orderId = order.id || order.order_number;
+      if (emailMatch && isCompleted && orderId) {
+        if (!processedDeliveries.includes(orderId)) {
+          processedDeliveries.push(orderId);
+          
+          const currentHour = new Date().getHours();
+          let greeting = 'Bonjour';
+          if (currentHour >= 12 && currentHour < 18) {
+            greeting = 'Bon après-midi';
+          } else if (currentHour >= 18) {
+            greeting = 'Bonsoir';
+          }
+          
+          const totalCFA = parseFloat(order.total || order.total_amount) || 0;
+          
+          customerNotifs.unshift({
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            type: 'shipping',
+            icon: '✅',
+            title: `Commande #${orderId} livrée !`,
+            desc: `${greeting} ! Merci infiniment pour votre achat chez SWEETOS. Votre commande #${orderId} a été livrée avec succès.<br>
+              <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+                <button class="download-receipt-btn" data-order-id="${orderId}" style="background:var(--primary); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer;">Reçu 📄</button>
+                ${totalCFA >= 2000 ? `<button class="view-mystery-email-btn" data-order-id="${orderId}" style="background:#ff5630; color:white; border:none; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer;">Mystery Box 🎁</button>` : ''}
+              </div>`,
+            time: 'Just now',
+            unread: true
+          });
+          
+          if (totalCFA >= 2000) {
+            try {
+              let scratchcards = JSON.parse(sessionStorage.getItem('SWEETOS_user_scratchcards') || '[]');
+              if (!scratchcards.some(sc => sc.orderId === orderId)) {
+                scratchcards.push({
+                  id: Date.now() + Math.floor(Math.random() * 1000) + 1,
+                  orderId: orderId,
+                  amount: totalCFA,
+                  scratched: false,
+                  couponWon: null,
+                  createdAt: Date.now(),
+                  expiresAt: Date.now() + 14 * 24 * 60 * 60 * 1000
+                });
+                sessionStorage.setItem('SWEETOS_user_scratchcards', JSON.stringify(scratchcards));
+              }
+            } catch(e) {}
             
             customerNotifs.unshift({
-              id: Date.now() + Math.floor(Math.random() * 1000),
-              type: 'shipping',
-              icon: '✅',
-              title: `Commande #${order.id} livrée !`,
-              desc: `${greeting} ! Merci infiniment pour votre achat chez SWEETOS. Votre commande #${order.id} a été livrée avec succès.<br>
-                <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
-                  <button class="download-receipt-btn" data-order-id="${order.id}" style="background:var(--primary); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer;">Reçu 📄</button>
-                  ${totalCFA >= 2000 ? `<button class="view-mystery-email-btn" data-order-id="${order.id}" style="background:#ff5630; color:white; border:none; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer;">Mystery Box 🎁</button>` : ''}
+              id: Date.now() + Math.floor(Math.random() * 1000) + 2,
+              type: 'email',
+              icon: '📧',
+              title: `Nouveau Message: Votre Boîte Mystère`,
+              desc: `Vous avez reçu un e-mail concernant votre Boîte Mystère de la commande #${orderId}.<br>
+                <div style="margin-top:8px;">
+                  <button class="open-email-modal-btn" data-order-id="${orderId}" style="background:var(--primary); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer;">Ouvrir l'E-mail 📩</button>
                 </div>`,
               time: 'Just now',
               unread: true
             });
-            
-            if (totalCFA >= 2000) {
-              try {
-                let scratchcards = JSON.parse(sessionStorage.getItem('SWEETOS_user_scratchcards') || '[]');
-                if (!scratchcards.some(sc => sc.orderId === order.id)) {
-                  scratchcards.push({
-                    id: Date.now() + Math.floor(Math.random() * 1000) + 1,
-                    orderId: order.id,
-                    amount: totalCFA,
-                    scratched: false,
-                    couponWon: null,
-                    createdAt: Date.now(),
-                    expiresAt: Date.now() + 14 * 24 * 60 * 60 * 1000
-                  });
-                  sessionStorage.setItem('SWEETOS_user_scratchcards', JSON.stringify(scratchcards));
-                }
-              } catch(e) {
-                console.error('Failed to create scratchcard during sync:', e);
-              }
-              
-              customerNotifs.unshift({
-                id: Date.now() + Math.floor(Math.random() * 1000) + 2,
-                type: 'email',
-                icon: '📧',
-                title: `Nouveau Message: Votre Boîte Mystère`,
-                desc: `Vous avez reçu un e-mail concernant votre Boîte Mystère de la commande #${order.id}.<br>
-                  <div style="margin-top:8px;">
-                    <button class="open-email-modal-btn" data-order-id="${order.id}" style="background:var(--primary); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer;">Ouvrir l'E-mail 📩</button>
-                  </div>`,
-                time: 'Just now',
-                unread: true
-              });
-            }
-            
-            changed = true;
           }
+          
+          changed = true;
         }
-      });
-      
-      if (changed) {
-        sessionStorage.setItem('SWEETOS_processed_deliveries', JSON.stringify(processedDeliveries));
-        sessionStorage.setItem(notifKey, JSON.stringify(customerNotifs));
-        window.dispatchEvent(new CustomEvent('notifications:updated'));
       }
-    })
-    .catch(err => console.error('Failed to sync completed notifications from server:', err));
+    });
+    
+    if (changed) {
+      sessionStorage.setItem('SWEETOS_processed_deliveries', JSON.stringify(processedDeliveries));
+      sessionStorage.setItem(notifKey, JSON.stringify(customerNotifs));
+      window.dispatchEvent(new CustomEvent('notifications:updated'));
+    }
+  };
+
+  try {
+    import('./supabase.js').then(({ fetchOrdersFromSupabase }) => {
+      fetchOrdersFromSupabase(userEmail).then(orders => {
+        if (Array.isArray(orders) && orders.length > 0) {
+          processOrders(orders);
+        } else {
+          fetch('/api/orders')
+            .then(res => res.ok ? res.json() : [])
+            .then(processOrders)
+            .catch(() => {});
+        }
+      }).catch(() => {
+        fetch('/api/orders')
+          .then(res => res.ok ? res.json() : [])
+          .then(processOrders)
+          .catch(() => {});
+      });
+    });
+  } catch(e) {}
 }
 
 export function formatTimeAgo(dateOrTimestamp) {
