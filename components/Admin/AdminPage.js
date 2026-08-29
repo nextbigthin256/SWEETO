@@ -691,46 +691,66 @@ class AdminPage extends HTMLElement {
   loadCustomers() {
     const customersMap = new Map();
 
-    // Scan sessionStorage user profiles
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const key = sessionStorage.key(i);
-      if (key && key.startsWith('SWEETOS_user_profile_') && !key.endsWith('_guest')) {
-        try {
-          const profile = JSON.parse(sessionStorage.getItem(key));
-          if (profile && profile.email) {
-            const orders = profile.orders || [];
-            const spent = orders.reduce((sum, o) => sum + o.total, 0);
-            customersMap.set(profile.email.toLowerCase(), {
-              name: `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'SWEETOS Member',
-              email: profile.email,
-              phone: profile.phone || '',
-              ordersCount: orders.length,
-              totalSpent: spent,
-              registrationDate: profile.registrationDate || "14 août, 2026",
-              addresses: profile.addresses || []
-            });
+    const scanStorage = (storageObj) => {
+      if (!storageObj) return;
+      try {
+        for (let i = 0; i < storageObj.length; i++) {
+          const key = storageObj.key(i);
+          if (key && key.startsWith('SWEETOS_user_profile_') && !key.endsWith('_guest')) {
+            try {
+              const profile = JSON.parse(storageObj.getItem(key));
+              if (profile && profile.email) {
+                const email = profile.email.toLowerCase().trim();
+                const orders = profile.orders || [];
+                const spent = orders.reduce((sum, o) => sum + (o.total || 0), 0);
+                const name = `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || profile.name || 'SWEETOS Member';
+                
+                const existing = customersMap.get(email);
+                customersMap.set(email, {
+                  name: existing && existing.name !== 'SWEETOS Member' ? existing.name : name,
+                  email: profile.email,
+                  phone: profile.phone || existing?.phone || '',
+                  ordersCount: Math.max(orders.length, existing?.ordersCount || 0),
+                  totalSpent: Math.max(spent, existing?.totalSpent || 0),
+                  registrationDate: profile.registrationDate || existing?.registrationDate || "14 août, 2026",
+                  addresses: profile.addresses || existing?.addresses || []
+                });
+              }
+            } catch(e) {}
           }
-        } catch(e) {}
-      }
-    }
+        }
+      } catch(e) {}
+    };
+
+    scanStorage(localStorage);
+    scanStorage(sessionStorage);
 
     // Add values from checkout orders
-    this.orders.forEach(order => {
-      if (order.customerEmail) {
-        const email = order.customerEmail.toLowerCase();
+    (this.orders || []).forEach(order => {
+      if (order && order.customerEmail) {
+        const email = String(order.customerEmail).toLowerCase().trim();
+        const matchingOrders = (this.orders || []).filter(o => o && String(o.customerEmail || '').toLowerCase().trim() === email);
+        const totalSpent = matchingOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+
         if (customersMap.has(email)) {
           const exist = customersMap.get(email);
-          exist.ordersCount = Math.max(exist.ordersCount, this.orders.filter(o => o.customerEmail.toLowerCase() === email).length);
-          exist.totalSpent = this.orders.filter(o => o.customerEmail.toLowerCase() === email).reduce((sum, o) => sum + o.total, 0);
+          exist.ordersCount = Math.max(exist.ordersCount, matchingOrders.length);
+          exist.totalSpent = Math.max(exist.totalSpent, totalSpent);
+          if (order.customerName && exist.name === 'Guest User') {
+            exist.name = order.customerName;
+          }
+          if (order.customerPhone && !exist.phone) {
+            exist.phone = order.customerPhone;
+          }
         } else {
           customersMap.set(email, {
             name: order.customerName || "Guest User",
             email: order.customerEmail,
             phone: order.customerPhone || "",
-            ordersCount: 1,
-            totalSpent: order.total,
-            registrationDate: order.date,
-            addresses: [order.customerAddress]
+            ordersCount: matchingOrders.length,
+            totalSpent: totalSpent,
+            registrationDate: order.date || "14 août, 2026",
+            addresses: order.customerAddress ? [order.customerAddress] : []
           });
         }
       }
