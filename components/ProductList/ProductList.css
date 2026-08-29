@@ -5272,14 +5272,10 @@ input:checked + .toggle-slider:before {
 /* Responsive Mobile Layout for Category Toolbar & Pills */
 @media (max-width: 768px) {
   .category-toolbar-container,
-  .brand-toolbar-container {
-    padding: 10px 12px;
-    gap: 8px;
-    border-radius: 14px;
-    margin-bottom: 18px;
-    display: flex;
-    flex-direction: column;
-    align-items: stretch;
+  .brand-toolbar-container,
+  #category-toolbar,
+  #brand-toolbar {
+    display: none !important;
   }
 
   .category-toolbar-left,
