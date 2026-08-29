@@ -3930,15 +3930,86 @@ input:checked + .toggle-slider:before {
   }
 }
 
-@media (max-width: 600px) {
-  .home-category-row {
-    gap: 14px;
-    scroll-snap-type: x mandatory;
+@media (max-width: 768px) {
+  .home-category-showcase-section {
+    margin-bottom: 20px !important;
   }
+
+  .home-category-showcase-section .section-header {
+    margin-bottom: 12px !important;
+    gap: 8px !important;
+  }
+
+  .home-category-showcase-section .section-title {
+    font-size: 18px !important;
+    line-height: 1.2 !important;
+  }
+
+  .home-category-row {
+    gap: 10px !important;
+    padding-bottom: 8px !important;
+    scroll-snap-type: x mandatory !important;
+  }
+
   .home-category-card {
-    flex: 0 0 260px !important;
-    min-width: 260px !important;
-    max-width: 280px !important;
+    height: 135px !important;
+    flex: 0 0 160px !important;
+    min-width: 150px !important;
+    max-width: 175px !important;
+    padding: 10px 12px !important;
+    border-radius: 16px !important;
+    scroll-snap-align: start !important;
+  }
+
+  .home-category-card .cat-card-header {
+    margin-bottom: 0 !important;
+  }
+
+  .home-category-card .cat-card-tag,
+  .home-category-card .cat-card-desc,
+  .home-category-card .cat-card-cta {
+    display: none !important;
+  }
+
+  .home-category-card .cat-card-title {
+    font-size: 14px !important;
+    line-height: 1.2 !important;
+    margin-bottom: 2px !important;
+  }
+
+  .home-category-card .cat-card-badge {
+    font-size: 9.5px !important;
+    padding: 2px 6px !important;
+    border-radius: 6px !important;
+  }
+
+  .category-card-wrapper {
+    padding: 10px 8px !important;
+    margin-bottom: 16px !important;
+    border-radius: 14px !important;
+  }
+
+  .category-quick-row {
+    gap: 12px !important;
+  }
+
+  .quick-cat-icon {
+    width: 48px !important;
+    height: 48px !important;
+  }
+
+  .quick-cat-name {
+    font-size: 11px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .home-category-card {
+    height: 125px !important;
+    flex: 0 0 145px !important;
+    min-width: 140px !important;
+    max-width: 155px !important;
+    padding: 8px 10px !important;
   }
 }
 
