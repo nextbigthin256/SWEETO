@@ -1,19 +1,23 @@
+import { getStorageItem, getCartFromStorage } from '../../utils/storage.js';
+import { loadStyles } from '../../utils/cssLoader.js';
+import { mobileNavCSS } from './MobileNav.styles.js';
+
 class MobileNav extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
+    loadStyles(this.shadowRoot, mobileNavCSS);
   }
 
   connectedCallback() {
     this.render();
     this.setupEventListeners();
-    this.syncActiveTab(sessionStorage.getItem('SWEETOS_current_page') || 'home');
+    this.syncActiveTab(getStorageItem('SWEETOS_current_page') || 'home');
     this.syncBadges();
   }
 
   render() {
     this.shadowRoot.innerHTML = `
-      <link rel="stylesheet" href="./components/MobileNav/MobileNav.css">
       <div class="mobile-nav-bar">
         
         <!-- Tab 1: MY STORE -->
@@ -117,22 +121,24 @@ class MobileNav extends HTMLElement {
 
     // Sync cart badge quantity
     window.addEventListener('cart:updated', (e) => {
-      const cart = e.detail || [];
-      const count = cart.reduce((acc, item) => acc + item.quantity, 0);
-      const badge = shadow.getElementById('mobile-cart-badge');
-      if (badge) {
-        badge.textContent = count;
-        badge.style.display = count > 0 ? 'flex' : 'none';
-      }
+      this.syncBadges();
     });
 
     // Sync wishlist badge
     window.addEventListener('wishlist:updated', (e) => {
-      const wishlist = e.detail || [];
-      const badge = shadow.getElementById('mobile-wishlist-badge');
-      if (badge) {
-        badge.textContent = wishlist.length;
-        badge.style.display = wishlist.length > 0 ? 'flex' : 'none';
+      this.syncBadges();
+    });
+
+    // Listen for auth changes to reload badges
+    window.addEventListener('auth:changed', () => {
+      this.syncBadges();
+    });
+
+    // Listen for cross-tab storage changes
+    window.addEventListener('storage', (e) => {
+      if (e.key && (e.key.includes('SWEETOS_cart') || e.key.includes('SWEETOS_wishlist') || e.key === 'SWEETOS_current_page')) {
+        this.syncBadges();
+        this.syncActiveTab(getStorageItem('SWEETOS_current_page') || 'home');
       }
     });
   }
@@ -140,10 +146,10 @@ class MobileNav extends HTMLElement {
   syncBadges() {
     const shadow = this.shadowRoot;
 
-    // Cart badge
+    // 1. Cart badge
     try {
-      const cart = JSON.parse(sessionStorage.getItem('SWEETOS_cart') || '[]');
-      const count = cart.reduce((acc, item) => acc + item.quantity, 0);
+      const cart = getCartFromStorage();
+      const count = cart.reduce((acc, item) => acc + (item.quantity || 1), 0);
       const cartBadge = shadow.getElementById('mobile-cart-badge');
       if (cartBadge) {
         cartBadge.textContent = count;
@@ -151,9 +157,10 @@ class MobileNav extends HTMLElement {
       }
     } catch(e) {}
 
-    // Wishlist badge
+    // 2. Wishlist badge
     try {
-      const wishlist = JSON.parse(sessionStorage.getItem('SWEETOS_wishlist') || '[]');
+      const wishlistSaved = getStorageItem('SWEETOS_wishlist');
+      const wishlist = wishlistSaved ? JSON.parse(wishlistSaved) : [];
       const wishBadge = shadow.getElementById('mobile-wishlist-badge');
       if (wishBadge) {
         wishBadge.textContent = wishlist.length;

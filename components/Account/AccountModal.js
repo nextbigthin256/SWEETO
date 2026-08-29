@@ -217,14 +217,15 @@ class AccountModal extends HTMLElement {
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
         // Clear active session
-        sessionStorage.removeItem('SWEETOS_logged_in_user');
-        sessionStorage.removeItem('SWEETOS_user_profile');
-        sessionStorage.clear();
+        try { localStorage.removeItem('SWEETOS_logged_in_user'); } catch(e) {}
+        try { localStorage.removeItem('SWEETOS_user_profile'); } catch(e) {}
+        try { sessionStorage.removeItem('SWEETOS_logged_in_user'); } catch(e) {}
+        try { sessionStorage.removeItem('SWEETOS_user_profile'); } catch(e) {}
         
         window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: false } }));
         window.dispatchEvent(new CustomEvent('notifications:updated'));
         window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: 0 }));
-        window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Logged out successfully.' }));
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Déconnexion réussie.' }));
         
         this.isOpen = false;
         this.updateState();
