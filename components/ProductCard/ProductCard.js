@@ -124,7 +124,7 @@ class ProductCard extends HTMLElement {
             ${!hasCustomBadge && !p.isDeal && isHotDeal ? `<span class="status-badge hot-deal">🔥 -${discountVal || 20}% OFF</span>` : ''}
             ${!hasCustomBadge && !p.isDeal && isBestSeller ? `<span class="status-badge bestseller">⭐ BEST SELLER</span>` : ''}
             ${!hasCustomBadge && !p.isDeal && isNew ? `<span class="status-badge new">✨ NEW</span>` : ''}
-          </div>`,StartLine:62,TargetContent:
+          </div>
           
           <div class="overlay-actions">
             <button class="action-btn" id="quick-view-btn" title="Quick View">
