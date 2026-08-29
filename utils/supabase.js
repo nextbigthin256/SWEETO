@@ -93,7 +93,7 @@ export async function syncProductsToSupabase(productsList) {
       return { ...p, image: finalImg };
     }));
 
-    saveSiteSettingInSupabase('sweetos_cloud_products', processedProducts);
+    await saveSiteSettingInSupabase('sweetos_cloud_products', processedProducts);
 
     const records = processedProducts.map(p => {
       const legId = typeof p.id === 'number' ? p.id : (parseInt(p.id) || Date.now());
@@ -137,8 +137,26 @@ export async function syncProductsToSupabase(productsList) {
 export async function deleteProductPermanentlyFromSupabase(productOrId) {
   try {
     if (!supabase) return false;
-    let query = supabase.from('products').delete();
 
+    // 1. Clean from site_settings fallback
+    try {
+      const fallback = await fetchSiteSettingFromSupabase('sweetos_cloud_products');
+      if (Array.isArray(fallback)) {
+        const targetId = typeof productOrId === 'object' ? productOrId?.id : productOrId;
+        const targetName = typeof productOrId === 'object' ? productOrId?.name : productOrId;
+        const filtered = fallback.filter(p => {
+          if (!p) return false;
+          if (targetId && (p.id === targetId || String(p.id) === String(targetId))) return false;
+          if (targetName && p.name === targetName) return false;
+          return true;
+        });
+        await saveSiteSettingInSupabase('sweetos_cloud_products', filtered);
+        sessionStorage.setItem('SWEETOS_products', JSON.stringify(filtered));
+      }
+    } catch(e) {}
+
+    // 2. Delete from products Postgres table
+    let query = supabase.from('products').delete();
     if (typeof productOrId === 'object' && productOrId !== null) {
       const conditions = [];
       if (productOrId.id) conditions.push(`legacy_id.eq.${productOrId.id}`);
@@ -172,6 +190,17 @@ export async function deleteProductPermanentlyFromSupabase(productOrId) {
 export async function deleteMultipleProductsPermanentlyFromSupabase(productIds = []) {
   try {
     if (!supabase || !productIds.length) return false;
+
+    try {
+      const fallback = await fetchSiteSettingFromSupabase('sweetos_cloud_products');
+      if (Array.isArray(fallback)) {
+        const idSet = new Set(productIds.map(String));
+        const filtered = fallback.filter(p => p && p.id && !idSet.has(String(p.id)));
+        await saveSiteSettingInSupabase('sweetos_cloud_products', filtered);
+        sessionStorage.setItem('SWEETOS_products', JSON.stringify(filtered));
+      }
+    } catch(e) {}
+
     const { error } = await supabase
       .from('products')
       .delete()
@@ -303,7 +332,7 @@ export async function fetchCategoriesFromSupabase() {
 export async function syncCategoriesToSupabase(categoriesList) {
   try {
     if (!supabase || !Array.isArray(categoriesList)) return false;
-    saveSiteSettingInSupabase('sweetos_cloud_categories', categoriesList);
+    await saveSiteSettingInSupabase('sweetos_cloud_categories', categoriesList);
 
     const records = categoriesList.map(c => ({
       name: c.name,
@@ -365,7 +394,7 @@ export async function fetchBrandsFromSupabase() {
 export async function syncBrandsToSupabase(brandsList) {
   try {
     if (!supabase || !Array.isArray(brandsList)) return false;
-    saveSiteSettingInSupabase('sweetos_cloud_brands', brandsList);
+    await saveSiteSettingInSupabase('sweetos_cloud_brands', brandsList);
 
     const records = brandsList.map(b => ({
       name: b.name,
