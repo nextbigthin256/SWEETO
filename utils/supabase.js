@@ -15,7 +15,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export async function fetchProductsFromSupabase() {
   try {
-    let formatted = null;
+    const productMap = new Map();
 
     // 1. Fetch from products Postgres table
     try {
@@ -24,44 +24,52 @@ export async function fetchProductsFromSupabase() {
         .select('*')
         .order('created_at', { ascending: true });
 
-      if (!error && data && data.length > 0) {
-        formatted = data.map(p => ({
-          id: p.legacy_id || p.id,
-          uuid: p.id,
-          name: p.name,
-          slug: p.slug,
-          description: p.description,
-          price: parseFloat(p.price) || 0,
-          originalPrice: p.original_price ? parseFloat(p.original_price) : null,
-          category: p.category_name || '',
-          subcategory: p.subcategory_name || '',
-          brand: p.brand_name || '',
-          image: p.image,
-          gallery: p.gallery || [],
-          colors: p.colors || [],
-          specs: p.specs || {},
-          stock: p.stock ?? 10,
-          inStock: p.in_stock ?? true,
-          isBestseller: p.is_bestseller ?? false,
-          isHotDeal: p.is_hot_deal ?? false,
-          isNew: p.is_new ?? false,
-          rating: p.rating ? parseFloat(p.rating) : 5.0,
-          reviews: p.reviews_count ?? 0
-        }));
+      if (!error && Array.isArray(data)) {
+        data.forEach(p => {
+          const id = p.legacy_id || p.id;
+          if (id) {
+            productMap.set(String(id), {
+              id: id,
+              uuid: p.id,
+              name: p.name,
+              slug: p.slug,
+              description: p.description,
+              price: parseFloat(p.price) || 0,
+              originalPrice: p.original_price ? parseFloat(p.original_price) : null,
+              category: p.category_name || '',
+              subcategory: p.subcategory_name || '',
+              brand: p.brand_name || '',
+              image: p.image,
+              gallery: p.gallery || [],
+              colors: p.colors || [],
+              specs: p.specs || {},
+              stock: p.stock ?? 10,
+              inStock: p.in_stock ?? true,
+              isBestseller: p.is_bestseller ?? false,
+              isHotDeal: p.is_hot_deal ?? false,
+              isNew: p.is_new ?? false,
+              rating: p.rating ? parseFloat(p.rating) : 5.0,
+              reviews: p.reviews_count ?? 0
+            });
+          }
+        });
       }
     } catch(e) {}
 
-    // 2. Check site_settings cloud fallback (sweetos_cloud_products)
-    if (!formatted || formatted.length === 0) {
-      try {
-        const cloudFallback = await fetchSiteSettingFromSupabase('sweetos_cloud_products');
-        if (Array.isArray(cloudFallback) && cloudFallback.length > 0) {
-          formatted = cloudFallback;
-        }
-      } catch(e) {}
-    }
+    // 2. Merge from site_settings cloud fallback (sweetos_cloud_products)
+    try {
+      const cloudFallback = await fetchSiteSettingFromSupabase('sweetos_cloud_products');
+      if (Array.isArray(cloudFallback) && cloudFallback.length > 0) {
+        cloudFallback.forEach(p => {
+          if (p && p.id && !productMap.has(String(p.id))) {
+            productMap.set(String(p.id), p);
+          }
+        });
+      }
+    } catch(e) {}
 
-    if (formatted) {
+    const formatted = Array.from(productMap.values());
+    if (formatted.length > 0) {
       sessionStorage.setItem('SWEETOS_products', JSON.stringify(formatted));
       return formatted;
     }
@@ -255,26 +263,36 @@ export async function createProductInSupabase(prod) {
 
 export async function fetchCategoriesFromSupabase() {
   try {
-    let cats = null;
+    const catMap = new Map();
+
     try {
       const { data, error } = await supabase
         .from('categories')
         .select('*')
         .order('display_order', { ascending: true });
 
-      if (!error && data && data.length > 0) {
-        cats = data;
+      if (!error && Array.isArray(data)) {
+        data.forEach(c => {
+          const key = c.slug || c.name || c.id;
+          if (key) catMap.set(String(key).toLowerCase(), c);
+        });
       }
     } catch(e) {}
 
-    if (!cats || cats.length === 0) {
+    try {
       const fallback = await fetchSiteSettingFromSupabase('sweetos_cloud_categories');
-      if (Array.isArray(fallback) && fallback.length > 0) {
-        cats = fallback;
+      if (Array.isArray(fallback)) {
+        fallback.forEach(c => {
+          const key = c.slug || c.name || c.id;
+          if (key && !catMap.has(String(key).toLowerCase())) {
+            catMap.set(String(key).toLowerCase(), c);
+          }
+        });
       }
-    }
+    } catch(e) {}
 
-    if (cats) {
+    const cats = Array.from(catMap.values());
+    if (cats.length > 0) {
       sessionStorage.setItem('SWEETOS_categories', JSON.stringify(cats));
       return cats;
     }
@@ -307,26 +325,36 @@ export async function syncCategoriesToSupabase(categoriesList) {
 
 export async function fetchBrandsFromSupabase() {
   try {
-    let brands = null;
+    const brandMap = new Map();
+
     try {
       const { data, error } = await supabase
         .from('brands')
         .select('*')
         .order('display_order', { ascending: true });
 
-      if (!error && data && data.length > 0) {
-        brands = data;
+      if (!error && Array.isArray(data)) {
+        data.forEach(b => {
+          const key = b.slug || b.name || b.id;
+          if (key) brandMap.set(String(key).toLowerCase(), b);
+        });
       }
     } catch(e) {}
 
-    if (!brands || brands.length === 0) {
+    try {
       const fallback = await fetchSiteSettingFromSupabase('sweetos_cloud_brands');
-      if (Array.isArray(fallback) && fallback.length > 0) {
-        brands = fallback;
+      if (Array.isArray(fallback)) {
+        fallback.forEach(b => {
+          const key = b.slug || b.name || b.id;
+          if (key && !brandMap.has(String(key).toLowerCase())) {
+            brandMap.set(String(key).toLowerCase(), b);
+          }
+        });
       }
-    }
+    } catch(e) {}
 
-    if (brands) {
+    const brands = Array.from(brandMap.values());
+    if (brands.length > 0) {
       sessionStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
       return brands;
     }
