@@ -747,6 +747,15 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
           saveStorageItem('SWEETOS_user_profile', saved);
         }
 
+        // Sync customer profile to Supabase Cloud Database
+        import('../../utils/supabase.js').then(({ saveCustomerToSupabase }) => {
+          saveCustomerToSupabase({
+            name: userMatch.name || email.split('@')[0],
+            email: email,
+            phone: userMatch.phone || ''
+          });
+        }).catch(() => {});
+
         window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: true, email } }));
         window.dispatchEvent(new CustomEvent('profile:updated'));
         window.dispatchEvent(new CustomEvent('orders:updated'));

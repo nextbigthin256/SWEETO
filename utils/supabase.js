@@ -1187,27 +1187,37 @@ export async function saveCustomerToSupabase(customerData) {
       record.addresses = customerData.addresses;
     }
     
-    // Upsert into profiles table
-    await supabase.from('profiles').upsert([record], { onConflict: 'email' });
-
-    // Persist into site_settings cloud master list under 'sweetos_cloud_customers'
+    // 1. Upsert into profiles table
     try {
-      const existingCusts = await fetchCustomersFromSupabase();
-      const map = new Map(existingCusts.map(c => [c.email.trim().toLowerCase(), c]));
+      await supabase.from('profiles').upsert([record], { onConflict: 'email' });
+    } catch(e) {}
+
+    // 2. Persist into site_settings cloud master list under 'sweetos_cloud_customers'
+    try {
+      const { data: s } = await supabase.from('site_settings').select('value').eq('key', 'sweetos_cloud_customers').maybeSingle();
+      let cloudCusts = [];
+      if (s && s.value) {
+        try {
+          cloudCusts = typeof s.value === 'string' ? JSON.parse(s.value) : s.value;
+          if (!Array.isArray(cloudCusts)) cloudCusts = [];
+        } catch(e) {}
+      }
+
+      const map = new Map(cloudCusts.map(c => [c.email.trim().toLowerCase(), c]));
+      const existing = map.get(emailLower) || {};
       map.set(emailLower, {
-        name: record.full_name,
+        name: record.full_name || existing.name || 'Client',
         email: emailLower,
-        phone: record.phone,
-        addresses: record.addresses || [],
-        ordersCount: record.orders_count || 0,
-        totalSpent: record.total_spent || 0,
-        registrationDate: new Date().toLocaleDateString('fr-FR'),
-        badgeType: record.badge_type,
-        level: record.level,
-        unlockedBadges: record.unlocked_badges
+        phone: record.phone || existing.phone || '',
+        addresses: record.addresses || existing.addresses || [],
+        ordersCount: record.orders_count || existing.ordersCount || 0,
+        totalSpent: record.total_spent || existing.totalSpent || 0,
+        registrationDate: existing.registrationDate || new Date().toLocaleDateString('fr-FR'),
+        badgeType: record.badge_type || existing.badgeType || 'none',
+        level: record.level || existing.level || 'starter',
+        unlockedBadges: record.unlocked_badges || existing.unlockedBadges || []
       });
-      const updatedList = Array.from(map.values());
-      await saveSiteSettingInSupabase('sweetos_cloud_customers', updatedList);
+      await saveSiteSettingInSupabase('sweetos_cloud_customers', Array.from(map.values()));
     } catch(e) {}
   } catch(e) {}
 }
