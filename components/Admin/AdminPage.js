@@ -545,70 +545,18 @@ class AdminPage extends HTMLElement {
     };
     window.addEventListener('storage', this._storageOrdersListener);
 
-    // Fetch all database sources concurrently from local API & Supabase Cloud
-    import('../../utils/supabase.js').then(async ({ 
-      fetchProductsFromSupabase, 
-      fetchCategoriesFromSupabase, 
-      fetchBrandsFromSupabase, 
-      fetchOrdersFromSupabase, 
-      fetchCustomersFromSupabase,
-      fetchSettingsFromSupabase 
-    }) => {
-      try {
-        const [cloudProds, cloudCats, cloudBrands, cloudOrders, cloudCusts] = await Promise.allSettled([
-          fetchProductsFromSupabase(),
-          fetchCategoriesFromSupabase(),
-          fetchBrandsFromSupabase(),
-          fetchOrdersFromSupabase(),
-          fetchCustomersFromSupabase(),
-          fetchSettingsFromSupabase()
-        ]);
-
-        let hasCloudUpdates = false;
-        if (cloudProds.status === 'fulfilled' && Array.isArray(cloudProds.value)) {
-          this.products = cloudProds.value;
-          sessionStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
-          hasCloudUpdates = true;
-        }
-        if (cloudCats.status === 'fulfilled' && Array.isArray(cloudCats.value)) {
-          this.categories = cloudCats.value;
-          sessionStorage.setItem('SWEETOS_categories', JSON.stringify(this.categories));
-          hasCloudUpdates = true;
-        }
-        if (cloudBrands.status === 'fulfilled' && Array.isArray(cloudBrands.value)) {
-          this.brands = cloudBrands.value;
-          sessionStorage.setItem('SWEETOS_brands', JSON.stringify(this.brands));
-          hasCloudUpdates = true;
-        }
-        if (cloudOrders.status === 'fulfilled' && Array.isArray(cloudOrders.value)) {
-          const mergedOrders = [...cloudOrders.value];
-          (this.orders || []).forEach(localO => {
-            if (localO && localO.id && !mergedOrders.some(o => o.id === localO.id)) {
-              mergedOrders.push(localO);
-            }
-          });
-          this.orders = mergedOrders;
-          saveAllOrdersToStorage(this.orders);
-          hasCloudUpdates = true;
-        }
-        if (cloudCusts.status === 'fulfilled' && Array.isArray(cloudCusts.value)) {
-          this.customers = cloudCusts.value;
-          sessionStorage.setItem('SWEETOS_customers', JSON.stringify(this.customers));
-          hasCloudUpdates = true;
-        }
-
-        if (hasCloudUpdates) {
-          this.render();
-          this.attachListeners();
-        }
-      } catch(e) {}
-    }).catch(() => {});
+    // Load database state from Supabase Cloud on mount
+    this.loadDatabase().then(() => {
+      this.render();
+      this.attachListeners();
+    });
 
     // Listen to live database sync & order update signals
     this._supabaseListener = () => {
-      this.loadDatabase();
-      this.render();
-      this.attachListeners();
+      this.loadDatabase().then(() => {
+        this.render();
+        this.attachListeners();
+      });
     };
     window.addEventListener('supabase:ready', this._supabaseListener);
     window.addEventListener('orders:updated', this._supabaseListener);
