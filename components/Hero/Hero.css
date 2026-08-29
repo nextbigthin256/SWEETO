@@ -470,8 +470,14 @@
   }
 
   .hero-visual {
-    width: 100%;
-    max-width: 100%;
+    width: 100% !important;
+    max-width: 100% !important;
+    background: transparent !important;
+    background-color: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
   }
 
   .hero-title {
@@ -525,15 +531,18 @@
     display: none !important;
   }
 
-  /* Centered Square Product Image on Mobile with Top-Right Rating Badge */
+  /* Centered Transparent Square Product Image on Mobile */
   .hero-visual {
     display: flex !important;
     width: 100% !important;
     max-width: 100% !important;
     background: transparent !important;
+    background-color: transparent !important;
     border: none !important;
     padding: 0 !important;
     box-shadow: none !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
     flex-direction: column !important;
     align-items: center !important;
     justify-content: center !important;
