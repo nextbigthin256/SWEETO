@@ -225,6 +225,17 @@ h3.more-to-love-title em {
   width: 100%;
 }
 
+/* Adjust desktop product grids to 3 columns when cart/notification drawer is open */
+@media (min-width: 969px) {
+  .main-content:not(.cart-closed) .home-grid-4,
+  .main-content:not(.cart-closed) .product-grid,
+  .main-content:not(.cart-closed) .catalog-grid-4,
+  .main-content:not(.cart-closed) .rel-grid {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+}
+
+
 /* ================= CHILLING WISHLIST PAGE LAYOUTS ================= */
 .wishlist-container {
   width: 100%;
