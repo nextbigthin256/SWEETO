@@ -619,13 +619,30 @@ class ProductList extends HTMLElement {
 
   isProductInCategory(product, targetCatName) {
     if (!targetCatName || targetCatName === 'All') return true;
-    if (!product || !product.category) return false;
+    if (!product) return false;
     
+    const targetLower = String(targetCatName).trim().toLowerCase();
+    const prodCatLower = String(product.category || '').trim().toLowerCase();
+    const prodSubCatLower = String(product.subcategory || product.sub_category || '').trim().toLowerCase();
+
+    // 1. Direct match on category or subcategory
+    if (prodCatLower === targetLower || prodSubCatLower === targetLower) return true;
+
+    // 2. Allowed names from category hierarchy
     const allowedNames = this.getCategoryAndSubcategoryNames(targetCatName);
-    if (!allowedNames) return true;
-    
-    const prodCatLower = String(product.category).trim().toLowerCase();
-    return allowedNames.has(prodCatLower);
+    if (allowedNames) {
+      if (allowedNames.has(prodCatLower) || allowedNames.has(prodSubCatLower)) return true;
+      for (const name of allowedNames) {
+        if (prodCatLower && (prodCatLower.includes(name) || name.includes(prodCatLower))) return true;
+        if (prodSubCatLower && (prodSubCatLower.includes(name) || name.includes(prodSubCatLower))) return true;
+      }
+    }
+
+    // 3. Fallback partial/substring match
+    if (prodCatLower && (prodCatLower.includes(targetLower) || targetLower.includes(prodCatLower))) return true;
+    if (prodSubCatLower && (prodSubCatLower.includes(targetLower) || targetLower.includes(prodSubCatLower))) return true;
+
+    return false;
   }
 
   render() {
@@ -3765,7 +3782,13 @@ class ProductList extends HTMLElement {
       this.currentPage = targetPage;
       this.currentCategory = category || 'All';
       this.currentBrand = brand || '';
-      this.currentBrandFilter = 'All'; // Reset active brand filter on navigation change
+      this.currentBrandFilter = brand || 'All';
+      this.brandCategoryFilter = 'All';
+      this.brandLocalQuery = '';
+      this.brandInStockOnly = false;
+      this.catalogBrandFilter = 'All';
+      this.catalogLocalQuery = '';
+      this.catalogInStockOnly = false;
       this.activeFeaturedIndex = 0; // Reset active featured index on navigation changes
       if (e.detail && e.detail.query !== undefined) {
         this.currentQuery = e.detail.query;
