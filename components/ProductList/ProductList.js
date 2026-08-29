@@ -15,18 +15,24 @@ class ProductList extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     
     // Initialize products database from storage to enable Admin Panel synchronization
-    const storedProds = getStorageItem('SWEETOS_products');
-    if (storedProds !== null) {
-      try {
-        this.products = JSON.parse(storedProds);
-      } catch (e) {
-        this.products = [];
+    let loadedProducts = null;
+    try {
+      const storedProds = getStorageItem('SWEETOS_products');
+      if (storedProds !== null) {
+        const parsed = JSON.parse(storedProds);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          loadedProducts = parsed;
+        }
       }
-    } else {
-      this.products = products;
-      this.initializeHomepageSectionsForProducts(this.products);
-      saveStorageItem('SWEETOS_products', JSON.stringify(this.products));
+    } catch (e) {}
+
+    if (!loadedProducts || loadedProducts.length === 0) {
+      loadedProducts = products;
+      this.initializeHomepageSectionsForProducts(loadedProducts);
+      saveStorageItem('SWEETOS_products', JSON.stringify(loadedProducts));
     }
+
+    this.products = loadedProducts;
 
     // Auto-sanitize all product categories and names
     if (Array.isArray(this.products)) {
@@ -2687,7 +2693,10 @@ class ProductList extends HTMLElement {
         const gridHot = this.shadowRoot.getElementById('grid-hot-deals');
         if (gridHot) {
           gridHot.innerHTML = '';
-          const displayProducts = (hasAssigned ? assignedProducts : pools.deals).slice(0, 12);
+          let displayProducts = (hasAssigned ? assignedProducts : pools.deals).slice(0, 12);
+          if (displayProducts.length === 0) displayProducts = pools.deals.slice(0, 12);
+          if (displayProducts.length === 0) displayProducts = (this.products || []).slice(0, 12);
+
           displayProducts.forEach(p => {
             const card = document.createElement('product-card');
             card.product = p;
@@ -2699,7 +2708,10 @@ class ProductList extends HTMLElement {
         const gridNew = this.shadowRoot.getElementById('grid-new-arrivals');
         if (gridNew) {
           gridNew.innerHTML = '';
-          const displayProducts = (hasAssigned ? assignedProducts : pools.newArrivals).slice(0, 12);
+          let displayProducts = (hasAssigned ? assignedProducts : pools.newArrivals).slice(0, 12);
+          if (displayProducts.length === 0) displayProducts = pools.newArrivals.slice(0, 12);
+          if (displayProducts.length === 0) displayProducts = (this.products || []).slice(0, 12);
+
           displayProducts.forEach(p => {
             const card = document.createElement('product-card');
             card.product = p;
@@ -2710,7 +2722,10 @@ class ProductList extends HTMLElement {
         const gridBest = this.shadowRoot.getElementById('grid-best-sellers');
         if (gridBest) {
           gridBest.innerHTML = '';
-          const displayProducts = (hasAssigned ? assignedProducts : pools.bestSellers).slice(0, 12);
+          let displayProducts = (hasAssigned ? assignedProducts : pools.bestSellers).slice(0, 12);
+          if (displayProducts.length === 0) displayProducts = pools.bestSellers.slice(0, 12);
+          if (displayProducts.length === 0) displayProducts = (this.products || []).slice(0, 12);
+
           displayProducts.forEach(p => {
             const card = document.createElement('product-card');
             card.product = p;
