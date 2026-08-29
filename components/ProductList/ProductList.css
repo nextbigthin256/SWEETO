@@ -5525,41 +5525,63 @@ input:checked + .toggle-slider:before {
   }
 }
 
-/* Slidable 1-Line Product Rows (4 visible per view + smooth horizontal slide) */
-.slidable-product-row {
+/* Slidable 1-Line Product Rows (Hot Deals & Today's Deals) */
+.slidable-product-row,
+#grid-hot-deals,
+#grid-todays-deals.slidable-product-row,
+.carousel-scroll-wrapper {
   display: flex !important;
-  gap: 20px;
+  gap: 12px !important;
   overflow-x: auto !important;
-  scroll-behavior: smooth;
-  padding: 4px 4px 16px 4px;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: thin;
+  scroll-snap-type: x mandatory !important;
+  -webkit-overflow-scrolling: touch !important;
+  scrollbar-width: none !important;
+  padding-bottom: 8px !important;
+  margin: 0 -16px !important;
+  padding-left: 16px !important;
+  padding-right: 16px !important;
 }
 
-.slidable-product-row::-webkit-scrollbar {
-  height: 6px;
-}
-
-.slidable-product-row::-webkit-scrollbar-track {
-  background: rgba(0, 82, 204, 0.04);
-  border-radius: 6px;
-}
-
-.slidable-product-row::-webkit-scrollbar-thumb {
-  background: rgba(0, 82, 204, 0.18);
-  border-radius: 6px;
-}
-
-.slidable-product-row::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 82, 204, 0.35);
+.slidable-product-row::-webkit-scrollbar,
+#grid-hot-deals::-webkit-scrollbar,
+#grid-todays-deals::-webkit-scrollbar,
+.carousel-scroll-wrapper::-webkit-scrollbar {
+  display: none !important;
 }
 
 .slidable-product-row product-card,
+#grid-hot-deals product-card,
+#grid-todays-deals.slidable-product-row product-card,
 .carousel-scroll-wrapper product-card {
-  flex: 0 0 280px !important;
-  min-width: 260px !important;
-  max-width: 300px !important;
+  width: 160px !important;
+  min-width: 160px !important;
+  max-width: 160px !important;
+  flex: 0 0 160px !important;
+  flex-shrink: 0 !important;
+  scroll-snap-align: start !important;
   box-sizing: border-box !important;
+}
+
+@media (min-width: 600px) {
+  .slidable-product-row,
+  #grid-hot-deals,
+  #grid-todays-deals.slidable-product-row,
+  .carousel-scroll-wrapper {
+    gap: 16px !important;
+    margin: 0 !important;
+    padding-left: 0 !important;
+    padding-right: 0 !important;
+  }
+
+  .slidable-product-row product-card,
+  #grid-hot-deals product-card,
+  #grid-todays-deals.slidable-product-row product-card,
+  .carousel-scroll-wrapper product-card {
+    width: 240px !important;
+    min-width: 240px !important;
+    max-width: 240px !important;
+    flex: 0 0 240px !important;
+  }
 }
 
 @media (max-width: 768px) {

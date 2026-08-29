@@ -4,22 +4,28 @@
 export const productCardCSS = `
 .card {
   background: white;
-  border-radius: 16px;
+  border-radius: 14px;
   overflow: hidden;
-  box-shadow: 0 4px 16px -2px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
-  border: 1.5px solid #e2e8f0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
   width: 100%;
   position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
   box-sizing: border-box;
 }
 
+@media (min-width: 600px) {
+  .card {
+    border-radius: 16px;
+  }
+}
+
 .card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 30px rgba(37, 99, 235, 0.12);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
   border-color: #2563eb;
 }
 
@@ -27,7 +33,6 @@ export const productCardCSS = `
   position: relative;
   overflow: hidden;
   width: 100%;
-  height: 200px;
   background: #f8fafc;
   display: flex;
   align-items: center;
@@ -36,7 +41,7 @@ export const productCardCSS = `
 
 .card-image {
   width: 100%;
-  height: 100%;
+  height: 130px;
   object-fit: cover;
   display: block;
   padding: 0;
@@ -44,8 +49,37 @@ export const productCardCSS = `
   transition: transform 0.35s ease;
 }
 
+@media (min-width: 600px) {
+  .card-image {
+    height: 180px;
+  }
+}
+
 .card:hover .card-image {
-  transform: scale(1.06);
+  transform: scale(1.04);
+}
+
+.discount-badge {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  background: #ef4444;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 20px;
+  line-height: 1.2;
+  z-index: 4;
+}
+
+@media (min-width: 600px) {
+  .discount-badge {
+    font-size: 13px;
+    padding: 5px 12px;
+    bottom: 12px;
+    right: 12px;
+  }
 }
 
 .heart-btn {
@@ -53,19 +87,26 @@ export const productCardCSS = `
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%) scale(0.8);
-  width: 60px;
-  height: 60px;
+  width: 44px;
+  height: 44px;
   background: #2563eb;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: all 0.3s ease;
   cursor: pointer;
   border: none;
   z-index: 5;
-  box-shadow: 0 8px 24px rgba(37, 99, 235, 0.4);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+}
+
+@media (min-width: 600px) {
+  .heart-btn {
+    width: 56px;
+    height: 56px;
+  }
 }
 
 .card:hover .heart-btn {
@@ -73,18 +114,25 @@ export const productCardCSS = `
   transform: translate(-50%, -50%) scale(1);
 }
 
-.heart-btn:hover {
-  background: #1d4ed8;
-  transform: translate(-50%, -50%) scale(1.08);
+.heart-btn.active {
+  opacity: 1 !important;
+  transform: translate(-50%, -50%) scale(1) !important;
 }
 
 .heart-btn svg {
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   fill: none;
   stroke: white;
   stroke-width: 2.5;
   transition: all 0.2s ease;
+}
+
+@media (min-width: 600px) {
+  .heart-btn svg {
+    width: 28px;
+    height: 28px;
+  }
 }
 
 .heart-btn.active svg {
@@ -93,8 +141,8 @@ export const productCardCSS = `
 
 .overlay-side-actions {
   position: absolute;
-  bottom: 8px;
-  right: 8px;
+  top: 8px;
+  left: 8px;
   display: flex;
   gap: 6px;
   opacity: 0;
@@ -111,8 +159,8 @@ export const productCardCSS = `
   backdrop-filter: blur(6px);
   border: 1px solid #e2e8f0;
   color: #2563eb;
-  width: 32px;
-  height: 32px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -129,14 +177,14 @@ export const productCardCSS = `
 
 .category-badge {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  top: 8px;
+  left: 8px;
   background: rgba(255, 255, 255, 0.92);
   backdrop-filter: blur(8px);
   border: 1px solid #e2e8f0;
-  padding: 3px 9px;
+  padding: 3px 8px;
   border-radius: 8px;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 750;
   color: #2563eb;
   z-index: 3;
@@ -150,8 +198,8 @@ export const productCardCSS = `
 
 .status-badge-container {
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 8px;
+  right: 8px;
   display: flex;
   flex-direction: column;
   gap: 4px;
@@ -159,9 +207,9 @@ export const productCardCSS = `
 }
 
 .status-badge {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 850;
-  padding: 3px 8px;
+  padding: 3px 7px;
   border-radius: 8px;
   color: white;
   line-height: 1;
@@ -172,34 +220,54 @@ export const productCardCSS = `
 .status-badge.new { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
 
 .card-content {
-  padding: 16px;
+  padding: 12px;
   display: flex;
   flex-direction: column;
   flex-grow: 1;
 }
 
+@media (min-width: 600px) {
+  .card-content {
+    padding: 16px;
+  }
+}
+
 .category-name {
-  font-size: 12.5px;
-  font-weight: 400;
-  color: #2563eb;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-bottom: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 600px) {
+  .category-name {
+    font-size: 13px;
+  }
 }
 
 .product-title {
-  font-size: 16px;
-  font-weight: 800;
-  color: #111827;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 10px;
+  font-weight: 600;
+  color: #6b7280;
   margin-bottom: 8px;
-  cursor: pointer;
+  line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  min-height: 26px;
+  cursor: pointer;
   transition: color 0.2s ease;
+}
+
+@media (min-width: 600px) {
+  .product-title {
+    font-size: 12px;
+    min-height: 32px;
+  }
 }
 
 .product-title:hover {
@@ -207,71 +275,85 @@ export const productCardCSS = `
 }
 
 .divider {
-  height: 1px;
-  background-color: #e5e7eb;
-  margin-bottom: 12px;
-  margin-top: 4px;
+  display: none;
 }
 
 .price-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 8px;
   margin-top: auto;
 }
 
 .price-info {
   flex: 1;
+  min-width: 0;
 }
 
 .current-price {
-  font-size: 18px;
+  font-size: 13px;
   font-weight: 800;
-  color: #2563eb;
+  color: #ef4444;
   margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (min-width: 600px) {
+  .current-price {
+    font-size: 16px;
+  }
 }
 
 .old-price-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
 .old-price {
-  font-size: 13px;
-  color: #9ca3af;
+  font-size: 10px;
+  color: #d1d5db;
   text-decoration: line-through;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.discount-badge {
-  font-size: 11px;
-  font-weight: 700;
-  color: #ef4444;
-  background-color: #fef2f2;
-  padding: 2px 6px;
-  border-radius: 4px;
+@media (min-width: 600px) {
+  .old-price {
+    font-size: 13px;
+  }
 }
 
 .add-btn {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
+  width: 36px;
+  height: 36px;
   background: #2563eb;
   border: none;
-  cursor: pointer;
+  border-radius: 10px;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: white;
-  transition: background 0.2s ease, transform 0.15s ease;
+  cursor: pointer;
+  transition: all 0.2s ease;
   flex-shrink: 0;
+  color: white;
+}
+
+@media (min-width: 600px) {
+  .add-btn {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+  }
 }
 
 .add-btn:hover {
   background: #1d4ed8;
-  transform: scale(1.04);
+  transform: scale(1.08);
 }
 
 .add-btn:active {
@@ -279,105 +361,12 @@ export const productCardCSS = `
 }
 
 .add-btn-text {
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.1;
+  display: none;
 }
 
 .add-btn-icon {
-  font-size: 16px;
-  font-weight: 800;
+  font-size: 20px;
+  font-weight: bold;
   line-height: 1;
-}
-
-@media (max-width: 768px) {
-  .card {
-    border-radius: 12px;
-    border-width: 1px;
-  }
-  .image-wrapper {
-    height: 135px !important;
-  }
-  .heart-btn {
-    width: 42px !important;
-    height: 42px !important;
-  }
-  .heart-btn svg {
-    width: 20px !important;
-    height: 20px !important;
-  }
-  .card-content {
-    padding: 8px 10px 10px 10px !important;
-  }
-  .category-name {
-    font-size: 10.5px !important;
-    margin-bottom: 2px !important;
-  }
-  .product-title {
-    font-size: 12.5px !important;
-    line-height: 1.25 !important;
-    margin-bottom: 4px !important;
-    -webkit-line-clamp: 2 !important;
-  }
-  .divider {
-    margin-top: 2px !important;
-    margin-bottom: 6px !important;
-  }
-  .price-row {
-    gap: 6px !important;
-  }
-  .current-price {
-    font-size: 14px !important;
-    margin-bottom: 1px !important;
-  }
-  .old-price {
-    font-size: 10.5px !important;
-  }
-  .discount-badge {
-    font-size: 9.5px !important;
-    padding: 1px 4px !important;
-  }
-  .add-btn {
-    width: 38px !important;
-    height: 38px !important;
-    border-radius: 9px !important;
-  }
-  .add-btn-text {
-    font-size: 9.5px !important;
-  }
-  .add-btn-icon {
-    font-size: 13px !important;
-  }
-  .status-badge {
-    font-size: 8.5px !important;
-    padding: 2px 6px !important;
-    border-radius: 6px !important;
-  }
-}
-
-@media (max-width: 480px) {
-  .image-wrapper {
-    height: 120px !important;
-  }
-  .card-content {
-    padding: 6px 8px 8px 8px !important;
-  }
-  .product-title {
-    font-size: 12px !important;
-  }
-  .current-price {
-    font-size: 13px !important;
-  }
-  .add-btn {
-    width: 34px !important;
-    height: 34px !important;
-    border-radius: 8px !important;
-  }
-  .add-btn-text {
-    display: none !important;
-  }
-  .add-btn-icon {
-    font-size: 16px !important;
-  }
 }
 `;
