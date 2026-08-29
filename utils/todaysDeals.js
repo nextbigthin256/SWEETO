@@ -8,6 +8,7 @@
  */
 
 import { getNotificationsStorageKey, getScratchcardsStorageKey, isLocalDevHost } from './storage.js';
+import { saveSiteSettingInSupabase, fetchSiteSettingFromSupabase } from './supabase.js';
 
 const STORAGE_KEY = 'SWEETOS_todays_deals';
 
@@ -139,6 +140,12 @@ export function getDefaultTodaysDealsConfig() {
 
 export function getTodaysDealsConfig() {
   try {
+    fetchSiteSettingFromSupabase('todays_deals_config').then(cloudConf => {
+      if (cloudConf) {
+        sessionStorage.setItem(STORAGE_KEY, JSON.stringify(cloudConf));
+      }
+    }).catch(() => {});
+
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) {
       const def = getDefaultTodaysDealsConfig();
@@ -207,6 +214,7 @@ export function saveTodaysDealsConfig(config) {
     const wasOff = !prevCfg.enabled || (prevCfg.endsAt && Date.now() >= prevCfg.endsAt);
     
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(config));
+    saveSiteSettingInSupabase('todays_deals_config', config);
     window.dispatchEvent(new CustomEvent('todays_deals:updated', { detail: config }));
     
     // If deals turned ON or timer restarted while enabled, notify customers!
