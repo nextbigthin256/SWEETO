@@ -65,7 +65,6 @@ class NotificationDrawer extends HTMLElement {
 
   loadNotifications() {
     this.notifications = getNotificationsFromStorage();
-    }
 
     // Ensure all existing notifications have a numeric createdAt timestamp
     let needsSave = false;
