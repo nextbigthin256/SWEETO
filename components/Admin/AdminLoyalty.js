@@ -1,5 +1,6 @@
 import { CUSTOMER_LEVELS, VERIFIED_BADGES, renderVerificationBadge, renderLevelPill, getCustomerLevel, getCustomerBadge, grantBadgeReward, getBadgeRewardCoupon, getCustomerAvatarStyle, renderLevelChevronV } from '../../utils/badges.js';
 import { formatPrice, isLocalDevHost } from '../../utils/storage.js';
+import { saveCustomerToSupabase } from '../../utils/supabase.js';
 
 let searchQuery = '';
 let filterTier = 'all';
@@ -521,6 +522,15 @@ export function attachAdminLoyaltyListeners(context, shadow) {
       }
 
       sessionStorage.setItem('SWEETOS_customers', JSON.stringify(customers));
+
+      // Save customer profile and loyalty badges to Supabase Cloud
+      saveCustomerToSupabase({
+        email: custEmail,
+        name: target?.name || 'Client',
+        level: selectedLevel,
+        badgeType: selectedBadge,
+        unlockedBadges: checkedBadges
+      });
 
       // Sync customer user profile in sessionStorage
       try {
