@@ -400,12 +400,65 @@ export async function syncBrandsToSupabase(brandsList) {
       name: b.name,
       slug: (b.slug || b.name || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''),
       description: b.description || '',
+      logo: b.logo || b.logo_url || b.image || '',
+      banner_image: b.banner_image || b.bannerImage || '',
+      website: b.website || '',
       is_official: b.isOfficial ?? true
     }));
 
-    await supabase.from('brands').upsert(records, { onConflict: 'slug' }).catch(() => {});
+    const { error } = await supabase.from('brands').upsert(records, { onConflict: 'slug' });
+    if (!error) {
+      console.log('✅ [Supabase Cloud] Brands synced successfully!', records.length);
+    } else {
+      console.warn('⚠️ [Supabase Cloud] Brands table upsert note:', error.message);
+    }
     return true;
   } catch (err) {
+    console.error('❌ [Supabase Cloud] syncBrands error:', err);
+    return false;
+  }
+}
+
+export async function deleteBrandFromSupabase(brandOrSlug) {
+  try {
+    if (!supabase) return false;
+    const targetSlug = typeof brandOrSlug === 'object' ? (brandOrSlug.slug || brandOrSlug.name) : brandOrSlug;
+    if (!targetSlug) return false;
+
+    try {
+      const fallback = await fetchSiteSettingFromSupabase('sweetos_cloud_brands');
+      if (Array.isArray(fallback)) {
+        const filtered = fallback.filter(b => b && b.slug !== targetSlug && b.name !== targetSlug);
+        await saveSiteSettingInSupabase('sweetos_cloud_brands', filtered);
+        sessionStorage.setItem('SWEETOS_brands', JSON.stringify(filtered));
+      }
+    } catch(e) {}
+
+    const { error } = await supabase.from('brands').delete().eq('slug', targetSlug);
+    return !error;
+  } catch(e) {
+    return false;
+  }
+}
+
+export async function deleteCategoryFromSupabase(categoryOrSlug) {
+  try {
+    if (!supabase) return false;
+    const targetSlug = typeof categoryOrSlug === 'object' ? (categoryOrSlug.slug || categoryOrSlug.name) : categoryOrSlug;
+    if (!targetSlug) return false;
+
+    try {
+      const fallback = await fetchSiteSettingFromSupabase('sweetos_cloud_categories');
+      if (Array.isArray(fallback)) {
+        const filtered = fallback.filter(c => c && c.slug !== targetSlug && c.name !== targetSlug);
+        await saveSiteSettingInSupabase('sweetos_cloud_categories', filtered);
+        sessionStorage.setItem('SWEETOS_categories', JSON.stringify(filtered));
+      }
+    } catch(e) {}
+
+    const { error } = await supabase.from('categories').delete().eq('slug', targetSlug);
+    return !error;
+  } catch(e) {
     return false;
   }
 }
