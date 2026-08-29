@@ -1,4 +1,5 @@
 import { isLocalDevHost } from '../../utils/storage.js';
+import { saveSiteSettingInSupabase, fetchSiteSettingFromSupabase } from '../../utils/supabase.js';
 
 export function renderAdminSettings(context) {
   const currentSubTab = context.settingsSubTab || 'general';
@@ -673,16 +674,34 @@ export function attachAdminSettingsListeners(context, shadow) {
   // 1. General Info Form Submit
   const generalForm = shadow.getElementById('settings-general-form');
   if (generalForm) {
-    generalForm.addEventListener('submit', (e) => {
+    generalForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      sessionStorage.setItem('SWEETOS_store_name', shadow.getElementById('set-store-name').value.trim());
-      sessionStorage.setItem('SWEETOS_store_email', shadow.getElementById('set-store-email').value.trim());
-      sessionStorage.setItem('SWEETOS_store_phone', shadow.getElementById('set-store-phone').value.trim());
-      sessionStorage.setItem('SWEETOS_store_addr', shadow.getElementById('set-store-addr').value.trim());
-      sessionStorage.setItem('SWEETOS_store_hours', shadow.getElementById('set-store-hours').value.trim());
-      sessionStorage.setItem('SWEETOS_store_desc', shadow.getElementById('set-store-desc').value.trim());
-      sessionStorage.setItem('SWEETOS_store_about_story', shadow.getElementById('set-store-about-story').value.trim());
-      window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Store identity settings saved!' }));
+      const sName = shadow.getElementById('set-store-name').value.trim();
+      const sEmail = shadow.getElementById('set-store-email').value.trim();
+      const sPhone = shadow.getElementById('set-store-phone').value.trim();
+      const sAddr = shadow.getElementById('set-store-addr').value.trim();
+      const sHours = shadow.getElementById('set-store-hours').value.trim();
+      const sDesc = shadow.getElementById('set-store-desc').value.trim();
+      const sStory = shadow.getElementById('set-store-about-story').value.trim();
+
+      sessionStorage.setItem('SWEETOS_store_name', sName);
+      sessionStorage.setItem('SWEETOS_store_email', sEmail);
+      sessionStorage.setItem('SWEETOS_store_phone', sPhone);
+      sessionStorage.setItem('SWEETOS_store_addr', sAddr);
+      sessionStorage.setItem('SWEETOS_store_hours', sHours);
+      sessionStorage.setItem('SWEETOS_store_desc', sDesc);
+      sessionStorage.setItem('SWEETOS_store_about_story', sStory);
+
+      await Promise.allSettled([
+        saveSiteSettingInSupabase('SWEETOS_store_name', sName),
+        saveSiteSettingInSupabase('SWEETOS_store_email', sEmail),
+        saveSiteSettingInSupabase('SWEETOS_store_phone', sPhone),
+        saveSiteSettingInSupabase('SWEETOS_store_addr', sAddr),
+        saveSiteSettingInSupabase('SWEETOS_store_hours', sHours),
+        saveSiteSettingInSupabase('SWEETOS_store_desc', sDesc),
+        saveSiteSettingInSupabase('SWEETOS_store_about_story', sStory)
+      ]);
+      window.dispatchEvent(new CustomEvent('toast:show', { detail: '⚡ Store identity settings saved to Supabase Cloud!' }));
     });
   }
 
@@ -703,89 +722,169 @@ export function attachAdminSettingsListeners(context, shadow) {
       accentTextInput.addEventListener('input', () => accentColorInput.value = accentTextInput.value);
     }
 
-    brandForm.addEventListener('submit', (e) => {
+    brandForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      sessionStorage.setItem('SWEETOS_brand_tagline', shadow.getElementById('set-brand-tagline').value.trim());
-      sessionStorage.setItem('SWEETOS_brand_color_primary', shadow.getElementById('set-brand-color-primary').value.trim());
-      sessionStorage.setItem('SWEETOS_brand_color_accent', shadow.getElementById('set-brand-color-accent').value.trim());
-      sessionStorage.setItem('SWEETOS_fb_url', shadow.getElementById('set-fb-url').value.trim());
-      sessionStorage.setItem('SWEETOS_ig_url', shadow.getElementById('set-ig-url').value.trim());
-      sessionStorage.setItem('SWEETOS_seo_desc', shadow.getElementById('set-seo-desc').value.trim());
-      window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Brand & SEO settings saved!' }));
+      const tagline = shadow.getElementById('set-brand-tagline').value.trim();
+      const primary = shadow.getElementById('set-brand-color-primary').value.trim();
+      const accent = shadow.getElementById('set-brand-color-accent').value.trim();
+      const fb = shadow.getElementById('set-fb-url').value.trim();
+      const ig = shadow.getElementById('set-ig-url').value.trim();
+      const seo = shadow.getElementById('set-seo-desc').value.trim();
+
+      sessionStorage.setItem('SWEETOS_brand_tagline', tagline);
+      sessionStorage.setItem('SWEETOS_brand_color_primary', primary);
+      sessionStorage.setItem('SWEETOS_brand_color_accent', accent);
+      sessionStorage.setItem('SWEETOS_fb_url', fb);
+      sessionStorage.setItem('SWEETOS_ig_url', ig);
+      sessionStorage.setItem('SWEETOS_seo_desc', seo);
+
+      await Promise.allSettled([
+        saveSiteSettingInSupabase('SWEETOS_brand_tagline', tagline),
+        saveSiteSettingInSupabase('SWEETOS_brand_color_primary', primary),
+        saveSiteSettingInSupabase('SWEETOS_brand_color_accent', accent),
+        saveSiteSettingInSupabase('SWEETOS_fb_url', fb),
+        saveSiteSettingInSupabase('SWEETOS_ig_url', ig),
+        saveSiteSettingInSupabase('SWEETOS_seo_desc', seo)
+      ]);
+      window.dispatchEvent(new CustomEvent('toast:show', { detail: '⚡ Brand & SEO settings saved to Supabase Cloud!' }));
     });
   }
 
   // 3. Notifications Form Submit
   const notifForm = shadow.getElementById('settings-notifications-form');
   if (notifForm) {
-    notifForm.addEventListener('submit', (e) => {
+    notifForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      sessionStorage.setItem('SWEETOS_notif_email', shadow.getElementById('set-notif-email').checked ? 'true' : 'false');
-      sessionStorage.setItem('SWEETOS_notif_stock', shadow.getElementById('set-notif-stock').checked ? 'true' : 'false');
-      sessionStorage.setItem('SWEETOS_notif_sound', shadow.getElementById('set-notif-sound').checked ? 'true' : 'false');
-      sessionStorage.setItem('SWEETOS_notif_threshold', shadow.getElementById('set-threshold-num').value);
-      window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Notification rules updated!' }));
+      const email = shadow.getElementById('set-notif-email').checked ? 'true' : 'false';
+      const stock = shadow.getElementById('set-notif-stock').checked ? 'true' : 'false';
+      const sound = shadow.getElementById('set-notif-sound').checked ? 'true' : 'false';
+      const threshold = shadow.getElementById('set-threshold-num').value;
+
+      sessionStorage.setItem('SWEETOS_notif_email', email);
+      sessionStorage.setItem('SWEETOS_notif_stock', stock);
+      sessionStorage.setItem('SWEETOS_notif_sound', sound);
+      sessionStorage.setItem('SWEETOS_notif_threshold', threshold);
+
+      await Promise.allSettled([
+        saveSiteSettingInSupabase('SWEETOS_notif_email', email),
+        saveSiteSettingInSupabase('SWEETOS_notif_stock', stock),
+        saveSiteSettingInSupabase('SWEETOS_notif_sound', sound),
+        saveSiteSettingInSupabase('SWEETOS_notif_threshold', threshold)
+      ]);
+      window.dispatchEvent(new CustomEvent('toast:show', { detail: '⚡ Notification rules updated on Supabase Cloud!' }));
     });
   }
 
   // 4. Localization Form Submit
   const localeForm = shadow.getElementById('settings-localization-form');
   if (localeForm) {
-    localeForm.addEventListener('submit', (e) => {
+    localeForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      sessionStorage.setItem('SWEETOS_currency', shadow.getElementById('set-currency').value);
-      sessionStorage.setItem('SWEETOS_timezone', shadow.getElementById('set-timezone').value);
-      sessionStorage.setItem('SWEETOS_language', shadow.getElementById('set-language').value);
-      window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Localization settings saved!' }));
+      const curr = shadow.getElementById('set-currency').value;
+      const tz = shadow.getElementById('set-timezone').value;
+      const lang = shadow.getElementById('set-language').value;
+
+      sessionStorage.setItem('SWEETOS_currency', curr);
+      sessionStorage.setItem('SWEETOS_timezone', tz);
+      sessionStorage.setItem('SWEETOS_language', lang);
+
+      await Promise.allSettled([
+        saveSiteSettingInSupabase('SWEETOS_currency', curr),
+        saveSiteSettingInSupabase('SWEETOS_timezone', tz),
+        saveSiteSettingInSupabase('SWEETOS_language', lang)
+      ]);
+      window.dispatchEvent(new CustomEvent('toast:show', { detail: '⚡ Localization settings saved to Supabase Cloud!' }));
     });
   }
 
   // 5. Shipping Form Submit
   const shippingForm = shadow.getElementById('settings-shipping-form');
   if (shippingForm) {
-    shippingForm.addEventListener('submit', (e) => {
+    shippingForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      sessionStorage.setItem('SWEETOS_shipping_rate', shadow.getElementById('set-shipping-rate').value);
-      sessionStorage.setItem('SWEETOS_free_shipping_threshold', shadow.getElementById('set-free-shipping').value);
-      sessionStorage.setItem('SWEETOS_shipping_provider', shadow.getElementById('set-shipping-provider').value.trim());
-      window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Shipping settings saved!' }));
+      const rate = shadow.getElementById('set-shipping-rate').value;
+      const freeThresh = shadow.getElementById('set-free-shipping').value;
+      const provider = shadow.getElementById('set-shipping-provider').value.trim();
+
+      sessionStorage.setItem('SWEETOS_shipping_rate', rate);
+      sessionStorage.setItem('SWEETOS_free_shipping_threshold', freeThresh);
+      sessionStorage.setItem('SWEETOS_shipping_provider', provider);
+
+      await Promise.allSettled([
+        saveSiteSettingInSupabase('SWEETOS_shipping_rate', rate),
+        saveSiteSettingInSupabase('SWEETOS_free_shipping_threshold', freeThresh),
+        saveSiteSettingInSupabase('SWEETOS_shipping_provider', provider)
+      ]);
+      window.dispatchEvent(new CustomEvent('toast:show', { detail: '⚡ Shipping settings saved to Supabase Cloud!' }));
     });
   }
 
   // 6. Payment Gateways Form Submit
   const paymentForm = shadow.getElementById('settings-payment-form');
   if (paymentForm) {
-    paymentForm.addEventListener('submit', (e) => {
+    paymentForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      sessionStorage.setItem('SWEETOS_payment_cod_enabled', shadow.getElementById('set-payment-cod').checked ? 'true' : 'false');
-      sessionStorage.setItem('SWEETOS_payment_momo_enabled', shadow.getElementById('set-payment-momo').checked ? 'true' : 'false');
-      sessionStorage.setItem('SWEETOS_payment_card_enabled', shadow.getElementById('set-payment-card').checked ? 'true' : 'false');
-      sessionStorage.setItem('SWEETOS_payment_momo_instructions', shadow.getElementById('set-payment-momo-inst').value.trim());
-      window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Payment gateway preferences saved!' }));
+      const cod = shadow.getElementById('set-payment-cod').checked ? 'true' : 'false';
+      const momo = shadow.getElementById('set-payment-momo').checked ? 'true' : 'false';
+      const card = shadow.getElementById('set-payment-card').checked ? 'true' : 'false';
+      const momoInst = shadow.getElementById('set-payment-momo-inst').value.trim();
+
+      sessionStorage.setItem('SWEETOS_payment_cod_enabled', cod);
+      sessionStorage.setItem('SWEETOS_payment_momo_enabled', momo);
+      sessionStorage.setItem('SWEETOS_payment_card_enabled', card);
+      sessionStorage.setItem('SWEETOS_payment_momo_instructions', momoInst);
+
+      await Promise.allSettled([
+        saveSiteSettingInSupabase('SWEETOS_payment_cod_enabled', cod),
+        saveSiteSettingInSupabase('SWEETOS_payment_momo_enabled', momo),
+        saveSiteSettingInSupabase('SWEETOS_payment_card_enabled', card),
+        saveSiteSettingInSupabase('SWEETOS_payment_momo_instructions', momoInst)
+      ]);
+      window.dispatchEvent(new CustomEvent('toast:show', { detail: '⚡ Payment gateway preferences saved to Supabase Cloud!' }));
     });
   }
 
   // 7. Tax Form Submit
   const taxForm = shadow.getElementById('settings-tax-form');
   if (taxForm) {
-    taxForm.addEventListener('submit', (e) => {
+    taxForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      sessionStorage.setItem('SWEETOS_vat_rate', shadow.getElementById('set-vat-rate').value);
-      sessionStorage.setItem('SWEETOS_tax_mode', shadow.getElementById('set-tax-mode').value);
-      window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Tax & Invoicing settings saved!' }));
+      const vat = shadow.getElementById('set-vat-rate').value;
+      const mode = shadow.getElementById('set-tax-mode').value;
+
+      sessionStorage.setItem('SWEETOS_vat_rate', vat);
+      sessionStorage.setItem('SWEETOS_tax_mode', mode);
+
+      await Promise.allSettled([
+        saveSiteSettingInSupabase('SWEETOS_vat_rate', vat),
+        saveSiteSettingInSupabase('SWEETOS_tax_mode', mode)
+      ]);
+      window.dispatchEvent(new CustomEvent('toast:show', { detail: '⚡ Tax & Invoicing settings saved to Supabase Cloud!' }));
     });
   }
 
   // 8. Appearance Form Submit
   const appForm = shadow.getElementById('settings-appearance-form');
   if (appForm) {
-    appForm.addEventListener('submit', (e) => {
+    appForm.addEventListener('submit', async (e) => {
       e.preventDefault();
-      sessionStorage.setItem('SWEETOS_theme_mode', shadow.getElementById('set-theme-mode').value);
-      sessionStorage.setItem('SWEETOS_font_family', shadow.getElementById('set-font-family').value);
-      sessionStorage.setItem('SWEETOS_hero_title', shadow.getElementById('set-hero-title').value.trim());
-      sessionStorage.setItem('SWEETOS_hero_subtitle', shadow.getElementById('set-hero-subtitle').value.trim());
-      window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Appearance settings saved!' }));
+      const theme = shadow.getElementById('set-theme-mode').value;
+      const font = shadow.getElementById('set-font-family').value;
+      const hTitle = shadow.getElementById('set-hero-title').value.trim();
+      const hSub = shadow.getElementById('set-hero-subtitle').value.trim();
+
+      sessionStorage.setItem('SWEETOS_theme_mode', theme);
+      sessionStorage.setItem('SWEETOS_font_family', font);
+      sessionStorage.setItem('SWEETOS_hero_title', hTitle);
+      sessionStorage.setItem('SWEETOS_hero_subtitle', hSub);
+
+      await Promise.allSettled([
+        saveSiteSettingInSupabase('SWEETOS_theme_mode', theme),
+        saveSiteSettingInSupabase('SWEETOS_font_family', font),
+        saveSiteSettingInSupabase('SWEETOS_hero_title', hTitle),
+        saveSiteSettingInSupabase('SWEETOS_hero_subtitle', hSub)
+      ]);
+      window.dispatchEvent(new CustomEvent('toast:show', { detail: '⚡ Appearance settings saved to Supabase Cloud!' }));
     });
   }
 
