@@ -1,7 +1,6 @@
 // Supabase Client & Backend Synchronization Engine
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import initialProducts from '../data/products.js';
-import { getAllOrdersFromStorage, saveAllOrdersToStorage } from './storage.js';
+import { getAllOrdersFromStorage, saveAllOrdersToStorage, getStorageItem, saveStorageItem } from './storage.js';
 
 
 export const SUPABASE_URL = 'https://euuzsxjsmsktegilbqpv.supabase.co';
@@ -837,7 +836,7 @@ export async function initSupabaseSync() {
 
   // Sync logged in user profile if available
   try {
-    const loggedUserStr = sessionStorage.getItem('SWEETOS_logged_in_user');
+    const loggedUserStr = getStorageItem('SWEETOS_logged_in_user');
     if (loggedUserStr) {
       const loggedUser = JSON.parse(loggedUserStr);
       if (loggedUser && loggedUser.email) {
@@ -908,10 +907,10 @@ export async function signInWithGoogle() {
                 if (!profile.lastName) profile.lastName = lastName;
               }
 
-              sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
-              sessionStorage.setItem(`SWEETOS_user_profile_${safeKey}`, JSON.stringify(profile));
-              sessionStorage.setItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
-              sessionStorage.setItem('SWEETOS_auth_token', tokenResponse.access_token);
+              saveStorageItem('SWEETOS_user_profile', JSON.stringify(profile));
+              saveStorageItem(`SWEETOS_user_profile_${safeKey}`, JSON.stringify(profile));
+              saveStorageItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
+              saveStorageItem('SWEETOS_auth_token', tokenResponse.access_token);
 
               // Sync user profile to Supabase profiles table
               try {
@@ -995,11 +994,11 @@ export function initSupabaseAuthListener() {
           if (!profile.lastName) profile.lastName = lastName;
         }
 
-        sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
-        sessionStorage.setItem(`SWEETOS_user_profile_${safeKey}`, JSON.stringify(profile));
-        sessionStorage.setItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
+        saveStorageItem('SWEETOS_user_profile', JSON.stringify(profile));
+        saveStorageItem(`SWEETOS_user_profile_${safeKey}`, JSON.stringify(profile));
+        saveStorageItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
         if (session.access_token) {
-          sessionStorage.setItem('SWEETOS_auth_token', session.access_token);
+          saveStorageItem('SWEETOS_auth_token', session.access_token);
         }
 
         // Sync user profile to Supabase profiles table

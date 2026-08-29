@@ -37,7 +37,7 @@ class Header extends HTMLElement {
     const profilePill = shadow.getElementById('profile-pill');
     if (!profilePill) return;
     
-    const loggedInUserStr = sessionStorage.getItem('SWEETOS_logged_in_user');
+    const loggedInUserStr = getStorageItem('SWEETOS_logged_in_user');
     
     if (!loggedInUserStr) {
       profilePill.innerHTML = `
@@ -524,7 +524,7 @@ class Header extends HTMLElement {
 
     // Profile page navigation
     shadow.getElementById('profile-pill').addEventListener('click', () => {
-      const loggedInUser = sessionStorage.getItem('SWEETOS_logged_in_user');
+      const loggedInUser = getStorageItem('SWEETOS_logged_in_user');
       const targetPage = loggedInUser ? 'profile' : 'auth';
       window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: targetPage } }));
     });

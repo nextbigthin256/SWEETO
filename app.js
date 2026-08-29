@@ -6,14 +6,7 @@ if (window.location.pathname !== '/' && window.location.pathname !== '/index.htm
   }
 }
 
-// Clear any legacy localStorage items entirely as requested by user
-(function purgeLocalStorage() {
-  try {
-    localStorage.clear();
-  } catch(e) {}
-})();
-
-import { getCartStorageKey } from './utils/storage.js';
+import { getCartStorageKey, getStorageItem, saveStorageItem } from './utils/storage.js';
 import { initSupabaseSync } from './utils/supabase.js';
 import './utils/modal.js';
 import products from './data/products.js';
@@ -38,7 +31,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Live Background Customer Revocation Guard (Every 6 seconds)
   setInterval(async () => {
-    const loggedUserStr = sessionStorage.getItem('SWEETOS_logged_in_user');
+    const loggedUserStr = getStorageItem('SWEETOS_logged_in_user');
     if (loggedUserStr) {
       try {
         const loggedUser = JSON.parse(loggedUserStr);
@@ -46,8 +39,8 @@ document.addEventListener('DOMContentLoaded', () => {
           const { checkCustomerAccountValidInSupabase } = await import('./utils/supabase.js');
           const res = await checkCustomerAccountValidInSupabase(loggedUser.email);
           if (res && res.valid === false) {
-            sessionStorage.removeItem('SWEETOS_logged_in_user');
-            sessionStorage.removeItem('SWEETOS_user_profile');
+            saveStorageItem('SWEETOS_logged_in_user', null);
+            saveStorageItem('SWEETOS_user_profile', null);
             const { clearCustomerRevocationInSupabase } = await import('./utils/supabase.js');
             await clearCustomerRevocationInSupabase(loggedUser.email);
             window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: false } }));
@@ -398,7 +391,7 @@ document.addEventListener('DOMContentLoaded', () => {
     closeNotifications();
 
     // Check if user is logged in
-    const loggedInUserStr = sessionStorage.getItem('SWEETOS_logged_in_user');
+    const loggedInUserStr = getStorageItem('SWEETOS_logged_in_user');
     if (!loggedInUserStr) {
       window.dispatchEvent(new CustomEvent('toast:show', { detail: '🔒 Veuillez vous connecter pour finaliser votre commande / Please log in to complete your order!' }));
       window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'auth' } }));
@@ -647,7 +640,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   // 1. Guest User Welcome Dialog
-  const loggedInUserStr = sessionStorage.getItem('SWEETOS_logged_in_user');
+  const loggedInUserStr = getStorageItem('SWEETOS_logged_in_user');
   const guestDismissed = sessionStorage.getItem('SWEETOS_guest_welcome_dismissed');
   if (!loggedInUserStr && !guestDismissed) {
     sessionStorage.setItem('SWEETOS_guest_welcome_dismissed', 'true');

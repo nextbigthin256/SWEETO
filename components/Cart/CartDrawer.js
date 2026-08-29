@@ -91,8 +91,8 @@ class CartDrawer extends HTMLElement {
     // Only load customer's personally earned/unlocked coupons if SCRATCHED (no unscratched coupons, no generic coupons)
     let activeCoupons = [];
     try {
-      const loggedUser = JSON.parse(sessionStorage.getItem('SWEETOS_logged_in_user') || '{}');
-      const userProfile = JSON.parse(sessionStorage.getItem('SWEETOS_user_profile') || '{}');
+      const loggedUser = JSON.parse(getStorageItem('SWEETOS_logged_in_user') || '{}');
+      const userProfile = JSON.parse(getStorageItem('SWEETOS_user_profile') || '{}');
       const curEmail = (loggedUser.email || userProfile.email || '').toLowerCase();
       if (curEmail) {
         // 1. Scratched Badge Rewards
@@ -451,8 +451,8 @@ class CartDrawer extends HTMLElement {
             return;
           }
 
-          const loggedUser = JSON.parse(sessionStorage.getItem('SWEETOS_logged_in_user') || '{}');
-          const userProfile = JSON.parse(sessionStorage.getItem('SWEETOS_user_profile') || '{}');
+          const loggedUser = JSON.parse(getStorageItem('SWEETOS_logged_in_user') || '{}');
+          const userProfile = JSON.parse(getStorageItem('SWEETOS_user_profile') || '{}');
           const curEmail = (loggedUser.email || userProfile.email || '').toLowerCase();
 
           // 1. Check Badge Rewards

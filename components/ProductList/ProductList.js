@@ -14,8 +14,8 @@ class ProductList extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     
-    // Initialize products database from sessionStorage to enable Admin Panel synchronization
-    const storedProds = sessionStorage.getItem('SWEETOS_products');
+    // Initialize products database from storage to enable Admin Panel synchronization
+    const storedProds = getStorageItem('SWEETOS_products');
     if (storedProds !== null) {
       try {
         this.products = JSON.parse(storedProds);
@@ -25,7 +25,7 @@ class ProductList extends HTMLElement {
     } else {
       this.products = products;
       this.initializeHomepageSectionsForProducts(this.products);
-      sessionStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
+      saveStorageItem('SWEETOS_products', JSON.stringify(this.products));
     }
 
     // Auto-sanitize all product categories and names
@@ -42,37 +42,37 @@ class ProductList extends HTMLElement {
         }
       });
       if (prodsModified) {
-        sessionStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
+        saveStorageItem('SWEETOS_products', JSON.stringify(this.products));
       }
     }
 
     // Auto-sanitize categories and homepage sections
     try {
-      const rawCats = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
+      const rawCats = JSON.parse(getStorageItem('SWEETOS_categories') || '[]');
       const cleanCats = rawCats.filter(c => c && c.name && c.name !== 'undefined' && c.name !== 'null');
       if (cleanCats.length !== rawCats.length) {
-        sessionStorage.setItem('SWEETOS_categories', JSON.stringify(cleanCats));
+        saveStorageItem('SWEETOS_categories', JSON.stringify(cleanCats));
       }
     } catch(e) {}
 
     try {
-      const rawSecs = JSON.parse(sessionStorage.getItem('SWEETOS_homepage_sections') || '[]');
+      const rawSecs = JSON.parse(getStorageItem('SWEETOS_homepage_sections') || '[]');
       const cleanSecs = rawSecs.filter(s => s && s.name && s.name !== 'undefined' && s.name !== 'null');
       if (cleanSecs.length !== rawSecs.length) {
-        sessionStorage.setItem('SWEETOS_homepage_sections', JSON.stringify(cleanSecs));
+        saveStorageItem('SWEETOS_homepage_sections', JSON.stringify(cleanSecs));
       }
     } catch(e) {}
     
     // Page state with undefined guards
-    this.currentPage = sessionStorage.getItem('SWEETOS_current_page') || 'home';
-    let catVal = sessionStorage.getItem('SWEETOS_current_category');
+    this.currentPage = getStorageItem('SWEETOS_current_page') || 'home';
+    let catVal = getStorageItem('SWEETOS_current_category');
     this.currentCategory = (catVal && catVal !== 'undefined' && catVal !== 'null') ? catVal : 'All';
-    this.currentQuery = sessionStorage.getItem('SWEETOS_current_query') || '';
-    let brandVal = sessionStorage.getItem('SWEETOS_current_brand');
+    this.currentQuery = getStorageItem('SWEETOS_current_query') || '';
+    let brandVal = getStorageItem('SWEETOS_current_brand');
     this.currentBrand = (brandVal && brandVal !== 'undefined' && brandVal !== 'null') ? brandVal : '';
-    let brandFilterVal = sessionStorage.getItem('SWEETOS_current_brand_filter');
+    let brandFilterVal = getStorageItem('SWEETOS_current_brand_filter');
     this.currentBrandFilter = (brandFilterVal && brandFilterVal !== 'undefined' && brandFilterVal !== 'null') ? brandFilterVal : 'All';
-    const savedProdId = sessionStorage.getItem('SWEETOS_current_product_id');
+    const savedProdId = getStorageItem('SWEETOS_current_product_id');
     this.currentProductId = (savedProdId && savedProdId !== 'undefined' && savedProdId !== 'null') ? parseInt(savedProdId) : null;
     
     // Catalog filter & sort states
@@ -567,7 +567,7 @@ class ProductList extends HTMLElement {
     
     let categories = [];
     try {
-      categories = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
+      categories = JSON.parse(getStorageItem('SWEETOS_categories') || '[]');
     } catch(e) {}
     
     const targetLower = String(targetCatName).trim().toLowerCase();
@@ -973,7 +973,7 @@ class ProductList extends HTMLElement {
 
               <div class="home-category-row custom-scroll" id="home-category-row">
                 ${(() => {
-                  const storedCats = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
+                  const storedCats = JSON.parse(getStorageItem('SWEETOS_categories') || '[]');
                   const themeMap = {
                     "Keyboards": {
                       bg: "linear-gradient(145deg, #0b1528 0%, #1e3a8a 100%)",
@@ -1341,7 +1341,7 @@ class ProductList extends HTMLElement {
       const isSearchActive = Boolean(this.currentQuery && this.currentQuery.trim() !== '');
 
       // Hierarchical dynamic breadcrumbs
-      const allCatsList = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
+      const allCatsList = JSON.parse(getStorageItem('SWEETOS_categories') || '[]');
       const activeCatObj = allCatsList.find(c => c && (
         String(c.name || '').trim().toLowerCase() === String(this.currentCategory).trim().toLowerCase() ||
         String(c.id) === String(this.currentCategory)
@@ -3012,7 +3012,7 @@ class ProductList extends HTMLElement {
     const banner = this.shadowRoot.getElementById('category-hero-banner-container');
     if (!banner) return;
 
-    const allCats = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
+    const allCats = JSON.parse(getStorageItem('SWEETOS_categories') || '[]');
     const isAll = !this.currentCategory || this.currentCategory === 'All';
 
     // Matching products for this category (including subcategories)
@@ -3169,7 +3169,7 @@ class ProductList extends HTMLElement {
     const container = this.shadowRoot.getElementById('category-smart-pills-row');
     if (!container) return;
 
-    const allCats = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
+    const allCats = JSON.parse(getStorageItem('SWEETOS_categories') || '[]');
     const isAll = !this.currentCategory || this.currentCategory === 'All';
 
     // Find current category object
@@ -3321,7 +3321,7 @@ class ProductList extends HTMLElement {
 
     if (isAllView) {
       // Group by top-level parent categories
-      const storedCats = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
+      const storedCats = JSON.parse(getStorageItem('SWEETOS_categories') || '[]');
       const parentCats = storedCats.filter(c => c && !c.parent);
       const catList = parentCats.length > 0 ? parentCats : storedCats;
 
