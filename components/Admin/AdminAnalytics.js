@@ -1,90 +1,51 @@
 import { formatPrice } from '../../utils/storage.js';
+import { saveSiteSettingInSupabase, fetchSiteSettingFromSupabase } from '../../utils/supabase.js';
 
 export function renderAdminAnalytics(context) {
   const rawOrders = context.orders || [];
   const rawProducts = context.products || [];
 
-  // Pre-seed mock customer activity logs if empty
   let sessionLogs = [];
   try {
     const rawLogs = sessionStorage.getItem('SWEETOS_activity_logs');
-    if (!rawLogs) {
-      sessionLogs = [
-        { id: "mock_1", user: "Alina Putri", email: "alina@example.com", phone: "+225 05 00 61 99 23", loginType: "Google OAuth", visits: ["Home", "Product: Keyboard Q1 Pro", "Cart", "Checkout"], bought: true, orderTotal: 135000, duration: "12 mins", timestamp: "Today, 02:32 PM", browser: "Chrome 122", device: "Desktop (Windows)", source: "google.com" },
-        { id: "mock_2", user: "Odinaka Chibuike", email: "odinaka@chibuike.com", phone: "+225 07 48 12 34 56", loginType: "Email & Password", visits: ["Home", "Catalog: Audio", "Product: Sennheiser HD 600"], bought: false, orderTotal: 0, duration: "6 mins", timestamp: "Today, 03:10 PM", browser: "Safari 17", device: "Mobile (iPhone 15)", source: "Direct" },
-        { id: "mock_3", user: "Marc Aurele", email: "marc@aurele.ci", phone: "+225 01 23 45 67 89", loginType: "Guest Checkout", visits: ["Home", "Product: Solid Oak Riser Shelf", "Checkout"], bought: true, orderTotal: 48000, duration: "4 mins", timestamp: "Today, 04:15 PM", browser: "Firefox 124", device: "Desktop (Mac)", source: "facebook.com" },
-        { id: "mock_4", user: "Alex Johnson", email: "alex@johnson.com", phone: "+225 05 99 88 77 66", loginType: "Not Logged In", visits: ["Home", "Product: Nebula Light Ring Dial", "Cart"], bought: false, orderTotal: 0, duration: "8 mins", timestamp: "Today, 05:44 PM", browser: "Chrome 122", device: "Mobile (Android)", source: "whatsapp.com" }
-      ];
-      sessionStorage.setItem('SWEETOS_activity_logs', JSON.stringify(sessionLogs));
-    } else {
-      sessionLogs = JSON.parse(rawLogs);
-    }
-  } catch (err) {
-    sessionLogs = [];
+    if (rawLogs) sessionLogs = JSON.parse(rawLogs);
+  } catch(e) {}
+
+  if (!sessionLogs || sessionLogs.length === 0) {
+    sessionLogs = [
+      { id: "mock_1", user: "Alina Putri", email: "alina@example.com", phone: "+225 05 00 61 99 23", loginType: "Google OAuth", visits: ["Home", "Product: Keyboard Q1 Pro", "Cart", "Checkout"], bought: true, orderTotal: 135000, duration: "12 mins", timestamp: "Today, 02:32 PM", browser: "Chrome 122", device: "Desktop (Windows)", source: "google.com" },
+      { id: "mock_2", user: "Odinaka Chibuike", email: "odinaka@chibuike.com", phone: "+225 07 48 12 34 56", loginType: "Email & Password", visits: ["Home", "Catalog: Audio", "Product: Sennheiser HD 600"], bought: false, orderTotal: 0, duration: "6 mins", timestamp: "Today, 03:10 PM", browser: "Safari 17", device: "Mobile (iPhone 15)", source: "Direct" },
+      { id: "mock_3", user: "Marc Aurele", email: "marc@aurele.ci", phone: "+225 01 23 45 67 89", loginType: "Guest Checkout", visits: ["Home", "Product: Solid Oak Riser Shelf", "Checkout"], bought: true, orderTotal: 48000, duration: "4 mins", timestamp: "Today, 04:15 PM", browser: "Firefox 124", device: "Desktop (Mac)", source: "facebook.com" },
+      { id: "mock_4", user: "Alex Johnson", email: "alex@johnson.com", phone: "+225 05 99 88 77 66", loginType: "Not Logged In", visits: ["Home", "Product: Nebula Light Ring Dial", "Cart"], bought: false, orderTotal: 0, duration: "8 mins", timestamp: "Today, 05:44 PM", browser: "Chrome 122", device: "Mobile (Android)", source: "whatsapp.com" }
+    ];
   }
 
-  // Pre-seed detailed unresolved searches with customer contacts and notification tracking
   let failedSearches = [];
   try {
     const rawSearches = sessionStorage.getItem('SWEETOS_failed_searches');
-    if (!rawSearches) {
-      failedSearches = [
-        { 
-          id: "fs_1", 
-          query: "wood wrist rest", 
-          customerName: "Marc Aurele", 
-          phone: "+225 05 00 61 99 23", 
-          email: "marc@example.com", 
-          timestamp: "18 Aug, 04:05 PM", 
-          device: "Mobile (iOS)", 
-          city: "Abidjan, Cocody", 
-          count: 3, 
-          notified: false 
-        },
-        { 
-          id: "fs_2", 
-          query: "mx master 3s mouse", 
-          customerName: "Fatou Diop", 
-          phone: "+225 07 48 12 34 56", 
-          email: "fatou@diop.ci", 
-          timestamp: "19 Aug, 08:22 AM", 
-          device: "Desktop (Chrome)", 
-          city: "Abidjan, Marcory", 
-          count: 5, 
-          notified: false 
-        },
-        { 
-          id: "fs_3", 
-          query: "type-c braided coiled cable", 
-          customerName: "Kouame Jean", 
-          phone: "+225 01 23 45 67 89", 
-          email: "jean@kouame.ci", 
-          timestamp: "19 Aug, 11:05 AM", 
-          device: "Desktop (Mac Safari)", 
-          city: "Yamoussoukro", 
-          count: 2, 
-          notified: true 
-        },
-        { 
-          id: "fs_4", 
-          query: "desk mat wool felt grey", 
-          customerName: "Alex Johnson", 
-          phone: "+225 05 99 88 77 66", 
-          email: "alex@johnson.com", 
-          timestamp: "Yesterday, 06:14 PM", 
-          device: "Mobile (Android)", 
-          city: "Abidjan, Plateau", 
-          count: 4, 
-          notified: false 
-        }
-      ];
-      sessionStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
-    } else {
-      failedSearches = JSON.parse(rawSearches);
-    }
-  } catch (err) {
-    failedSearches = [];
+    if (rawSearches) failedSearches = JSON.parse(rawSearches);
+  } catch(e) {}
+
+  if (!failedSearches || failedSearches.length === 0) {
+    failedSearches = [
+      { id: "fs_1", query: "wood wrist rest", customerName: "Marc Aurele", phone: "+225 05 00 61 99 23", email: "marc@example.com", timestamp: "18 Aug, 04:05 PM", device: "Mobile (iOS)", city: "Abidjan, Cocody", count: 3, notified: false },
+      { id: "fs_2", query: "mx master 3s mouse", customerName: "Fatou Diop", phone: "+225 07 48 12 34 56", email: "fatou@diop.ci", timestamp: "19 Aug, 08:22 AM", device: "Desktop (Chrome)", city: "Abidjan, Marcory", count: 5, notified: false },
+      { id: "fs_3", query: "type-c braided coiled cable", customerName: "Kouame Jean", phone: "+225 01 23 45 67 89", email: "jean@kouame.ci", timestamp: "19 Aug, 11:05 AM", device: "Desktop (Mac Safari)", city: "Yamoussoukro", count: 2, notified: true },
+      { id: "fs_4", query: "desk mat wool felt grey", customerName: "Alex Johnson", phone: "+225 05 99 88 77 66", email: "alex@johnson.com", timestamp: "Yesterday, 06:14 PM", device: "Mobile (Android)", city: "Abidjan, Plateau", count: 4, notified: false }
+    ];
   }
+
+  fetchSiteSettingFromSupabase('sweetos_activity_logs').then(cloudLogs => {
+    if (Array.isArray(cloudLogs) && cloudLogs.length > 0) {
+      sessionStorage.setItem('SWEETOS_activity_logs', JSON.stringify(cloudLogs));
+    }
+  }).catch(() => {});
+
+  fetchSiteSettingFromSupabase('sweetos_failed_searches').then(cloudSearches => {
+    if (Array.isArray(cloudSearches) && cloudSearches.length > 0) {
+      sessionStorage.setItem('SWEETOS_failed_searches', JSON.stringify(cloudSearches));
+    }
+  }).catch(() => {});
 
   const validOrders = rawOrders.filter(o => o.status !== 'Cancelled' && o.status !== 'Refusé');
   const totalSales = validOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
@@ -1056,7 +1017,7 @@ export function attachAdminAnalyticsListeners(context, shadow) {
 
   // 8. Toggle Notified Status
   shadow.querySelectorAll('.toggle-notified-status-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
+    btn.addEventListener('click', async () => {
       const qId = btn.getAttribute('data-query-id');
       let failedSearches = [];
       try {
@@ -1065,6 +1026,7 @@ export function attachAdminAnalyticsListeners(context, shadow) {
         if (found) {
           found.notified = !found.notified;
           sessionStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
+          await saveSiteSettingInSupabase('sweetos_failed_searches', failedSearches);
         }
       } catch(e) {}
 
