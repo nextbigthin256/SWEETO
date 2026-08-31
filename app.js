@@ -25,6 +25,7 @@ import './components/Checkout/CheckoutModal.js';
 import './components/MobileNav/MobileNav.js';
 import './components/WhatsApp/WhatsAppButton.js';
 import './components/Footer/Footer.js';
+import './components/PWA/PWAInstaller.js';
 
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize Supabase Live Backend Sync & Storage Sync Engine

@@ -10,6 +10,21 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Fraunces:opsz,wght@9..144,600;700;800;900&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="./index.css">
+
+  <!-- Progressive Web App (PWA) Manifest & Meta Tags -->
+  <link rel="manifest" href="./manifest.json">
+  <meta name="theme-color" content="#0052cc">
+  <meta name="mobile-web-app-capable" content="yes">
+
+  <!-- Apple iOS Safari PWA Meta Tags -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="SWEETOS">
+  <link rel="apple-touch-icon" href="./assets/sweetos_logo.svg">
+
+  <!-- Microsoft Windows Tile Meta Tags -->
+  <meta name="msapplication-TileColor" content="#0052cc">
+  <meta name="msapplication-TileImage" content="./assets/sweetos_logo.svg">
 </head>
 <body>
   
@@ -65,6 +80,9 @@
 
   <!-- Global Floating WhatsApp Contact Button on Every Page -->
   <whatsapp-button id="global-whatsapp-btn"></whatsapp-button>
+
+  <!-- Universal Multi-Device PWA Installer Banner -->
+  <pwa-installer id="global-pwa-installer"></pwa-installer>
 
   <!-- Confetti Library -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
