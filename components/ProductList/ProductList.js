@@ -2710,8 +2710,16 @@ class ProductList extends HTMLElement {
         const gridHot = this.shadowRoot.getElementById('grid-hot-deals');
         if (gridHot) {
           gridHot.innerHTML = '';
-          let displayProducts = (hasAssigned ? assignedProducts : pools.deals).slice(0, 12);
-          if (displayProducts.length === 0) displayProducts = pools.deals.slice(0, 12);
+          const mergedDealsMap = new Map();
+          if (hasAssigned) {
+            assignedProducts.forEach(p => mergedDealsMap.set(String(p.id), p));
+          }
+          (pools.deals || []).forEach(p => {
+            if (!mergedDealsMap.has(String(p.id))) {
+              mergedDealsMap.set(String(p.id), p);
+            }
+          });
+          let displayProducts = Array.from(mergedDealsMap.values()).slice(0, 12);
           if (displayProducts.length === 0) displayProducts = (this.products || []).slice(0, 12);
 
           displayProducts.forEach(p => {
@@ -2725,8 +2733,16 @@ class ProductList extends HTMLElement {
         const gridNew = this.shadowRoot.getElementById('grid-new-arrivals');
         if (gridNew) {
           gridNew.innerHTML = '';
-          let displayProducts = (hasAssigned ? assignedProducts : pools.newArrivals).slice(0, 12);
-          if (displayProducts.length === 0) displayProducts = pools.newArrivals.slice(0, 12);
+          const mergedNewMap = new Map();
+          if (hasAssigned) {
+            assignedProducts.forEach(p => mergedNewMap.set(String(p.id), p));
+          }
+          (pools.newArrivals || []).forEach(p => {
+            if (!mergedNewMap.has(String(p.id))) {
+              mergedNewMap.set(String(p.id), p);
+            }
+          });
+          let displayProducts = Array.from(mergedNewMap.values()).slice(0, 12);
           if (displayProducts.length === 0) displayProducts = (this.products || []).slice(0, 12);
 
           displayProducts.forEach(p => {
@@ -2739,8 +2755,16 @@ class ProductList extends HTMLElement {
         const gridBest = this.shadowRoot.getElementById('grid-best-sellers');
         if (gridBest) {
           gridBest.innerHTML = '';
-          let displayProducts = (hasAssigned ? assignedProducts : pools.bestSellers).slice(0, 12);
-          if (displayProducts.length === 0) displayProducts = pools.bestSellers.slice(0, 12);
+          const mergedBestMap = new Map();
+          if (hasAssigned) {
+            assignedProducts.forEach(p => mergedBestMap.set(String(p.id), p));
+          }
+          (pools.bestSellers || []).forEach(p => {
+            if (!mergedBestMap.has(String(p.id))) {
+              mergedBestMap.set(String(p.id), p);
+            }
+          });
+          let displayProducts = Array.from(mergedBestMap.values()).slice(0, 12);
           if (displayProducts.length === 0) displayProducts = (this.products || []).slice(0, 12);
 
           displayProducts.forEach(p => {
