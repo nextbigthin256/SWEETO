@@ -5004,8 +5004,28 @@ class ProductList extends HTMLElement {
     if (shareModalBack) shareModalBack.addEventListener('click', closeShare);
     if (shareModalClose) shareModalClose.addEventListener('click', closeShare);
 
-    const shareUrl = `${window.location.origin}${window.location.pathname}?product=${p.id}`;
-    const shareText = `Découvrez ${p.name} sur SWEETOS ! ${formatPrice(p.price)}`;
+    const shareUrl = `${window.location.origin}${window.location.pathname}#/?product=${p.id}`;
+    const priceText = formatPrice(p.price);
+    const compareText = p.comparePrice && p.comparePrice > p.price 
+      ? ` (Was ~${formatPrice(p.comparePrice)}~)` 
+      : '';
+    const desc = (p.description || `High-precision ${p.name} from ${p.brand || 'SWEETOS'}.`).slice(0, 200);
+
+    const formattedWaMessage = 
+`🔥 *NEW ARRIVAL ON SWEETOS* 🔥
+
+📦 *${p.name.toUpperCase()}*
+🏷️ *Brand:* ${p.brand || 'SWEETOS'}
+📂 *Category:* ${p.category || 'General'}
+💰 *Price:* ${priceText}${compareText}
+
+📝 *Details:*
+"${desc}"
+
+⚡ *Stock:* ${p.stock > 0 ? `In Stock (${p.stock} units available)` : 'Limited Stock!'}
+
+👇 *Tap link below to view & order directly:*
+🔗 ${shareUrl}`;
 
     const fbBtn = shadow.getElementById('pdpShareFacebook');
     if (fbBtn) {
@@ -5018,7 +5038,7 @@ class ProductList extends HTMLElement {
     const twBtn = shadow.getElementById('pdpShareTwitter');
     if (twBtn) {
       twBtn.addEventListener('click', () => {
-        window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareText)}`, 'share', 'width=600,height=500');
+        window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(p.name + ' - ' + priceText)}`, 'share', 'width=600,height=500');
         closeShare();
       });
     }
@@ -5034,7 +5054,7 @@ class ProductList extends HTMLElement {
     const waBtn = shadow.getElementById('pdpShareWhatsApp');
     if (waBtn) {
       waBtn.addEventListener('click', () => {
-        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + ' ' + shareUrl)}`, '_blank');
+        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(formattedWaMessage)}`, '_blank');
         closeShare();
       });
     }

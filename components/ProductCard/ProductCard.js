@@ -214,43 +214,9 @@ class ProductCard extends HTMLElement {
 👇 *Tap link below to view & order directly:*
 🔗 ${productUrl}`;
 
-        const copyToClipboardFallback = () => {
-          const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
-          window.open(whatsappUrl, '_blank');
-          window.dispatchEvent(new CustomEvent('toast:show', { detail: '📱 Opening WhatsApp! Select "My Status" to publish.' }));
-        };
-
-        if (navigator.share) {
-          try {
-            const response = await fetch(p.image);
-            const blob = await response.blob();
-            const extension = p.image.split('.').pop().split('?')[0] || 'jpg';
-            const file = new File([blob], `product-${p.id}.${extension}`, { type: blob.type });
-
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-              await navigator.share({
-                title: shareTitle,
-                text: shareText,
-                url: shareUrl,
-                files: [file]
-              });
-            } else {
-              await navigator.share({
-                title: shareTitle,
-                text: shareText,
-                url: shareUrl
-              });
-            }
-          } catch (err) {
-            navigator.share({
-              title: shareTitle,
-              text: shareText,
-              url: shareUrl
-            }).catch(() => copyToClipboardFallback());
-          }
-        } else {
-          copyToClipboardFallback();
-        }
+        const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+        window.open(whatsappUrl, '_blank');
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: '📱 Opening WhatsApp! Select "My Status" to publish.' }));
       });
     }
 
