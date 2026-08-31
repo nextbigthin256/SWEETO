@@ -278,13 +278,17 @@ class ProductList extends HTMLElement {
     // Listen to live Supabase and product updates
     this._productsUpdatedHandler = (e) => {
       try {
+        const prevJson = JSON.stringify(this.products || []);
         const stored = getStorageItem('SWEETOS_products');
         if (stored) {
           this.products = JSON.parse(stored);
         } else if (e.detail && Array.isArray(e.detail)) {
           this.products = e.detail;
         }
-        this.renderPageContent();
+        const newJson = JSON.stringify(this.products || []);
+        if (prevJson !== newJson) {
+          this.renderPageContent();
+        }
       } catch (err) {}
     };
 

@@ -774,6 +774,12 @@ export async function fetchProfileFromSupabase(email) {
 // ==========================================
 
 let realtimeChannel = null;
+let _realtimeDebounceTimers = {};
+
+function debounceRealtimeSync(key, fn, delay = 600) {
+  if (_realtimeDebounceTimers[key]) clearTimeout(_realtimeDebounceTimers[key]);
+  _realtimeDebounceTimers[key] = setTimeout(fn, delay);
+}
 
 export function subscribeToGlobalRealtimeSync() {
   if (!supabase || realtimeChannel) return;
@@ -784,31 +790,61 @@ export function subscribeToGlobalRealtimeSync() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public' },
-        async (payload) => {
+        (payload) => {
           console.log('[Supabase Realtime Event Received]:', payload.table, payload.eventType);
           
           if (payload.table === 'products' || (payload.table === 'site_settings' && payload.new?.key === 'sweetos_cloud_products')) {
-            const updated = await fetchProductsFromSupabase();
-            if (updated) {
-              window.dispatchEvent(new CustomEvent('products:updated', { detail: updated }));
-            }
+            debounceRealtimeSync('products', async () => {
+              const updated = await fetchProductsFromSupabase();
+              if (updated) {
+                const prev = sessionStorage.getItem('SWEETOS_products');
+                const curr = JSON.stringify(updated);
+                if (prev !== curr) {
+                  sessionStorage.setItem('SWEETOS_products', curr);
+                  window.dispatchEvent(new CustomEvent('products:updated', { detail: updated }));
+                }
+              }
+            });
           } else if (payload.table === 'categories' || (payload.table === 'site_settings' && payload.new?.key === 'sweetos_cloud_categories')) {
-            const updated = await fetchCategoriesFromSupabase();
-            if (updated) {
-              window.dispatchEvent(new CustomEvent('categories:updated', { detail: updated }));
-            }
+            debounceRealtimeSync('categories', async () => {
+              const updated = await fetchCategoriesFromSupabase();
+              if (updated) {
+                const prev = sessionStorage.getItem('SWEETOS_categories');
+                const curr = JSON.stringify(updated);
+                if (prev !== curr) {
+                  sessionStorage.setItem('SWEETOS_categories', curr);
+                  window.dispatchEvent(new CustomEvent('categories:updated', { detail: updated }));
+                }
+              }
+            });
           } else if (payload.table === 'brands' || (payload.table === 'site_settings' && payload.new?.key === 'sweetos_cloud_brands')) {
-            const updated = await fetchBrandsFromSupabase();
-            if (updated) {
-              window.dispatchEvent(new CustomEvent('brands:updated', { detail: updated }));
-            }
+            debounceRealtimeSync('brands', async () => {
+              const updated = await fetchBrandsFromSupabase();
+              if (updated) {
+                const prev = sessionStorage.getItem('SWEETOS_brands');
+                const curr = JSON.stringify(updated);
+                if (prev !== curr) {
+                  sessionStorage.setItem('SWEETOS_brands', curr);
+                  window.dispatchEvent(new CustomEvent('brands:updated', { detail: updated }));
+                }
+              }
+            });
           } else if (payload.table === 'orders' || (payload.table === 'site_settings' && payload.new?.key === 'sweetos_cloud_orders')) {
-            const updated = await fetchOrdersFromSupabase();
-            if (updated) {
-              window.dispatchEvent(new CustomEvent('orders:updated', { detail: updated }));
-            }
+            debounceRealtimeSync('orders', async () => {
+              const updated = await fetchOrdersFromSupabase();
+              if (updated) {
+                const prev = sessionStorage.getItem('SWEETOS_all_orders');
+                const curr = JSON.stringify(updated);
+                if (prev !== curr) {
+                  sessionStorage.setItem('SWEETOS_all_orders', curr);
+                  window.dispatchEvent(new CustomEvent('orders:updated', { detail: updated }));
+                }
+              }
+            });
           } else if (payload.table === 'store_settings' || payload.table === 'site_settings') {
-            fetchSettingsFromSupabase();
+            debounceRealtimeSync('settings', () => {
+              fetchSettingsFromSupabase();
+            });
           }
         }
       )
