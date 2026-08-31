@@ -1127,7 +1127,8 @@ export function attachAdminSettingsListeners(context, shadow) {
         sessionStorage.setItem('SWEETOS_coupons', JSON.stringify([]));
         sessionStorage.setItem('SWEETOS_inventory_logs', JSON.stringify([]));
         sessionStorage.setItem('SWEETOS_activity_logs', JSON.stringify([]));
-        sessionStorage.setItem('SWEETOS_homepage_sections', JSON.stringify([]));
+        sessionStorage.removeItem('SWEETOS_homepage_sections');
+        localStorage.removeItem('SWEETOS_homepage_sections');
         sessionStorage.setItem('SWEETOS_db_initialized', 'true');
         
         try {
@@ -1184,6 +1185,7 @@ export function attachAdminSettingsListeners(context, shadow) {
         sessionStorage.removeItem('SWEETOS_coupons');
         sessionStorage.removeItem('SWEETOS_inventory_logs');
         sessionStorage.removeItem('SWEETOS_homepage_sections');
+        localStorage.removeItem('SWEETOS_homepage_sections');
         sessionStorage.removeItem('SWEETOS_db_initialized');
         
         window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Demo datasets restored. Reloading...' }));

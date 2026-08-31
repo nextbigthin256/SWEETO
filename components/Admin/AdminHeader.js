@@ -460,7 +460,8 @@ export function attachAdminHeaderListeners(context, shadow) {
         sessionStorage.setItem('SWEETOS_reviews_all', JSON.stringify([]));
         sessionStorage.setItem('SWEETOS_coupons', JSON.stringify([]));
         sessionStorage.setItem('SWEETOS_inventory_logs', JSON.stringify([]));
-        sessionStorage.setItem('SWEETOS_homepage_sections', JSON.stringify([]));
+        sessionStorage.removeItem('SWEETOS_homepage_sections');
+        localStorage.removeItem('SWEETOS_homepage_sections');
         sessionStorage.setItem('SWEETOS_db_initialized', 'true');
 
         window.dispatchEvent(new CustomEvent('toast:show', { detail: '🔥 Store completely wiped! All items erased from database and cloud.' }));

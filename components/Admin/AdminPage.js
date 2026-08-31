@@ -25,6 +25,7 @@ import products from '../../data/products.js';
 import categories from '../../data/categories.js';
 import brands from '../../data/brands.js';
 import orders from '../../data/orders.js';
+import defaultSections from '../../data/sections.js';
 import { renderAdminSidebar, attachAdminSidebarListeners } from './AdminSidebar.js';
 import { renderAdminHeader, attachAdminHeaderListeners } from './AdminHeader.js';
 import { renderAdminDashboard, attachAdminDashboardListeners } from './AdminDashboard.js';
@@ -719,8 +720,14 @@ class AdminPage extends HTMLElement {
       if (secs.status === 'fulfilled' && Array.isArray(secs.value) && secs.value.length > 0) {
         this.homepageSections = secs.value;
       } else {
-        const storedSections = sessionStorage.getItem('SWEETOS_homepage_sections');
+        const storedSections = getStorageItem('SWEETOS_homepage_sections');
         if (storedSections) try { this.homepageSections = JSON.parse(storedSections); } catch(e) {}
+      }
+
+      if (!Array.isArray(this.homepageSections) || this.homepageSections.length === 0) {
+        this.homepageSections = [...defaultSections];
+        saveStorageItem('SWEETOS_homepage_sections', this.homepageSections);
+        syncSectionsToSupabase(this.homepageSections);
       }
 
       const storedReviews = sessionStorage.getItem('SWEETOS_reviews_all');

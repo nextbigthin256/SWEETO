@@ -1,4 +1,5 @@
 import products from '../../data/products.js';
+import defaultSections from '../../data/sections.js';
 import { showEditAddressModal } from '../Modals/EditAddressModal.js';
 import { showCancelOrderModal } from '../Modals/CancelOrderModal.js';
 import { getAuthPageHTML, attachAuthListeners } from '../Auth/AuthPage.js';
@@ -933,19 +934,11 @@ class ProductList extends HTMLElement {
         sectionsList = storedSecs ? JSON.parse(storedSecs) : [];
       } catch(e) {}
 
-      const defaultSecs = [
-        { id: "sec-cat", name: "Shop by Category", type: "categories", category: "All", active: true, order: 0 },
-        { id: "sec-deals", name: "Hot Deals", type: "deals", category: "All", active: true, order: 1 },
-        { id: "sec-new", name: "New Arrivals", type: "new-arrivals", category: "All", active: true, order: 2 },
-        { id: "sec-best", name: "Best Sellers", type: "best-sellers", category: "All", active: true, order: 3 },
-        { id: "sec-1", name: "Apple Workspace Showcase", type: "grid", category: "Apple", active: true, order: 4 },
-        { id: "sec-2", name: "Featured Keyboards", type: "carousel", category: "Keyboards", active: true, order: 5 },
-        { id: "sec-3", name: "Trending Audio Accessories", type: "grid", category: "Audio", active: false, order: 6 }
-      ];
+      const defaultSecs = defaultSections;
 
       let needsSave = false;
       if (sectionsList.length === 0) {
-        sectionsList = defaultSecs;
+        sectionsList = [...defaultSecs];
         needsSave = true;
       } else {
         defaultSecs.forEach(ds => {
@@ -965,7 +958,7 @@ class ProductList extends HTMLElement {
       });
 
       if (needsSave) {
-        sessionStorage.setItem('SWEETOS_homepage_sections', JSON.stringify(sectionsList));
+        saveStorageItem('SWEETOS_homepage_sections', sectionsList);
       }
 
       // Sort active sections by order
