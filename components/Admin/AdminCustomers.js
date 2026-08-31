@@ -1056,15 +1056,19 @@ export function attachAdminCustomersListeners(context, shadow) {
       sessionStorage.setItem('SWEETOS_customers', JSON.stringify(customers));
 
       // Sync customer profile directly to Supabase Cloud
-      import('../../utils/supabase.js').then(({ saveCustomerToSupabase }) => {
-        saveCustomerToSupabase({
+      try {
+        const { saveCustomerToSupabase } = await import('../../utils/supabase.js');
+        await saveCustomerToSupabase({
           email: custEmail,
           name: foundCust ? foundCust.name : 'Client',
           level: selectedLevel,
           badgeType: selectedBadge,
           unlockedBadges: checkedBadges
         });
-      }).catch(() => {});
+        console.log('[Supabase Cloud] Customer updated in Cloud:', custEmail);
+      } catch (err) {
+        console.error('[Supabase Cloud Customer Update Error]:', err);
+      }
 
       // Sync customer user profile in sessionStorage if matches
       try {

@@ -41,7 +41,7 @@ export function getCartFromStorage() {
   try { return JSON.parse(raw); } catch(e) { return []; }
 }
 
-export function saveCartToStorage(cartItems) {
+export async function saveCartToStorage(cartItems) {
   const key = getCartStorageKey();
   saveStorageItem(key, cartItems);
   window.dispatchEvent(new CustomEvent('cart:updated', { detail: cartItems }));
@@ -51,12 +51,20 @@ export function saveCartToStorage(cartItems) {
     try {
       const user = JSON.parse(userJson);
       if (user && user.email) {
-        import('./supabase.js').then(({ saveSiteSettingInSupabase }) => {
-          const safeKey = user.email.replace(/[^a-zA-Z0-9]/g, '_');
-          saveSiteSettingInSupabase(`sweetos_cart_${safeKey}`, cartItems);
-        }).catch(() => {});
+        const { saveSiteSettingInSupabase } = await import('./supabase.js');
+        const safeKey = user.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+        const ok = await saveSiteSettingInSupabase(`sweetos_cart_${safeKey}`, cartItems);
+        if (ok) {
+          console.log('[Supabase Cloud] Cart synced successfully for:', user.email);
+          try { sessionStorage.setItem(`SUPABASE_SYNC_cart_${safeKey}`, 'synced'); } catch(e) {}
+        } else {
+          console.warn('[Supabase Cloud] Cart save returned false');
+          try { sessionStorage.setItem(`SUPABASE_SYNC_cart_${safeKey}`, 'pending'); } catch(e) {}
+        }
       }
-    } catch(e) {}
+    } catch(e) {
+      console.error('[Supabase Cloud Cart Save Error]:', e);
+    }
   }
 }
 
@@ -114,13 +122,24 @@ export function getNotificationsFromStorage(targetEmail) {
   return Array.isArray(notifs) ? notifs : [];
 }
 
-export function saveNotificationsToStorage(notifs, targetEmail) {
+export async function saveNotificationsToStorage(notifs, targetEmail) {
   if (!Array.isArray(notifs)) return;
   const key = getNotificationsStorageKey(targetEmail);
   const jsonStr = JSON.stringify(notifs);
   try { localStorage.setItem(key, jsonStr); } catch(e) {}
   try { sessionStorage.setItem(key, jsonStr); } catch(e) {}
   window.dispatchEvent(new CustomEvent('notifications:updated'));
+
+  if (targetEmail) {
+    try {
+      const { saveSiteSettingInSupabase } = await import('./supabase.js');
+      const safeKey = String(targetEmail).toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+      await saveSiteSettingInSupabase(`sweetos_notifications_${safeKey}`, notifs);
+      console.log('[Supabase Cloud] Notifications synced successfully for:', targetEmail);
+    } catch(e) {
+      console.error('[Supabase Cloud Notifications Sync Error]:', e);
+    }
+  }
 }
 
 
@@ -494,23 +513,63 @@ export async function saveUserDataToSupabase(email, dataType, data) {
 
     switch (dataType) {
       case 'profile':
-        saveCustomerToSupabase(data);
+        await saveCustomerToSupabase(data);
         break;
       case 'cart':
-        saveSiteSettingInSupabase(`sweetos_cart_${safeKey}`, data);
+        await saveSiteSettingInSupabase(`sweetos_cart_${safeKey}`, data);
         break;
       case 'notifications':
-        saveSiteSettingInSupabase(`sweetos_notifications_${safeKey}`, data);
+        await saveSiteSettingInSupabase(`sweetos_notifications_${safeKey}`, data);
         break;
       case 'scratchcards':
-        saveSiteSettingInSupabase(`sweetos_scratchcards_${safeKey}`, data);
+        await saveSiteSettingInSupabase(`sweetos_scratchcards_${safeKey}`, data);
         break;
       case 'coupons':
-        saveSiteSettingInSupabase(`sweetos_coupons_${safeKey}`, data);
+        await saveSiteSettingInSupabase(`sweetos_coupons_${safeKey}`, data);
         break;
     }
   } catch (e) {
     console.error('[Supabase Cloud Save Error]:', e);
+  }
+}
+
+export async function retryPendingSupabaseSyncs() {
+  const userJson = getStorageItem('SWEETOS_logged_in_user');
+  if (!userJson) return;
+
+  try {
+    const user = JSON.parse(userJson);
+    if (!user || !user.email) return;
+
+    const safeKey = user.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+    const types = ['cart', 'notifications', 'scratchcards', 'coupons'];
+
+    for (const type of types) {
+      const syncKey = `SUPABASE_SYNC_${type}_${safeKey}`;
+      if (sessionStorage.getItem(syncKey) === 'pending') {
+        const dataKey = type === 'cart' ? `SWEETOS_cart_${safeKey}` :
+                        type === 'notifications' ? `SWEETOS_notifications_${safeKey}` :
+                        type === 'scratchcards' ? `SWEETOS_user_scratchcards_${safeKey}` :
+                        `SWEETOS_coupons_${safeKey}`;
+
+        const dataStr = getStorageItem(dataKey);
+        if (dataStr) {
+          try {
+            const { saveSiteSettingInSupabase } = await import('./supabase.js');
+            const data = JSON.parse(dataStr);
+            const ok = await saveSiteSettingInSupabase(`sweetos_${type}_${safeKey}`, data);
+            if (ok) {
+              sessionStorage.setItem(syncKey, 'synced');
+              console.log(`[Supabase Cloud] Retry sync succeeded for ${type}`);
+            }
+          } catch(e) {
+            console.error(`[Supabase Cloud] Retry sync failed for ${type}:`, e);
+          }
+        }
+      }
+    }
+  } catch(e) {
+    console.error('[Supabase Cloud] Retry sync error:', e);
   }
 }
 
