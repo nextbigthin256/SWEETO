@@ -2707,68 +2707,68 @@ class ProductList extends HTMLElement {
         const gridHot = this.shadowRoot.getElementById('grid-hot-deals');
         if (gridHot) {
           gridHot.innerHTML = '';
-          const mergedDealsMap = new Map();
+          let displayProducts = [];
           if (hasAssigned) {
-            assignedProducts.forEach(p => mergedDealsMap.set(String(p.id), p));
+            displayProducts = assignedProducts.slice(0, 12);
+          } else {
+            displayProducts = (pools.deals || []).slice(0, 12);
           }
-          (pools.deals || []).forEach(p => {
-            if (!mergedDealsMap.has(String(p.id))) {
-              mergedDealsMap.set(String(p.id), p);
-            }
-          });
-          let displayProducts = Array.from(mergedDealsMap.values()).slice(0, 12);
-          if (displayProducts.length === 0) displayProducts = (this.products || []).slice(0, 12);
-
-          displayProducts.forEach(p => {
-            const card = document.createElement('product-card');
-            card.product = p;
-            card.isHotDeal = true;
-            gridHot.appendChild(card);
-          });
+          const secWrapper = gridHot.closest('.home-section');
+          if (displayProducts.length === 0) {
+            if (secWrapper) secWrapper.style.display = 'none';
+          } else {
+            if (secWrapper) secWrapper.style.display = 'block';
+            displayProducts.forEach(p => {
+              const card = document.createElement('product-card');
+              card.product = p;
+              card.isHotDeal = true;
+              gridHot.appendChild(card);
+            });
+          }
         }
       } else if (s.type === 'new-arrivals') {
         const gridNew = this.shadowRoot.getElementById('grid-new-arrivals');
         if (gridNew) {
           gridNew.innerHTML = '';
-          const mergedNewMap = new Map();
+          let displayProducts = [];
           if (hasAssigned) {
-            assignedProducts.forEach(p => mergedNewMap.set(String(p.id), p));
+            displayProducts = assignedProducts.slice(0, 12);
+          } else {
+            displayProducts = (pools.newArrivals || []).slice(0, 12);
           }
-          (pools.newArrivals || []).forEach(p => {
-            if (!mergedNewMap.has(String(p.id))) {
-              mergedNewMap.set(String(p.id), p);
-            }
-          });
-          let displayProducts = Array.from(mergedNewMap.values()).slice(0, 12);
-          if (displayProducts.length === 0) displayProducts = (this.products || []).slice(0, 12);
-
-          displayProducts.forEach(p => {
-            const card = document.createElement('product-card');
-            card.product = p;
-            gridNew.appendChild(card);
-          });
+          const secWrapper = gridNew.closest('.home-section');
+          if (displayProducts.length === 0) {
+            if (secWrapper) secWrapper.style.display = 'none';
+          } else {
+            if (secWrapper) secWrapper.style.display = 'block';
+            displayProducts.forEach(p => {
+              const card = document.createElement('product-card');
+              card.product = p;
+              gridNew.appendChild(card);
+            });
+          }
         }
       } else if (s.type === 'best-sellers') {
         const gridBest = this.shadowRoot.getElementById('grid-best-sellers');
         if (gridBest) {
           gridBest.innerHTML = '';
-          const mergedBestMap = new Map();
+          let displayProducts = [];
           if (hasAssigned) {
-            assignedProducts.forEach(p => mergedBestMap.set(String(p.id), p));
+            displayProducts = assignedProducts.slice(0, 12);
+          } else {
+            displayProducts = (pools.bestSellers || []).slice(0, 12);
           }
-          (pools.bestSellers || []).forEach(p => {
-            if (!mergedBestMap.has(String(p.id))) {
-              mergedBestMap.set(String(p.id), p);
-            }
-          });
-          let displayProducts = Array.from(mergedBestMap.values()).slice(0, 12);
-          if (displayProducts.length === 0) displayProducts = (this.products || []).slice(0, 12);
-
-          displayProducts.forEach(p => {
-            const card = document.createElement('product-card');
-            card.product = p;
-            gridBest.appendChild(card);
-          });
+          const secWrapper = gridBest.closest('.home-section');
+          if (displayProducts.length === 0) {
+            if (secWrapper) secWrapper.style.display = 'none';
+          } else {
+            if (secWrapper) secWrapper.style.display = 'block';
+            displayProducts.forEach(p => {
+              const card = document.createElement('product-card');
+              card.product = p;
+              gridBest.appendChild(card);
+            });
+          }
         }
       } else if (s.type === 'grid') {
         const gridDynamic = this.shadowRoot.getElementById(`grid-dynamic-${s.id}`);
@@ -2778,11 +2778,9 @@ class ProductList extends HTMLElement {
           if (hasAssigned) {
             displayProducts = assignedProducts.slice(0, 12);
           } else {
-            if (s.category === 'All' || !s.category) {
-              displayProducts = this.products.slice(0, 12);
-            } else if (s.category === 'Apple') {
+            if (s.category === 'Apple') {
               displayProducts = this.products.filter(p => (p.name || '').toLowerCase().includes('apple') || (p.brand || '').toLowerCase().includes('apple')).slice(0, 12);
-            } else {
+            } else if (s.category && s.category !== 'All') {
               const catLower = String(s.category).toLowerCase().trim();
               displayProducts = this.products.filter(p => 
                 (p.category || '').toLowerCase().trim() === catLower ||
@@ -2809,13 +2807,11 @@ class ProductList extends HTMLElement {
           carousel.innerHTML = '';
           let displayProducts = [];
           if (hasAssigned) {
-            displayProducts = assignedProducts;
+            displayProducts = assignedProducts.slice(0, 12);
           } else {
-            if (s.category === 'All' || !s.category) {
-              displayProducts = this.products.slice(0, 8);
-            } else if (s.category === 'Apple') {
+            if (s.category === 'Apple') {
               displayProducts = this.products.filter(p => (p.name || '').toLowerCase().includes('apple') || (p.brand || '').toLowerCase().includes('apple')).slice(0, 8);
-            } else {
+            } else if (s.category && s.category !== 'All') {
               const catLower = String(s.category).toLowerCase().trim();
               displayProducts = this.products.filter(p => 
                 (p.category || '').toLowerCase().trim() === catLower ||
@@ -3710,54 +3706,35 @@ class ProductList extends HTMLElement {
     const all = this.products || [];
     if (all.length === 0) return { deals: [], newArrivals: [], bestSellers: [] };
 
-    // Support both numeric IDs and string IDs safely
-    const dealIds = new Set([5, 14, 28, 40, 7, 18, 32, 45, "5", "14", "28", "40", "7", "18", "32", "45"]);
-    const newArrivalIds = new Set([46, 47, 48, 49, 50, 41, 42, 43, 44, "46", "47", "48", "49", "50", "41", "42", "43", "44"]);
-    const bestIds = new Set([1, 13, 26, 39, 2, 8, 15, 22, "1", "13", "26", "39", "2", "8", "15", "22"]);
-
-    // 1. Hot Deals: high discount, badge, or section assigned
-    let deals = all.filter(p => {
+    // 1. Hot Deals: explicit section assigned, sale badge, or discount price
+    const deals = all.filter(p => {
       if (!p) return false;
       const b = String(p.badge || '').toUpperCase();
       const sec = Array.isArray(p.homepageSections) ? p.homepageSections : [];
-      return sec.includes('sec-deals') ||
-             dealIds.has(p.id) || dealIds.has(String(p.id)) ||
-             b.includes('DEAL') || b.includes('SALE') || b.includes('HOT') || b.includes('OFF') ||
-             (p.originalPrice && parseFloat(p.originalPrice) > parseFloat(p.price)) ||
-             (p.comparePrice && parseFloat(p.comparePrice) > parseFloat(p.price));
+      return sec.includes('sec-deals') || sec.includes('deals') ||
+             b.includes('DEAL') || b.includes('SALE') || b.includes('HOT') ||
+             (p.comparePrice && parseFloat(p.comparePrice) > parseFloat(p.price)) ||
+             (p.originalPrice && parseFloat(p.originalPrice) > parseFloat(p.price));
     });
-    if (deals.length === 0) {
-      deals = all.slice(0, Math.min(12, all.length));
-    }
-    const dealIdSet = new Set(deals.map(p => String(p.id)));
 
-    // 2. New Arrivals: badge, section, ID match, or newest items
-    let newArrivals = all.filter(p => {
+    // 2. New Arrivals: explicit section assigned or NEW badge
+    const newArrivals = all.filter(p => {
       if (!p) return false;
       const b = String(p.badge || '').toUpperCase();
       const sec = Array.isArray(p.homepageSections) ? p.homepageSections : [];
-      return sec.includes('sec-new') ||
-             newArrivalIds.has(p.id) || newArrivalIds.has(String(p.id)) ||
-             b.includes('NEW') || b.includes('FRESH') || b.includes('ARRIV');
+      return sec.includes('sec-new') || sec.includes('new-arrivals') ||
+             p.isNew === true || b.includes('NEW') || b.includes('FRESH') || b.includes('ARRIV');
     });
-    if (newArrivals.length === 0) {
-      newArrivals = [...all].reverse().slice(0, Math.min(12, all.length));
-    }
-    const newIdSet = new Set(newArrivals.map(p => String(p.id)));
 
-    // 3. Best Sellers: high rating, reviews, badge, or section
-    let bestSellers = all.filter(p => {
+    // 3. Best Sellers: explicit section assigned, isBestseller flag, or BEST/POPULAR badge
+    const bestSellers = all.filter(p => {
       if (!p) return false;
       const b = String(p.badge || '').toUpperCase();
       const sec = Array.isArray(p.homepageSections) ? p.homepageSections : [];
-      return sec.includes('sec-best') ||
-             bestIds.has(p.id) || bestIds.has(String(p.id)) ||
-             b.includes('BEST') || b.includes('TOP') || b.includes('POPULAR') ||
-             (parseFloat(p.rating || 0) >= 4.5);
+      return sec.includes('sec-best') || sec.includes('best-sellers') ||
+             p.isBestseller === true ||
+             b.includes('BEST') || b.includes('TOP') || b.includes('POPULAR');
     });
-    if (bestSellers.length === 0) {
-      bestSellers = [...all].sort((a, b) => (parseFloat(b.rating) || 5) - (parseFloat(a.rating) || 5)).slice(0, Math.min(12, all.length));
-    }
 
     return { deals, newArrivals, bestSellers };
   }
@@ -3783,7 +3760,14 @@ class ProductList extends HTMLElement {
     grid.innerHTML = '';
 
     if (filteredList.length === 0) {
-      filteredList = (this.products || []).slice(0, 12);
+      grid.innerHTML = `
+        <div style="grid-column: 1 / -1; padding: 60px 20px; text-align: center; color: #64748b; background: rgba(255,255,255,0.6); border-radius: 20px; border: 1px dashed #cbd5e1; margin: 20px 0;">
+          <div style="font-size: 42px; margin-bottom: 12px;">🛍️</div>
+          <h4 style="font-size: 16px; font-weight: 850; color: #0f172a; margin: 0 0 6px 0;">No products in this collection yet</h4>
+          <p style="font-size: 13px; margin: 0;">Check back soon for new additions to this collection!</p>
+        </div>
+      `;
+      return;
     }
 
     filteredList.forEach(p => {
