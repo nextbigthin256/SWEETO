@@ -614,4 +614,28 @@ Merci infiniment pour votre confiance chez SWEETOS !
           
           <div style="font-size: 72px; margin: 15px 0; text-align: center; width: 100%;">🎁</div>
           
-          <p style="font-size: 13px
+          <p style="font-size: 13px; color: var(--text-gray); margin: 0; font-weight: 600; text-align: center; width: 100%;">
+            Pour vous remercier de votre fidélité, nous vous offrons une chance de gratter et remporter un coupon de réduction exclusif !
+          </p>
+          
+          <button id="open-scratchcard-btn" style="background: var(--primary); color: white; border: none; padding: 14px 28px; border-radius: 12px; font-size: 14px; font-weight: 850; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,82,204,0.25); width: 100%; display: block; box-sizing: border-box; text-align: center;">
+            Gratter ma Boîte Mystère →
+          </button>
+        </div>
+      </div>
+    `;
+    
+    modal.querySelector('#close-email-modal').addEventListener('click', () => {
+      modal.remove();
+    });
+    
+    modal.querySelector('#open-scratchcard-btn').addEventListener('click', () => {
+      modal.remove();
+      window.dispatchEvent(new CustomEvent('notifications:toggle', { detail: { open: false } }));
+      window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'coupons' } }));
+    });
+  }
+}
+
+customElements.define('notification-drawer', NotificationDrawer);
+export default NotificationDrawer;
