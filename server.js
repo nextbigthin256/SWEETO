@@ -53,12 +53,12 @@ const server = http.createServer((req, res) => {
     if (mode === 'subscribe' && token === VERIFY_TOKEN) {
       console.log('✅ [WhatsApp Webhook] Meta subscription verified successfully!');
       res.writeHead(200, { 'Content-Type': 'text/plain' });
-      res.end(challenge || '');
+      res.end(String(challenge || ''));
       return;
     }
     
-    res.writeHead(200, { 'Content-Type': 'text/plain' });
-    res.end('✅ SWEETOS WhatsApp Webhook is active and online!');
+    res.writeHead(403, { 'Content-Type': 'text/plain' });
+    res.end('Forbidden');
     return;
   }
 
