@@ -280,6 +280,26 @@ export async function sendMysteryBoxEmail(orderId, recipientEmail = null) {
   });
 }
 
+export async function sendAdminNewOrderEmail(order) {
+  const adminEmail = 'nextbigthin256@gmail.com';
+  const orderId = order.id || order.order_number;
+  const itemsList = (order.items || order.products || []);
+  const itemsText = itemsList.length > 0 
+    ? itemsList.map(i => `• ${i.name || i.product_name} (x${i.quantity || i.units || 1}) - ${i.price || 0} FCFA`).join('\n')
+    : '• 1x Produit SWEETOS';
+
+  return await sendEmailNotification({
+    toEmail: adminEmail,
+    subject: `🔔 NOUVELLE COMMANDE #${orderId} - SWEETOS`,
+    title: `Nouvelle Commande #${orderId}`,
+    message: `Une nouvelle commande a été enregistrée sur SWEETOS !\n\nClient: ${order.customerName || order.name || 'Client'}\nTéléphone: ${order.phone || order.customerPhone || 'Non renseigné'}\nEmail: ${order.email || order.customerEmail || 'Non renseigné'}\n\nProduits:\n${itemsText}\n\nTotal: ${order.total || 0} FCFA`,
+    type: 'shipping',
+    linkUrl: `${window?.location?.origin}/admin.html`,
+    linkText: 'Accéder au Panneau Admin',
+    orderId: orderId
+  });
+}
+
 // ============================================
 // TEST FUNCTION
 // ============================================

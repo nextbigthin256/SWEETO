@@ -119,6 +119,36 @@ Have a wonderful day! ❤️`;
   return await sendWhatsAppMessage(phone, message);
 }
 
+const STORE_OWNER_PHONE = '2250500619923';
+
+/**
+ * Send Store Owner / Admin Alert on New Order
+ */
+export async function sendAdminNewOrderWhatsApp(order) {
+  const itemsList = (order.items || order.products || []);
+  const itemsText = itemsList.length > 0 
+    ? itemsList.map(i => `• ${i.name || i.product_name} (x${i.quantity || i.units || 1})`).join('\n')
+    : '• 1x Produit SWEETOS';
+
+  const message = `🔔 *NOUVELLE COMMANDE REÇUE ! - SWEETOS*
+
+📦 *Commande #${order.id || order.order_number}*
+👤 *Client:* ${order.customerName || order.name || 'Client'}
+📞 *Téléphone:* ${order.phone || order.customerPhone || 'Non renseigné'}
+📧 *Email:* ${order.email || order.customerEmail || 'Non renseigné'}
+📍 *Adresse:* ${order.address || order.shippingAddress || 'Livraison standard'}
+
+🛒 *Produits:*
+${itemsText}
+
+💰 *Total:* ${order.total || 0} FCFA
+💳 *Mode de Paiement:* ${order.paymentMethod || 'Paiement à la livraison'}
+
+Accédez au panneau Admin pour valider la commande ! 🚀`;
+
+  return await sendWhatsAppMessage(STORE_OWNER_PHONE, message);
+}
+
 /**
  * Send Promotional Message via WhatsApp
  */

@@ -879,17 +879,19 @@ class CheckoutModal extends HTMLElement {
           await createOrderInSupabase(newOrder);
         }).catch(() => {});
 
-        // Dispatch EmailJS Order Confirmation Email
-        import('../../utils/emailNotifications.js').then(({ sendOrderConfirmationEmail }) => {
+        // Dispatch EmailJS Order Confirmation Email (to Customer) & Store Owner Alert
+        import('../../utils/emailNotifications.js').then(({ sendOrderConfirmationEmail, sendAdminNewOrderEmail }) => {
           sendOrderConfirmationEmail(newOrder.id || newOrder.order_number, this.formData.email);
+          sendAdminNewOrderEmail(newOrder);
         }).catch(() => {});
 
-        // Dispatch WhatsApp Order Confirmation Message
-        if (this.formData.phone) {
-          import('../../utils/whatsapp.js').then(({ sendOrderConfirmationWhatsApp }) => {
+        // Dispatch WhatsApp Confirmation (to Customer) & Store Owner Alert (+2250500619923)
+        import('../../utils/whatsapp.js').then(({ sendOrderConfirmationWhatsApp, sendAdminNewOrderWhatsApp }) => {
+          if (this.formData.phone) {
             sendOrderConfirmationWhatsApp(newOrder, this.formData.phone);
-          }).catch(() => {});
-        }
+          }
+          sendAdminNewOrderWhatsApp(newOrder);
+        }).catch(() => {});
 
         let localOrders = getAllOrdersFromStorage();
         if (!localOrders.some(o => o.id === newOrder.id)) {
