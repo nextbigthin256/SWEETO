@@ -2098,4 +2098,277 @@ textarea.admin-input {
   font-weight: 750;
 }
 
+/* ================= MOBILE RESPONSIVE ADAPTABILITY ================= */
+
+/* Mobile Hamburger Button */
+.mobile-hamburger-btn {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  color: var(--text-dark);
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.mobile-hamburger-btn:hover,
+.mobile-hamburger-btn:active {
+  background: var(--primary-light);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.admin-sidebar-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 9990;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+}
+
+.admin-sidebar-backdrop.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+/* Tablet & Mobile Screens (<= 768px) */
+@media (max-width: 768px) {
+  .mobile-hamburger-btn {
+    display: flex;
+  }
+  
+  .admin-sidebar-backdrop {
+    display: block;
+  }
+
+  .admin-dashboard-container {
+    flex-direction: column;
+    position: relative;
+    overflow-x: hidden;
+  }
+
+  /* Off-canvas Slide-over Sidebar Drawer */
+  .admin-sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 280px !important;
+    height: 100vh;
+    max-height: 100vh;
+    z-index: 9999;
+    transform: translateX(-100%);
+    box-shadow: 4px 0 25px rgba(0, 0, 0, 0.3);
+    transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    padding: 20px 16px;
+  }
+
+  .admin-sidebar.mobile-open {
+    transform: translateX(0) !important;
+  }
+
+  .sidebar-toggle-btn {
+    display: none !important;
+  }
+
+  .admin-sidebar.collapsed .admin-brand {
+    justify-content: flex-start;
+  }
+
+  .admin-sidebar.collapsed .admin-nav-item {
+    justify-content: flex-start;
+    padding: 11px 13px;
+  }
+
+  .admin-sidebar.collapsed .admin-nav-item span {
+    display: inline !important;
+  }
+
+  .admin-sidebar.collapsed .admin-sidebar-footer {
+    justify-content: space-between;
+    flex-direction: row !important;
+  }
+
+  .admin-sidebar.collapsed .admin-profile-badge .info {
+    display: flex !important;
+  }
+
+  /* Main Viewport Adjustments */
+  .admin-main {
+    width: 100% !important;
+    height: 100vh;
+    padding: 14px 14px 20px 14px !important;
+    gap: 14px !important;
+    overflow-x: hidden;
+  }
+
+  .admin-topbar {
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .admin-title-panel {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .admin-title-panel h1 {
+    font-size: 18px !important;
+    font-weight: 850;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .admin-title-panel p {
+    font-size: 11.5px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .admin-actions-bar {
+    width: 100%;
+    justify-content: space-between;
+    gap: 10px;
+    margin-top: 4px;
+    flex-wrap: wrap;
+  }
+
+  .header-search-bar {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* 2x2 KPI Grids on Mobile! */
+  .admin-stats-grid,
+  .inventory-kpi-grid,
+  .sections-kpi-grid,
+  .coupons-kpi-grid,
+  .products-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .kpi-card,
+  .stats-card {
+    padding: 12px 14px !important;
+    gap: 10px !important;
+    border-radius: 14px !important;
+    min-width: 0;
+  }
+
+  .kpi-icon-box,
+  .stats-card .icon-circle {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 18px !important;
+    border-radius: 10px !important;
+    flex-shrink: 0;
+  }
+
+  .kpi-val,
+  .stats-card .details h2 {
+    font-size: 20px !important;
+    font-weight: 850 !important;
+  }
+
+  .kpi-title,
+  .stats-card .details .label {
+    font-size: 10.5px !important;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  /* Stack Dashboard Columns */
+  .admin-columns-grid {
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+
+  .dashboard-col-left,
+  .dashboard-col-right {
+    width: 100% !important;
+    flex: none !important;
+    padding: 16px !important;
+  }
+
+  /* Toolbar & Filters Stacking */
+  .inventory-toolbar,
+  .section-toolbar,
+  .product-toolbar,
+  .order-toolbar,
+  .customer-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding: 12px 14px !important;
+  }
+
+  .clean-search-box {
+    width: 100% !important;
+    min-width: 100% !important;
+  }
+
+  .select-filter-btn {
+    width: 100% !important;
+  }
+
+  /* Table Horizontal Scrolling */
+  .table-wrapper,
+  .sections-table-container,
+  .inventory-table-container {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100%;
+    border-radius: 14px !important;
+  }
+
+  table {
+    min-width: 600px;
+  }
+
+  th, td {
+    padding: 10px 12px !important;
+    font-size: 12.5px !important;
+  }
+}
+
+/* Extra Small Smartphones (<= 480px) */
+@media (max-width: 480px) {
+  .admin-main {
+    padding: 10px 10px 16px 10px !important;
+  }
+
+  .admin-title-panel p {
+    display: none;
+  }
+
+  .kpi-card,
+  .stats-card {
+    padding: 10px 12px !important;
+  }
+
+  .kpi-val,
+  .stats-card .details h2 {
+    font-size: 18px !important;
+  }
+}
+
+
 

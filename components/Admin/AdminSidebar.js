@@ -125,10 +125,25 @@ export function renderAdminSidebar(context) {
 }
 
 export function attachAdminSidebarListeners(context, shadow) {
+  // Close mobile sidebar drawer helper
+  const closeMobileSidebar = () => {
+    const sidebar = shadow.querySelector('.admin-sidebar');
+    const backdrop = shadow.querySelector('.admin-sidebar-backdrop');
+    if (sidebar) sidebar.classList.remove('mobile-open');
+    if (backdrop) backdrop.classList.remove('active');
+  };
+
+  // Backdrop tap to dismiss mobile sidebar
+  const backdrop = shadow.querySelector('.admin-sidebar-backdrop');
+  if (backdrop) {
+    backdrop.addEventListener('click', () => closeMobileSidebar());
+  }
+
   // Sidebar tab navigation
   shadow.querySelectorAll('.admin-nav-item').forEach(item => {
     item.addEventListener('click', (e) => {
       e.preventDefault();
+      closeMobileSidebar();
       const tab = item.getAttribute('data-tab');
       context.currentTab = tab;
       sessionStorage.setItem('SWEETOS_admin_current_tab', tab);

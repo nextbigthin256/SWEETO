@@ -1115,6 +1115,7 @@ class AdminPage extends HTMLElement {
   renderDashboardLayout(animate = true) {
     return `
       <div class="admin-dashboard-container ${animate ? 'animate-in' : ''}">
+        <div class="admin-sidebar-backdrop" id="admin-sidebar-backdrop"></div>
         ${renderAdminSidebar(this)}
         <main class="admin-main">
           ${renderAdminHeader(this)}

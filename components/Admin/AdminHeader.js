@@ -226,9 +226,18 @@ export function renderAdminHeader(context) {
     </style>
 
     <header class="admin-topbar">
-      <div class="admin-title-panel">
-        <h1>${tabTitle}</h1>
-        <p>${subtitle}</p>
+      <div style="display:flex; align-items:center; gap:12px; min-width:0; flex:1;">
+        <button class="mobile-hamburger-btn" id="mobile-sidebar-toggle-btn" title="Toggle Navigation Menu">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="3" y1="6" x2="21" y2="6"></line>
+            <line x1="3" y1="12" x2="21" y2="12"></line>
+            <line x1="3" y1="18" x2="21" y2="18"></line>
+          </svg>
+        </button>
+        <div class="admin-title-panel">
+          <h1>${tabTitle}</h1>
+          <p>${subtitle}</p>
+        </div>
       </div>
       
       <div class="admin-actions-bar" style="display:flex; align-items:center; gap:12px;">
@@ -325,6 +334,21 @@ export function renderAdminHeader(context) {
 }
 
 export function attachAdminHeaderListeners(context, shadow) {
+  // Mobile Hamburger Toggle Listener
+  const mobileToggleBtn = shadow.getElementById('mobile-sidebar-toggle-btn');
+  if (mobileToggleBtn) {
+    mobileToggleBtn.addEventListener('click', () => {
+      const sidebar = shadow.querySelector('.admin-sidebar');
+      const backdrop = shadow.querySelector('.admin-sidebar-backdrop');
+      if (sidebar) {
+        sidebar.classList.toggle('mobile-open');
+      }
+      if (backdrop) {
+        backdrop.classList.toggle('active');
+      }
+    });
+  }
+
   // Storefront navigation change
   const storefrontBtn = shadow.getElementById('view-storefront-btn');
   if (storefrontBtn) {
