@@ -1937,7 +1937,7 @@ export function attachAdminProductsListeners(context, shadow) {
         const finalSku = sku || `${category.slice(0,2).toUpperCase()}-${name.replace(/[^a-zA-Z0-9]/g, '').slice(0, 4).toUpperCase()}-${Math.floor(100 + Math.random() * 900)}`;
         const newId = context.products.length > 0 ? (Math.max(...context.products.map(p => p.id)) + 1) : 1;
         
-        context.products.unshift({
+        const newProductItem = {
           id: newId,
           sku: finalSku,
           name,
@@ -1949,8 +1949,8 @@ export function attachAdminProductsListeners(context, shadow) {
           stock,
           threshold,
           costPrice,
-          description,
-          badge: badge || null,
+          description: description || `High-precision ${name} from ${brand}.`,
+          badge: badge || 'NEW ARRIVAL',
           status,
           image: imageUrl,
           hasVariants: hasVariants && finalColors.length > 0,
@@ -1958,8 +1958,33 @@ export function attachAdminProductsListeners(context, shadow) {
           homepageSections: checkedSections,
           rating: 5.0,
           reviews: 0
+        };
+
+        context.products.unshift(newProductItem);
+
+        // Auto-Trigger Web Push Notification & Store Feed Alert for all customers!
+        import('../../utils/pushNotifications.js').then(({ showLocalNotification }) => {
+          showLocalNotification(`🛍️ New Arrival: ${name}`, {
+            body: `Discover the new ${name} by ${brand} (${formatPrice(price)}) on SWEETOS!`,
+            icon: imageUrl,
+            tag: `new-product-${newId}`,
+            data: { url: `/#/?product=${newId}` }
+          });
+        }).catch(() => {});
+
+        const notifFeed = JSON.parse(sessionStorage.getItem('SWEETOS_notifications') || '[]');
+        notifFeed.unshift({
+          id: `new-product-${newId}`,
+          title: `🛍️ New Product: ${name}`,
+          desc: `Discover ${name} by ${brand} (${formatPrice(price)})! In stock now on SWEETOS.`,
+          category: 'promos',
+          unread: true,
+          createdAt: Date.now()
         });
-        window.dispatchEvent(new CustomEvent('toast:show', { detail: `New product "${name}" added to store!` }));
+        sessionStorage.setItem('SWEETOS_notifications', JSON.stringify(notifFeed));
+        window.dispatchEvent(new CustomEvent('notifications:updated'));
+
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: `✨ New product "${name}" published! Push notification sent to customers. 🔔` }));
       }
 
       context.saveDatabase('products');
