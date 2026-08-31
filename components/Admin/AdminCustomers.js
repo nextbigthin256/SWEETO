@@ -1024,7 +1024,7 @@ export function attachAdminCustomersListeners(context, shadow) {
   // Save Customer Level & Badges Button
   const saveCustBadgeBtn = shadow.getElementById('admin-save-cust-badge-btn');
   if (saveCustBadgeBtn) {
-    saveCustBadgeBtn.addEventListener('click', () => {
+    saveCustBadgeBtn.addEventListener('click', async () => {
       const custEmail = saveCustBadgeBtn.getAttribute('data-customer-email');
       const selectedLevel = shadow.getElementById('admin-cust-level-select')?.value || 'bronze';
       const selectedBadge = shadow.getElementById('admin-cust-badge-select')?.value || 'none';
@@ -1056,19 +1056,21 @@ export function attachAdminCustomersListeners(context, shadow) {
       sessionStorage.setItem('SWEETOS_customers', JSON.stringify(customers));
 
       // Sync customer profile directly to Supabase Cloud
-      try {
-        const { saveCustomerToSupabase } = await import('../../utils/supabase.js');
-        await saveCustomerToSupabase({
+      import('../../utils/supabase.js').then(({ saveCustomerToSupabase }) => {
+        saveCustomerToSupabase({
           email: custEmail,
           name: foundCust ? foundCust.name : 'Client',
           level: selectedLevel,
           badgeType: selectedBadge,
           unlockedBadges: checkedBadges
+        }).then(res => {
+          console.log('[Supabase Cloud] Customer updated in Cloud:', custEmail, res);
+        }).catch(err => {
+          console.error('[Supabase Cloud Customer Update Error]:', err);
         });
-        console.log('[Supabase Cloud] Customer updated in Cloud:', custEmail);
-      } catch (err) {
-        console.error('[Supabase Cloud Customer Update Error]:', err);
-      }
+      }).catch(err => {
+        console.error('[Supabase Cloud Import Error]:', err);
+      });
 
       // Sync customer user profile in sessionStorage if matches
       try {
