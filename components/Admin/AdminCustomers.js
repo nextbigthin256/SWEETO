@@ -1040,11 +1040,11 @@ export function attachAdminCustomersListeners(context, shadow) {
 
       // Update in context.customers
       let customers = context.customers || [];
-      const target = customers.find(c => c.email && c.email.toLowerCase() === custEmail.toLowerCase());
-      if (target) {
-        target.level = selectedLevel;
-        target.badgeType = selectedBadge;
-        target.unlockedBadges = checkedBadges;
+      const foundCust = customers.find(c => c.email && c.email.toLowerCase() === custEmail.toLowerCase());
+      if (foundCust) {
+        foundCust.level = selectedLevel;
+        foundCust.badgeType = selectedBadge;
+        foundCust.unlockedBadges = checkedBadges;
       } else {
         customers.push({
           email: custEmail,
@@ -1057,21 +1057,19 @@ export function attachAdminCustomersListeners(context, shadow) {
       sessionStorage.setItem('SWEETOS_customers', JSON.stringify(customers));
 
       // Sync customer profile directly to Supabase Cloud
-      import('../../utils/supabase.js').then(({ saveCustomerToSupabase }) => {
-        saveCustomerToSupabase({
+      try {
+        const { saveCustomerToSupabase } = await import('../../utils/supabase.js');
+        const result = await saveCustomerToSupabase({
           email: custEmail,
-          name: foundCust ? foundCust.name : 'Client',
+          name: foundCust ? (foundCust.name || foundCust.firstName || 'Client') : 'Client',
           level: selectedLevel,
           badgeType: selectedBadge,
           unlockedBadges: checkedBadges
-        }).then(res => {
-          console.log('[Supabase Cloud] Customer updated in Cloud:', custEmail, res);
-        }).catch(err => {
-          console.error('[Supabase Cloud Customer Update Error]:', err);
         });
-      }).catch(err => {
-        console.error('[Supabase Cloud Import Error]:', err);
-      });
+        console.log('[Supabase Cloud] Customer updated in Cloud:', custEmail, result);
+      } catch (err) {
+        console.error('[Supabase Cloud Customer Update Error]:', err);
+      }
 
       // Sync customer user profile in sessionStorage if matches
       try {

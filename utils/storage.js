@@ -852,6 +852,36 @@ if (typeof window !== 'undefined') {
   });
 }
 
+export async function syncCustomersToSupabase(customers) {
+  if (!Array.isArray(customers)) return [];
+  try {
+    const { saveCustomerToSupabase } = await import('./supabase.js');
+    const results = [];
+    
+    for (const customer of customers) {
+      try {
+        const result = await saveCustomerToSupabase({
+          email: customer.email,
+          name: customer.name || customer.firstName || 'Client',
+          phone: customer.phone || '',
+          level: customer.level || 'starter',
+          badgeType: customer.badgeType || 'none',
+          unlockedBadges: customer.unlockedBadges || []
+        });
+        results.push({ email: customer.email, success: true, result });
+      } catch (e) {
+        results.push({ email: customer.email, success: false, error: e.message });
+      }
+    }
+    
+    console.log('[Supabase Cloud] Customers batch synced:', results);
+    return results;
+  } catch (e) {
+    console.error('[Supabase Cloud] Failed to sync customers batch:', e);
+    return [];
+  }
+}
+
 export async function initStorageSync() {
   console.log('[Storage] Initializing with Supabase sync...');
   await retryPendingSupabaseSyncs();
