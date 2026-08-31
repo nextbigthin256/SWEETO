@@ -541,7 +541,13 @@ export async function testWhatsAppConfiguration(targetPhone = null) {
 
 if (typeof window !== 'undefined') {
   window.testWhatsApp = function(phone) {
-    return testWhatsAppConfiguration(phone);
+    console.log('⌛ Dispatching SWEETOS test WhatsApp message to:', phone || WHATSAPP_CONFIG.ownerPhone);
+    return testWhatsAppConfiguration(phone).then(res => {
+      console.log('✅ Dispatch complete. Result:', res);
+      return res;
+    }).catch(err => {
+      console.error('❌ Dispatch failed:', err);
+    });
   };
 }
 
