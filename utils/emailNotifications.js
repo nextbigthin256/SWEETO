@@ -331,7 +331,15 @@ export async function testEmailConfiguration() {
 }
 
 if (typeof window !== 'undefined') {
-  window.testSWEETOSEmail = testEmailConfiguration;
+  window.testSWEETOSEmail = function() {
+    console.log('⌛ Dispatching SWEETOS test email...');
+    return testEmailConfiguration().then(res => {
+      console.log('Result:', res);
+      return res;
+    }).catch(err => {
+      console.error('Error:', err);
+    });
+  };
 }
 
 // ============================================

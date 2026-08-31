@@ -884,6 +884,13 @@ class CheckoutModal extends HTMLElement {
           sendOrderConfirmationEmail(newOrder.id || newOrder.order_number, this.formData.email);
         }).catch(() => {});
 
+        // Dispatch WhatsApp Order Confirmation Message
+        if (this.formData.phone) {
+          import('../../utils/whatsapp.js').then(({ sendOrderConfirmationWhatsApp }) => {
+            sendOrderConfirmationWhatsApp(newOrder, this.formData.phone);
+          }).catch(() => {});
+        }
+
         let localOrders = getAllOrdersFromStorage();
         if (!localOrders.some(o => o.id === newOrder.id)) {
           localOrders.unshift(newOrder);

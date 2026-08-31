@@ -440,6 +440,23 @@ export async function syncDeliveredNotifications() {
       } catch(emailErr) {
         console.error('[EmailJS] Error sending delivery email:', emailErr);
       }
+
+      // Dispatch WhatsApp Delivery Notifications
+      try {
+        const { sendOrderDeliveredWhatsApp } = await import('./whatsapp.js');
+        const newlyProcessed = ordersList.filter(o => {
+          const oid = o.id || o.order_number;
+          return oid && processedDeliveries.includes(oid);
+        });
+        for (const order of newlyProcessed) {
+          const customerPhone = order.phone || order.customerPhone || order.shippingPhone;
+          if (customerPhone) {
+            await sendOrderDeliveredWhatsApp(order, customerPhone);
+          }
+        }
+      } catch(waErr) {
+        console.error('[WhatsApp] Error sending delivery notification:', waErr);
+      }
     }
   };
 
