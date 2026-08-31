@@ -1,4 +1,4 @@
-import { formatPrice } from '../../utils/storage.js';
+import { formatPrice, getStorageItem } from '../../utils/storage.js';
 import { saveSiteSettingInSupabase, fetchSiteSettingFromSupabase } from '../../utils/supabase.js';
 
 export function renderAdminAnalytics(context) {
@@ -7,7 +7,7 @@ export function renderAdminAnalytics(context) {
 
   let sessionLogs = [];
   try {
-    const rawLogs = sessionStorage.getItem('SWEETOS_activity_logs');
+    const rawLogs = getStorageItem('SWEETOS_activity_logs');
     if (rawLogs) sessionLogs = JSON.parse(rawLogs);
   } catch(e) {}
 
@@ -22,7 +22,7 @@ export function renderAdminAnalytics(context) {
 
   let failedSearches = [];
   try {
-    const rawSearches = sessionStorage.getItem('SWEETOS_failed_searches');
+    const rawSearches = getStorageItem('SWEETOS_failed_searches');
     if (rawSearches) failedSearches = JSON.parse(rawSearches);
   } catch(e) {}
 
@@ -37,13 +37,17 @@ export function renderAdminAnalytics(context) {
 
   fetchSiteSettingFromSupabase('sweetos_activity_logs').then(cloudLogs => {
     if (Array.isArray(cloudLogs) && cloudLogs.length > 0) {
-      sessionStorage.setItem('SWEETOS_activity_logs', JSON.stringify(cloudLogs));
+      const logsStr = JSON.stringify(cloudLogs);
+      try { sessionStorage.setItem('SWEETOS_activity_logs', logsStr); } catch(e) {}
+      try { localStorage.setItem('SWEETOS_activity_logs', logsStr); } catch(e) {}
     }
   }).catch(() => {});
 
   fetchSiteSettingFromSupabase('sweetos_failed_searches').then(cloudSearches => {
     if (Array.isArray(cloudSearches) && cloudSearches.length > 0) {
-      sessionStorage.setItem('SWEETOS_failed_searches', JSON.stringify(cloudSearches));
+      const searchesStr = JSON.stringify(cloudSearches);
+      try { sessionStorage.setItem('SWEETOS_failed_searches', searchesStr); } catch(e) {}
+      try { localStorage.setItem('SWEETOS_failed_searches', searchesStr); } catch(e) {}
     }
   }).catch(() => {});
 

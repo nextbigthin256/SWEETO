@@ -694,6 +694,11 @@ class AdminPage extends HTMLElement {
         }
       });
       this.customers = Array.from(custsMap.values());
+      try {
+        const custsJson = JSON.stringify(this.customers);
+        sessionStorage.setItem('SWEETOS_customers', custsJson);
+        localStorage.setItem('SWEETOS_customers', custsJson);
+      } catch(e) {}
 
       if (cpps.status === 'fulfilled' && Array.isArray(cpps.value) && cpps.value.length > 0) {
         this.coupons = cpps.value;
@@ -728,6 +733,19 @@ class AdminPage extends HTMLElement {
 
   loadCustomers() {
     const customersMap = new Map();
+
+    // 1. Load stored customers from localStorage & sessionStorage
+    const storedCustsStr = getStorageItem('SWEETOS_customers');
+    if (storedCustsStr) {
+      try {
+        const storedCusts = JSON.parse(storedCustsStr);
+        if (Array.isArray(storedCusts)) {
+          storedCusts.forEach(c => {
+            if (c && c.email) customersMap.set(c.email.trim().toLowerCase(), c);
+          });
+        }
+      } catch(e) {}
+    }
 
     const scanStorage = (storageObj) => {
       if (!storageObj) return;
