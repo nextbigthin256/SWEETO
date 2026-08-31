@@ -1,7 +1,28 @@
 export function renderAdminSidebar(context) {
-  const pendingOrdersCount = context.orders.filter(o => o.status === 'Pending' || o.status === 'En cours').length;
-  const lowStockCount = context.products.filter(p => p.stock !== undefined && p.stock <= (p.threshold || 5)).length;
-  const totalAlertsCount = pendingOrdersCount + lowStockCount;
+  const readAlertsStr = sessionStorage.getItem('SWEETOS_admin_read_alerts') || '[]';
+  let readAlerts = [];
+  try {
+    readAlerts = JSON.parse(readAlertsStr);
+  } catch(e) {}
+
+  const pendingOrdersCount = (context.orders || []).filter(o => 
+    (o.status === 'Pending' || o.status === 'En cours' || o.status === 'Traitement') &&
+    !readAlerts.includes(`order-${o.id}`)
+  ).length;
+
+  const lowStockCount = (context.products || []).filter(p => 
+    p.stock !== undefined && p.stock <= (p.threshold || 5) &&
+    !readAlerts.includes(`stock-${p.id || p.sku}`)
+  ).length;
+
+  const lowCouponsCount = (context.coupons || []).filter(c => 
+    c.stock !== undefined && c.stock <= 2 &&
+    !readAlerts.includes(`coupon-stock-${c.code}`)
+  ).length;
+
+  const systemAlertsCount = ['sys-backup-ok'].filter(id => !readAlerts.includes(id)).length;
+
+  const totalAlertsCount = pendingOrdersCount + lowStockCount + lowCouponsCount + systemAlertsCount;
   const isCollapsed = context.sidebarCollapsed;
 
   return `

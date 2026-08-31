@@ -13,6 +13,12 @@ export function renderAdminNotifications(context) {
     readAlerts = JSON.parse(readAlertsStr);
   } catch(e) {}
 
+  // Auto-mark default system notice as read when visiting alerts page
+  if (!readAlerts.includes('sys-backup-ok')) {
+    readAlerts.push('sys-backup-ok');
+    sessionStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(readAlerts));
+  }
+
   const allAlerts = [];
   
   // 1. Coupon alerts
