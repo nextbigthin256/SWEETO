@@ -31,6 +31,11 @@ document.addEventListener('DOMContentLoaded', () => {
   initSupabaseSync();
   initStorageSync();
 
+  // Register Service Worker for Web Push & Background Notifications
+  import('./utils/pushNotifications.js').then(({ registerServiceWorker }) => {
+    registerServiceWorker();
+  }).catch(e => console.error('Failed to initialize Service Worker:', e));
+
   // Live Background Customer Revocation Guard (Every 6 seconds)
   setInterval(async () => {
     const loggedUserStr = getStorageItem('SWEETOS_logged_in_user');

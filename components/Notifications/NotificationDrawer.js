@@ -214,6 +214,20 @@ class NotificationDrawer extends HTMLElement {
           </div>
         </div>
 
+        <!-- Web Push Enable Banner -->
+        <div style="background: linear-gradient(135deg, rgba(0,82,204,0.08) 0%, rgba(0,180,216,0.08) 100%); padding: 12px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <div style="font-size: 20px;">🔔</div>
+            <div>
+              <div style="font-size: 12.5px; font-weight: 800; color: var(--text-dark);">Push Notifications</div>
+              <div style="font-size: 11px; color: var(--text-gray);">Get background alerts when app is closed</div>
+            </div>
+          </div>
+          <button id="togglePushSubBtn" style="background: var(--primary); color: white; border: none; border-radius: 8px; padding: 6px 12px; font-size: 11.5px; font-weight: 800; cursor: pointer; transition: all 0.2s ease;">
+            Enable Push
+          </button>
+        </div>
+
         <!-- Filter Tabs Row -->
         <div class="notif-filter-pills-row" style="display: flex; gap: 6px; padding: 12px 18px 6px 18px; border-bottom: 1px solid var(--border); overflow-x: auto;">
           <button class="notif-pill ${this.activeFilter === 'all' ? 'active' : ''}" data-filter="all" style="padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 750; border: none; cursor: pointer; transition: all 0.2s; background: ${this.activeFilter === 'all' ? 'var(--primary)' : 'rgba(0,0,0,0.05)'}; color: ${this.activeFilter === 'all' ? 'white' : 'var(--text-gray)'};">
@@ -305,6 +319,39 @@ class NotificationDrawer extends HTMLElement {
       closeBtn.addEventListener('click', () => {
         window.dispatchEvent(new CustomEvent('notifications:toggle', { detail: { open: false } }));
       });
+    }
+
+    // Toggle Web Push Subscription Button Listener
+    const togglePushBtn = shadow.getElementById('togglePushSubBtn');
+    if (togglePushBtn) {
+      import('../../utils/pushNotifications.js').then(async ({ getPushSubscription, subscribeToWebPush, unsubscribeFromWebPush }) => {
+        const sub = await getPushSubscription();
+        if (sub) {
+          togglePushBtn.textContent = '✓ Subscribed';
+          togglePushBtn.style.background = '#10b981';
+        }
+
+        togglePushBtn.addEventListener('click', async () => {
+          try {
+            const currentSub = await getPushSubscription();
+            if (currentSub) {
+              await unsubscribeFromWebPush();
+              togglePushBtn.textContent = 'Enable Push';
+              togglePushBtn.style.background = 'var(--primary)';
+              window.dispatchEvent(new CustomEvent('toast:show', { detail: '🔕 Web Push unsubscribed.' }));
+            } else {
+              togglePushBtn.textContent = '⏳ Subscribing...';
+              await subscribeToWebPush();
+              togglePushBtn.textContent = '✓ Subscribed';
+              togglePushBtn.style.background = '#10b981';
+              window.dispatchEvent(new CustomEvent('toast:show', { detail: '🔔 Web Push notifications enabled!' }));
+            }
+          } catch(err) {
+            window.dispatchEvent(new CustomEvent('toast:show', { detail: `⚠️ ${err.message || 'Push subscription failed'}` }));
+            togglePushBtn.textContent = 'Enable Push';
+          }
+        });
+      }).catch(() => {});
     }
 
     // Filter pills

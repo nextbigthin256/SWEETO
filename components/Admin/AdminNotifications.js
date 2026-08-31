@@ -273,6 +273,24 @@ export function renderAdminNotifications(context) {
           <span class="kpi-title">Stock Warnings</span>
           <span class="kpi-val" style="color: #d97706;">${stockAlertsCount}</span>
         </div>
+    <!-- Web Push Broadcast Card for Admin -->
+    <div class="glass-panel" style="padding: 20px; border-radius: 16px; margin-bottom: 20px; background: linear-gradient(135deg, rgba(0,82,204,0.05) 0%, rgba(0,180,216,0.05) 100%); border: 1.5px solid rgba(0,82,204,0.15);">
+      <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <div style="font-size:24px;">📢</div>
+          <div>
+            <h3 style="margin:0; font-size:15px; font-weight:850; color:#0f172a;">Broadcast Customer Web Push Notification</h3>
+            <p style="margin:2px 0 0 0; font-size:12px; color:#64748b;">Sends background push notifications to ALL subscribed customer devices (works even when site is closed!).</p>
+          </div>
+        </div>
+        <button id="adminSendPushBroadcastBtn" class="admin-btn admin-btn-primary" style="padding:8px 16px; font-size:12.5px; font-weight:800; display:flex; align-items:center; gap:6px; cursor:pointer;">
+          <span>🚀 Send Push Broadcast</span>
+        </button>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 2fr; gap:12px;">
+        <input type="text" id="adminPushTitle" placeholder="Notification Title (e.g. 🔥 FLASH SALE - 20% OFF!)" value="🔥 FLASH SALE - 20% OFF ALL ITEMS!" style="padding:10px 14px; border-radius:10px; border:1px solid #cbd5e1; font-size:13px; font-weight:600;">
+        <input type="text" id="adminPushBody" placeholder="Message Body (e.g. Use code FLASH20 at checkout today only.)" value="Use code FLASH20 at checkout today to claim your discount!" style="padding:10px 14px; border-radius:10px; border:1px solid #cbd5e1; font-size:13px; font-weight:600;">
       </div>
     </div>
 
@@ -455,6 +473,54 @@ export function attachAdminNotificationsListeners(context, shadow) {
       sessionStorage.setItem('SWEETOS_admin_current_tab', 'settings');
       context.render();
       context.attachListeners();
+    });
+  }
+
+  // Web Push Broadcast Action
+  const broadcastBtn = shadow.getElementById('adminSendPushBroadcastBtn');
+  if (broadcastBtn) {
+    broadcastBtn.addEventListener('click', async () => {
+      const titleInput = shadow.getElementById('adminPushTitle');
+      const bodyInput = shadow.getElementById('adminPushBody');
+      const title = (titleInput?.value || '').trim();
+      const body = (bodyInput?.value || '').trim();
+
+      if (!title || !body) {
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: '⚠️ Please enter a title and message body.' }));
+        return;
+      }
+
+      broadcastBtn.disabled = true;
+      broadcastBtn.innerHTML = `<span>⏳ Sending Push...</span>`;
+
+      try {
+        const { showLocalNotification } = await import('../../utils/pushNotifications.js');
+        await showLocalNotification(title, {
+          body,
+          tag: 'admin-broadcast',
+          data: { url: '/#/' }
+        });
+
+        // Add to notification feed
+        const notifFeed = JSON.parse(sessionStorage.getItem('SWEETOS_notifications') || '[]');
+        notifFeed.unshift({
+          id: `broadcast-${Date.now()}`,
+          title: `📢 ${title}`,
+          desc: body,
+          category: 'promos',
+          unread: true,
+          createdAt: Date.now()
+        });
+        sessionStorage.setItem('SWEETOS_notifications', JSON.stringify(notifFeed));
+        window.dispatchEvent(new CustomEvent('notifications:updated'));
+
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: '🚀 Web Push Broadcast sent to all customer devices!' }));
+      } catch(err) {
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: `⚠️ Push broadcast error: ${err.message}` }));
+      } finally {
+        broadcastBtn.disabled = false;
+        broadcastBtn.innerHTML = `<span>🚀 Send Push Broadcast</span>`;
+      }
     });
   }
 }
