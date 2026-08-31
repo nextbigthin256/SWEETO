@@ -2329,8 +2329,16 @@ textarea.admin-input {
     text-overflow: ellipsis;
   }
 
-  /* Stack Dashboard Columns */
-  .admin-columns-grid {
+  /* Stack Dashboard Columns & Split View Grids on Mobile */
+  .admin-columns-grid,
+  .admin-split-grid,
+  .inventory-split-grid,
+  .admin-viewport div[style*="grid-template-columns: 1fr minmax"],
+  .admin-viewport div[style*="grid-template-columns: minmax"],
+  .admin-viewport div[style*="grid-template-columns: 1.8fr"],
+  .admin-viewport div[style*="grid-template-columns: 1.3fr"],
+  .admin-viewport div[style*="grid-template-columns: 360px"] {
+    grid-template-columns: 1fr !important;
     flex-direction: column !important;
     gap: 16px !important;
   }

@@ -402,7 +402,7 @@ export function renderAdminInventory(context) {
     ` : ''}
 
     <!-- 5. 2-Column Responsive Layout: Table + Live Audit Log -->
-    <div style="display:grid; grid-template-columns: 1fr minmax(280px, 320px); gap:20px; align-items:start;">
+    <div class="admin-split-grid inventory-split-grid" style="display:grid; grid-template-columns: 1fr minmax(280px, 320px); gap:20px; align-items:start;">
       
       <!-- Left Column: Inventory Data Table -->
       <div class="inventory-table-container">
