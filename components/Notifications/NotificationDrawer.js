@@ -66,6 +66,39 @@ class NotificationDrawer extends HTMLElement {
   loadNotifications() {
     this.notifications = getNotificationsFromStorage();
 
+    if (!Array.isArray(this.notifications) || this.notifications.length === 0) {
+      this.notifications = [
+        {
+          id: `welcome-${Date.now()}`,
+          title: '🎉 Bienvenue sur SWEETOS !',
+          desc: 'Profitez de notre sélection exclusive d\'équipements tech et accessoires d\'espace de travail haut de gamme.',
+          category: 'promos',
+          icon: '🎁',
+          unread: false,
+          createdAt: Date.now() - 3600000
+        },
+        {
+          id: `flash-deals-${Date.now()}`,
+          title: '🔥 Ventes Flash & Offres Spéciales',
+          desc: 'Découvrez nos promotions exclusives sur une sélection de claviers mécaniques et accessoires audio.',
+          category: 'promos',
+          icon: '⚡',
+          unread: false,
+          createdAt: Date.now() - 7200000
+        },
+        {
+          id: `system-delivery-${Date.now()}`,
+          title: '📦 Suivi & Livraison Express',
+          desc: 'Toutes vos commandes bénéficient d\'un suivi en direct et d\'un support client réactif 7j/7.',
+          category: 'orders',
+          icon: '🚚',
+          unread: false,
+          createdAt: Date.now() - 86400000
+        }
+      ];
+      this.saveNotifications();
+    }
+
     // Ensure all existing notifications have a numeric createdAt timestamp
     let needsSave = false;
     this.notifications.forEach(n => {
@@ -291,6 +324,18 @@ class NotificationDrawer extends HTMLElement {
   }
 
   setupEventListeners() {
+    window.addEventListener('notifications:toggle', (e) => {
+      if (e.detail && e.detail.open) {
+        this.loadNotifications();
+        if (this.notifications.some(n => n.unread)) {
+          this.notifications.forEach(n => n.unread = false);
+          this.saveNotifications();
+        }
+        this.render();
+        window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: 0 }));
+      }
+    });
+
     window.addEventListener('notifications:updated', () => {
       this.loadNotifications();
       this.render();
@@ -569,28 +614,4 @@ Merci infiniment pour votre confiance chez SWEETOS !
           
           <div style="font-size: 72px; margin: 15px 0; text-align: center; width: 100%;">🎁</div>
           
-          <p style="font-size: 13px; color: var(--text-gray); margin: 0; font-weight: 600; text-align: center; width: 100%;">
-            Pour vous remercier de votre fidélité, nous vous offrons une chance de gratter et remporter un coupon de réduction exclusif !
-          </p>
-          
-          <button id="open-scratchcard-btn" style="background: var(--primary); color: white; border: none; padding: 14px 28px; border-radius: 12px; font-size: 14px; font-weight: 850; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 12px rgba(0,82,204,0.25); width: 100%; display: block; box-sizing: border-box; text-align: center;">
-            Gratter ma Boîte Mystère →
-          </button>
-        </div>
-      </div>
-    `;
-    
-    modal.querySelector('#close-email-modal').addEventListener('click', () => {
-      modal.remove();
-    });
-    
-    modal.querySelector('#open-scratchcard-btn').addEventListener('click', () => {
-      modal.remove();
-      window.dispatchEvent(new CustomEvent('notifications:toggle', { detail: { open: false } }));
-      window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'coupons' } }));
-    });
-  }
-}
-
-customElements.define('notification-drawer', NotificationDrawer);
-export default NotificationDrawer;
+          <p style="font-size: 13px

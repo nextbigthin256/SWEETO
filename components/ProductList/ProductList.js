@@ -3029,37 +3029,28 @@ class ProductList extends HTMLElement {
       return;
     }
 
-    const maxItems = Math.min(this.products.length, 12);
-    if (this.forYouIndex >= maxItems) {
-      if (loadingEl) loadingEl.style.display = 'none';
-      this.forYouLoading = false;
-      return;
-    }
-
     if (loadingEl) {
       loadingEl.style.opacity = '1';
+      loadingEl.style.display = 'block';
     }
 
     setTimeout(() => {
       const batchSize = 4;
-      const end = Math.min(this.forYouIndex + batchSize, maxItems);
-      for (let i = this.forYouIndex; i < end; i++) {
-        const p = this.products[i];
+      for (let i = 0; i < batchSize; i++) {
+        const prodIndex = (this.forYouIndex + i) % this.products.length;
+        const p = this.products[prodIndex];
         if (p) {
           const card = document.createElement('product-card');
           card.product = p;
           grid.appendChild(card);
         }
       }
-      this.forYouIndex = end;
+      this.forYouIndex += batchSize;
       this.forYouLoading = false;
-
-      if (this.forYouIndex >= maxItems) {
-        if (loadingEl) loadingEl.style.display = 'none';
-      } else if (loadingEl) {
+      if (loadingEl) {
         loadingEl.style.opacity = '0';
       }
-    }, 300);
+    }, 350);
   }
 
   renderCategoryHeroBanner() {

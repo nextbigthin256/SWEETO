@@ -93,7 +93,7 @@ export function renderAdminNotifications(context) {
       actionLabel: 'Check Settings',
       time: 'Today',
       timestamp: Date.now() - 86400000,
-      unread: !readAlerts.includes('sys-backup-ok'),
+      unread: false,
       severity: 'low'
     }
   ];

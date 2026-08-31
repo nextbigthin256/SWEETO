@@ -7,18 +7,31 @@ class Footer extends HTMLElement {
   connectedCallback() {
     this.render();
     this.setupEventListeners();
+    this.updateVisibility();
     
     this._brandingListener = () => {
       this.render();
       this.setupEventListeners();
     };
     window.addEventListener('branding:updated', this._brandingListener);
+
+    this._hashListener = () => this.updateVisibility();
+    window.addEventListener('hashchange', this._hashListener);
   }
 
   disconnectedCallback() {
     if (this._brandingListener) {
       window.removeEventListener('branding:updated', this._brandingListener);
     }
+    if (this._hashListener) {
+      window.removeEventListener('hashchange', this._hashListener);
+    }
+  }
+
+  updateVisibility() {
+    const hash = window.location.hash || '#/';
+    const isHome = hash === '' || hash === '#' || hash === '#/' || hash === '#/home';
+    this.style.display = isHome ? 'none' : 'block';
   }
 
   render() {
