@@ -159,19 +159,32 @@ class ProductDetailsModal extends HTMLElement {
       shareBtn.addEventListener('click', async () => {
         const p = this.product;
         if (!p) return;
-        const shareTitle = `SWEETOS | ${p.name}`;
-        const shareText = `Découvrez ${p.name} sur SWEETOS !\n${p.shortDesc || ''}\n\nPrix: $${p.price.toFixed(2)}`;
-        const shareUrl = window.location.origin;
+        
+        const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
+        const productUrl = `${window.location.origin}${window.location.pathname}#/?product=${p.id}`;
+        const priceText = formatPrice(p.price);
+        const compareText = p.comparePrice && p.comparePrice > p.price 
+          ? ` (Was ~${formatPrice(p.comparePrice)}~)` 
+          : '';
+
+        const shareText = 
+`🔥 *NEW ARRIVAL ON ${storeName.toUpperCase()}* 🔥
+
+📦 *${p.name.toUpperCase()}*
+🏷️ *Brand:* ${p.brand || 'SWEETOS'}
+📂 *Category:* ${p.category || 'General'}
+💰 *Price:* ${priceText}${compareText}
+
+📝 *Details:*
+"${(p.description || p.shortDesc || '').slice(0, 220)}"
+
+👇 *Tap link below to view & order directly:*
+🔗 ${productUrl}`;
 
         const copyToClipboardFallback = () => {
-          navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`)
-            .then(() => {
-              window.dispatchEvent(new CustomEvent('toast:show', { detail: '📋 Lien du produit copié dans le presse-papiers ! / Copied to clipboard! 🌟' }));
-            })
-            .catch(() => {
-              const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + '\n\n' + shareUrl)}`;
-              window.open(whatsappUrl, '_blank');
-            });
+          const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
+          window.open(whatsappUrl, '_blank');
+          window.dispatchEvent(new CustomEvent('toast:show', { detail: '📱 Opening WhatsApp! Select "My Status" to publish.' }));
         };
 
         if (navigator.share) {

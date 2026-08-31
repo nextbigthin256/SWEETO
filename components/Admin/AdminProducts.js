@@ -83,6 +83,54 @@ function generateShortProductDescription({ name, category, brand, price, image }
   return text;
 }
 
+function shareProductToWhatsAppStatus(product) {
+  if (!product) return;
+  
+  const origin = window.location.origin;
+  const path = window.location.pathname;
+  const productUrl = `${origin}${path}#/?product=${product.id}`;
+
+  const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
+  const priceText = formatPrice(product.price);
+  const compareText = product.comparePrice && product.comparePrice > product.price 
+    ? ` (Was ~${formatPrice(product.comparePrice)}~)` 
+    : '';
+
+  let desc = (product.description || '').trim();
+  if (!desc || desc.length > 240) {
+    desc = generateShortProductDescription({
+      name: product.name,
+      category: product.category,
+      brand: product.brand,
+      price: product.price,
+      image: product.image
+    });
+  }
+
+  const message = 
+`🔥 *NEW ARRIVAL ON ${storeName.toUpperCase()}* 🔥
+
+📦 *${product.name.toUpperCase()}*
+🏷️ *Brand:* ${product.brand || 'SWEETOS'}
+📂 *Category:* ${product.category || 'General'}
+💰 *Price:* ${priceText}${compareText}
+
+📝 *Details:*
+"${desc}"
+
+⚡ *Stock:* ${product.stock > 0 ? `In Stock (${product.stock} units available)` : 'Limited Stock!'}
+
+👇 *Tap link below to view & order directly:*
+🔗 ${productUrl}`;
+
+  const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+  window.open(whatsappUrl, '_blank');
+  
+  window.dispatchEvent(new CustomEvent('toast:show', { 
+    detail: '📱 Opening WhatsApp! Select "My Status" to publish.' 
+  }));
+}
+
 export function renderAdminProducts(context) {
   const query = (context.searchQuery || '').toLowerCase().trim();
   const cat = context.categoryFilter || 'All';
@@ -698,6 +746,11 @@ export function renderAdminProducts(context) {
                   <!-- Actions -->
                   <td style="padding:14px 16px; text-align:right;">
                     <div style="display:inline-flex; align-items:center; gap:6px;">
+                      <!-- WhatsApp Status Share -->
+                      <button class="action-icon-btn whatsapp-share-prod-btn" data-product-id="${p.id}" title="Share Product to WhatsApp Status" style="background:#25d366; color:#ffffff; border-color:#25d366;">
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor"><path d="M.057 24l1.687-6.163c-1.041-1.804-1.588-3.849-1.587-5.946.003-6.556 5.338-11.891 11.893-11.891 3.181.001 6.167 1.24 8.413 3.488 2.245 2.248 3.481 5.236 3.48 8.414-.003 6.557-5.338 11.892-11.893 11.892-1.99-.001-3.951-.5-5.688-1.448l-6.305 1.654zm6.597-3.807c1.676.995 3.276 1.591 5.392 1.592 5.448 0 9.886-4.434 9.889-9.885.002-5.462-4.415-9.89-9.881-9.892-5.452 0-9.887 4.434-9.889 9.884-.001 2.225.651 3.891 1.746 5.634l-.999 3.648 3.742-.981zm11.387-5.464c-.074-.124-.272-.198-.57-.347-.297-.149-1.758-.868-2.031-.967-.272-.099-.47-.149-.669.149-.198.297-.768.967-.941 1.165-.173.198-.347.223-.644.074-.297-.149-1.255-.462-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.297-.347.446-.521.151-.172.2-.296.3-.495.099-.198.05-.372-.025-.521-.075-.148-.669-1.611-.916-2.206-.242-.579-.487-.501-.669-.51l-.57-.01c-.198 0-.52.074-.792.372s-1.04 1.016-1.04 2.479 1.065 2.876 1.213 3.074c.149.198 2.095 3.2 5.076 4.487.709.306 1.263.489 1.694.626.712.226 1.36.194 1.872.118.571-.085 1.758-.719 2.006-1.413.248-.695.248-1.29.173-1.414z"/></svg>
+                      </button>
+
                       <!-- Duplicate -->
                       <button class="action-icon-btn duplicate-prod-btn" data-product-id="${p.id}" title="Duplicate Product">
                         <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
@@ -1380,6 +1433,18 @@ export function attachAdminProductsListeners(context, shadow) {
         window.dispatchEvent(new CustomEvent('toast:show', { detail: `Duplicated "${orig.name}" successfully!` }));
         context.render();
         context.attachListeners();
+      }
+    });
+  });
+
+  // WhatsApp Status Share button listener (Table rows & Modal)
+  shadow.querySelectorAll('.whatsapp-share-prod-btn, .modal-whatsapp-share-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      const id = parseInt(btn.getAttribute('data-product-id'));
+      const prod = context.products.find(p => p.id === id);
+      if (prod) {
+        shareProductToWhatsAppStatus(prod);
       }
     });
   });
