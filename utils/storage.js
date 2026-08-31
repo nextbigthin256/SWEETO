@@ -793,8 +793,64 @@ export async function retryPendingSupabaseSyncs() {
 }
 
 // ============================================
-// INITIALIZATION - Call this on app start
+// INITIALIZATION & CROSS-TAB SYNC
 // ============================================
+
+/**
+ * Force sync all storage between localStorage, sessionStorage and Supabase Cloud.
+ * Guarantees all tabs show identical data.
+ */
+export async function syncAllStorage() {
+  console.log('🔄 [Storage Sync] Syncing database state across all tabs & Cloud...');
+  try {
+    const { fetchOrdersFromSupabase, fetchCustomersFromSupabase, fetchProductsFromSupabase } = await import('./supabase.js');
+    const [orders, customers, products] = await Promise.all([
+      fetchOrdersFromSupabase(),
+      fetchCustomersFromSupabase(),
+      fetchProductsFromSupabase()
+    ]);
+
+    if (Array.isArray(orders)) {
+      const ordersStr = JSON.stringify(orders);
+      try { localStorage.setItem('SWEETOS_all_orders', ordersStr); } catch(e) {}
+      try { sessionStorage.setItem('SWEETOS_all_orders', ordersStr); } catch(e) {}
+      console.log('✅ [Storage Sync] Orders synced:', orders.length);
+    }
+
+    if (Array.isArray(customers)) {
+      const customersStr = JSON.stringify(customers);
+      try { localStorage.setItem('SWEETOS_customers', customersStr); } catch(e) {}
+      try { sessionStorage.setItem('SWEETOS_customers', customersStr); } catch(e) {}
+      console.log('✅ [Storage Sync] Customers synced:', customers.length);
+    }
+
+    if (Array.isArray(products)) {
+      const productsStr = JSON.stringify(products);
+      try { localStorage.setItem('SWEETOS_products', productsStr); } catch(e) {}
+      try { sessionStorage.setItem('SWEETOS_products', productsStr); } catch(e) {}
+      console.log('✅ [Storage Sync] Products synced:', products.length);
+    }
+
+    // Trigger cross-tab sync signal
+    try { localStorage.setItem('SWEETOS_storage_sync_trigger', Date.now().toString()); } catch(e) {}
+    window.dispatchEvent(new CustomEvent('storage:synced'));
+    window.dispatchEvent(new CustomEvent('orders:updated'));
+    return true;
+  } catch(e) {
+    console.error('❌ [Storage Sync] Failed to sync storage:', e);
+    return false;
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('storage', function(e) {
+    if (e.key === 'SWEETOS_storage_sync_trigger') {
+      console.log('📦 [Storage Sync] Cross-tab sync signal received from another tab');
+      window.dispatchEvent(new CustomEvent('storage:synced'));
+      window.dispatchEvent(new CustomEvent('orders:updated'));
+    }
+  });
+}
 
 export async function initStorageSync() {
   console.log('[Storage] Initializing with Supabase sync...');

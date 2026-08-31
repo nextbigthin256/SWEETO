@@ -1,3 +1,4 @@
+// Admin Customer Management Component & Verification Badges
 import { formatPrice, getProfileStorageKey, isLocalDevHost } from '../../utils/storage.js';
 import { CUSTOMER_LEVELS, VERIFIED_BADGES, renderVerificationBadge, renderLevelPill, getCustomerLevel, grantBadgeReward, notifyCustomerAchievement, getCustomerAvatarStyle, renderLevelChevronV } from '../../utils/badges.js';
 

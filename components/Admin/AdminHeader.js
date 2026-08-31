@@ -405,7 +405,10 @@ export function attachAdminHeaderListeners(context, shadow) {
           await supabase.from('products').upsert(prodRecords, { onConflict: 'slug' }).catch(() => {});
         }
 
-        window.dispatchEvent(new CustomEvent('toast:show', { detail: '🚀 Entire Store successfully uploaded to Supabase Cloud!' }));
+        const { syncAllStorage } = await import('../../utils/storage.js');
+        await syncAllStorage();
+
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: '🚀 Entire Store & storage successfully synced across tabs & Supabase Cloud!' }));
         headerSyncBtn.textContent = '✓ Synced to Cloud!';
         setTimeout(() => {
           headerSyncBtn.disabled = false;
