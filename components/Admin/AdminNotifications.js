@@ -507,9 +507,9 @@ export function attachAdminNotificationsListeners(context, shadow) {
           data: { url: '/#/' }
         });
 
-        // Add to notification feed
-        const notifFeed = JSON.parse(sessionStorage.getItem('SWEETOS_notifications') || '[]');
-        notifFeed.unshift({
+        // Add to notification feed for all users
+        const { broadcastNotificationToAll } = await import('../../utils/storage.js');
+        broadcastNotificationToAll({
           id: `broadcast-${Date.now()}`,
           title: `📢 ${title}`,
           desc: body,
@@ -517,7 +517,6 @@ export function attachAdminNotificationsListeners(context, shadow) {
           unread: true,
           createdAt: Date.now()
         });
-        sessionStorage.setItem('SWEETOS_notifications', JSON.stringify(notifFeed));
         window.dispatchEvent(new CustomEvent('notifications:updated'));
 
         window.dispatchEvent(new CustomEvent('toast:show', { detail: '🚀 Web Push Broadcast sent to all customer devices!' }));

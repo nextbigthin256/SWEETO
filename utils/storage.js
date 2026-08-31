@@ -219,6 +219,39 @@ export async function saveNotificationsToStorage(notifs, targetEmail) {
   }
 }
 
+export function broadcastNotificationToAll(notifItem) {
+  if (!notifItem) return;
+
+  const currentNotifs = getNotificationsFromStorage();
+  if (!currentNotifs.some(n => n.id === notifItem.id)) {
+    currentNotifs.unshift(notifItem);
+    saveNotificationsToStorage(currentNotifs);
+  }
+
+  const scanAndAdd = (storageObj) => {
+    if (!storageObj) return;
+    try {
+      for (let i = 0; i < storageObj.length; i++) {
+        const key = storageObj.key(i);
+        if (key && key.startsWith('SWEETOS_notifications')) {
+          try {
+            const list = JSON.parse(storageObj.getItem(key) || '[]');
+            if (Array.isArray(list) && !list.some(n => n.id === notifItem.id)) {
+              list.unshift(notifItem);
+              storageObj.setItem(key, JSON.stringify(list));
+            }
+          } catch(e) {}
+        }
+      }
+    } catch(e) {}
+  };
+
+  scanAndAdd(localStorage);
+  scanAndAdd(sessionStorage);
+
+  window.dispatchEvent(new CustomEvent('notifications:updated'));
+}
+
 export function getScratchcardsStorageKey() {
   const userJson = getStorageItem('SWEETOS_logged_in_user');
   if (userJson) {

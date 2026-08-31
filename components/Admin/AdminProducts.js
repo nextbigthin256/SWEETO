@@ -1972,17 +1972,16 @@ export function attachAdminProductsListeners(context, shadow) {
           });
         }).catch(() => {});
 
-        const notifFeed = JSON.parse(sessionStorage.getItem('SWEETOS_notifications') || '[]');
-        notifFeed.unshift({
-          id: `new-product-${newId}`,
-          title: `🛍️ New Product: ${name}`,
-          desc: `Discover ${name} by ${brand} (${formatPrice(price)})! In stock now on SWEETOS.`,
-          category: 'promos',
-          unread: true,
-          createdAt: Date.now()
-        });
-        sessionStorage.setItem('SWEETOS_notifications', JSON.stringify(notifFeed));
-        window.dispatchEvent(new CustomEvent('notifications:updated'));
+        import('../../utils/storage.js').then(({ broadcastNotificationToAll }) => {
+          broadcastNotificationToAll({
+            id: `new-product-${newId}`,
+            title: `🛍️ New Product: ${name}`,
+            desc: `Discover ${name} by ${brand} (${formatPrice(price)})! In stock now on SWEETOS.`,
+            category: 'promos',
+            unread: true,
+            createdAt: Date.now()
+          });
+        }).catch(() => {});
 
         window.dispatchEvent(new CustomEvent('toast:show', { detail: `✨ New product "${name}" published! Push notification sent to customers. 🔔` }));
       }
