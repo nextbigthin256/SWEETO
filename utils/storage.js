@@ -421,6 +421,25 @@ export async function syncDeliveredNotifications() {
       // Save notifications to Supabase
       await saveNotificationsToStorage(customerNotifs, userEmail);
       console.log('[Supabase Cloud] Delivery notifications synced');
+
+      // Dispatch EmailJS Notifications
+      try {
+        const { sendOrderDeliveredEmail, sendMysteryBoxEmail } = await import('./emailNotifications.js');
+        const newlyProcessed = ordersList.filter(o => {
+          const oid = o.id || o.order_number;
+          return oid && processedDeliveries.includes(oid);
+        });
+        for (const order of newlyProcessed) {
+          const oid = order.id || order.order_number;
+          const totalCFA = parseFloat(order.total || order.total_amount) || 0;
+          await sendOrderDeliveredEmail(oid, totalCFA, userEmail);
+          if (totalCFA >= 2000) {
+            await sendMysteryBoxEmail(oid, userEmail);
+          }
+        }
+      } catch(emailErr) {
+        console.error('[EmailJS] Error sending delivery email:', emailErr);
+      }
     }
   };
 

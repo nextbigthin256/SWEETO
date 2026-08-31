@@ -879,6 +879,11 @@ class CheckoutModal extends HTMLElement {
           await createOrderInSupabase(newOrder);
         }).catch(() => {});
 
+        // Dispatch EmailJS Order Confirmation Email
+        import('../../utils/emailNotifications.js').then(({ sendOrderConfirmationEmail }) => {
+          sendOrderConfirmationEmail(newOrder.id || newOrder.order_number, this.formData.email);
+        }).catch(() => {});
+
         let localOrders = getAllOrdersFromStorage();
         if (!localOrders.some(o => o.id === newOrder.id)) {
           localOrders.unshift(newOrder);
