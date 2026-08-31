@@ -50,6 +50,39 @@ function isProductInCat(product, targetCat, allCats) {
   return set.has(String(product.category).trim().toLowerCase());
 }
 
+function generateShortProductDescription({ name, category, brand, price, image }) {
+  const cleanName = name || 'Product';
+  const cleanBrand = brand && brand !== 'All' ? brand : 'SWEETOS';
+  const cleanCat = category && category !== 'All' ? category : 'tech & workspace gear';
+  
+  let imgHint = 'premium build quality';
+  if (image) {
+    const lowerImg = String(image).toLowerCase();
+    if (lowerImg.includes('leather') || lowerImg.includes('mat') || lowerImg.includes('desk')) imgHint = 'artisan craftsmanship and smooth desk coverage';
+    else if (lowerImg.includes('keyboard') || lowerImg.includes('key')) imgHint = 'tactile mechanical feedback and custom keycap styling';
+    else if (lowerImg.includes('audio') || lowerImg.includes('headphone') || lowerImg.includes('bose') || lowerImg.includes('speaker')) imgHint = 'immersive acoustics and studio-grade noise isolation';
+    else if (lowerImg.includes('lamp') || lowerImg.includes('light')) imgHint = 'eye-care ambient illumination and sleek minimalist geometry';
+    else if (lowerImg.includes('stand') || lowerImg.includes('monitor') || lowerImg.includes('riser')) imgHint = 'heavy-duty ergonomic support and clean cable routing';
+    else if (lowerImg.includes('laptop') || lowerImg.includes('macbook') || lowerImg.includes('computer') || lowerImg.includes('book')) imgHint = 'high-performance processing, vibrant display clarity, and sleek portability';
+  }
+
+  const templates = [
+    `Engineered by ${cleanBrand}, ${cleanName} delivers high-end reliability and refined aesthetics for your ${cleanCat.toLowerCase()} setup. Features ${imgHint} for everyday modern productivity.`,
+    `Discover ${cleanName} by ${cleanBrand}. Crafted for minimalist ${cleanCat.toLowerCase()} setups, featuring ${imgHint}, seamless functionality, and clean studio styling to elevate workspace performance.`,
+    `Upgrade your workspace with ${cleanName} from ${cleanBrand}. Built with high-grade components, ${imgHint}, and precision ergonomics, delivering unmatched comfort and sleek contemporary design.`
+  ];
+
+  const index = (cleanName.length + (price ? parseInt(price) || 0 : 0)) % templates.length;
+  let text = templates[index];
+
+  const words = text.split(/\s+/);
+  if (words.length > 32) {
+    text = words.slice(0, 30).join(' ') + '.';
+  }
+
+  return text;
+}
+
 export function renderAdminProducts(context) {
   const query = (context.searchQuery || '').toLowerCase().trim();
   const cat = context.categoryFilter || 'All';
@@ -829,10 +862,15 @@ export function renderAdminProducts(context) {
                 </div>
               </div>
 
-              <!-- Description -->
+              <!-- Description with Auto-Generate Button -->
               <div class="form-group-modern">
-                <label>Detailed Product Description</label>
-                <textarea id="prod-desc" rows="4" placeholder="Highlight key features, dimensions, technical specifications, and what is included in the package...">${isEditing ? (context.editingProduct.description || '') : ''}</textarea>
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+                  <label style="margin:0;">Product Description</label>
+                  <button type="button" id="auto-gen-desc-btn" style="background: linear-gradient(135deg, #0052cc 0%, #00b4d8 100%); color: white; border: none; border-radius: 8px; padding: 5px 12px; font-size: 11.5px; font-weight: 800; cursor: pointer; display: flex; align-items: center; gap: 5px; box-shadow: 0 2px 8px rgba(0,82,204,0.3); transition: all 0.2s ease;" title="Auto-generate a 30-word description based on product name, category, and image">
+                    <span>✨ Auto-Generate (30 Words)</span>
+                  </button>
+                </div>
+                <textarea id="prod-desc" rows="4" placeholder="Highlight key features, or click ✨ Auto-Generate for a concise 30-word description...">${isEditing ? (context.editingProduct.description || '') : ''}</textarea>
               </div>
 
             </div>
@@ -1709,6 +1747,54 @@ export function attachAdminProductsListeners(context, shadow) {
 
   if (variantsToggle && variantsToggle.checked) {
     renderColorRows();
+  }
+
+  // Auto-Generate 30-Word Description Button Listener
+  const autoGenBtn = shadow.getElementById('auto-gen-desc-btn');
+  if (autoGenBtn) {
+    autoGenBtn.addEventListener('click', () => {
+      const prodName = (shadow.getElementById('prod-name')?.value || '').trim();
+      const prodCat = shadow.getElementById('prod-cat')?.value || '';
+      const prodBrand = shadow.getElementById('prod-brand')?.value || '';
+      const prodPrice = shadow.getElementById('prod-price')?.value || '';
+      const imgInput = shadow.getElementById('prod-image-url-input')?.value || shadow.getElementById('prod-img-val')?.value || '';
+
+      if (!prodName) {
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: '⚠️ Please type a product name first to auto-generate a description.' }));
+        const nameEl = shadow.getElementById('prod-name');
+        if (nameEl) nameEl.focus();
+        return;
+      }
+
+      autoGenBtn.disabled = true;
+      autoGenBtn.innerHTML = `<span>⏳ Generating...</span>`;
+
+      setTimeout(() => {
+        const desc = generateShortProductDescription({
+          name: prodName,
+          category: prodCat,
+          brand: prodBrand,
+          price: prodPrice,
+          image: imgInput
+        });
+
+        const descTextarea = shadow.getElementById('prod-desc');
+        if (descTextarea) {
+          descTextarea.value = desc;
+          descTextarea.style.transition = 'box-shadow 0.3s ease, border-color 0.3s ease';
+          descTextarea.style.borderColor = '#0052cc';
+          descTextarea.style.boxShadow = '0 0 0 4px rgba(0, 82, 204, 0.25)';
+          setTimeout(() => {
+            descTextarea.style.borderColor = '';
+            descTextarea.style.boxShadow = '';
+          }, 1500);
+        }
+
+        autoGenBtn.disabled = false;
+        autoGenBtn.innerHTML = `<span>✨ Auto-Generate (30 Words)</span>`;
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: '✨ Auto-generated 30-word description!' }));
+      }, 300);
+    });
   }
 
   // Modal Submit Action
