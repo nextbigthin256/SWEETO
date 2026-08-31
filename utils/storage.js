@@ -1,3 +1,9 @@
+// ============================================
+// STORAGE UTILITIES WITH SUPABASE CLOUD SYNC
+// ============================================
+
+let _supabaseSaving = false;
+
 export function saveStorageItem(key, val) {
   if (val === null || val === undefined) {
     try { localStorage.removeItem(key); } catch(e) {}
@@ -7,6 +13,74 @@ export function saveStorageItem(key, val) {
   const str = typeof val === 'string' ? val : JSON.stringify(val);
   try { localStorage.setItem(key, str); } catch(e) {}
   try { sessionStorage.setItem(key, str); } catch(e) {}
+  
+  // Auto-sync to Supabase for known keys (non-blocking)
+  const syncableKeys = ['SWEETOS_cart_', 'SWEETOS_notifications_', 'SWEETOS_user_scratchcards_', 'SWEETOS_coupons_', 'SWEETOS_user_profile_'];
+  const shouldSync = syncableKeys.some(prefix => key.startsWith(prefix));
+  
+  if (shouldSync && !_supabaseSaving) {
+    _supabaseSaving = true;
+    // Use setTimeout to not block the main thread
+    setTimeout(async () => {
+      try {
+        const userJson = getStorageItem('SWEETOS_logged_in_user');
+        if (userJson) {
+          const user = JSON.parse(userJson);
+          if (user && user.email) {
+            const { saveSiteSettingInSupabase, saveCustomerToSupabase } = await import('./supabase.js');
+            const safeKey = user.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+            
+            let data;
+            try { data = JSON.parse(str); } catch(e) { data = str; }
+            
+            let supabaseKey = null;
+            let type = null;
+            
+            if (key.startsWith('SWEETOS_cart_')) {
+              supabaseKey = `sweetos_cart_${safeKey}`;
+              type = 'cart';
+            } else if (key.startsWith('SWEETOS_notifications_')) {
+              supabaseKey = `sweetos_notifications_${safeKey}`;
+              type = 'notifications';
+            } else if (key.startsWith('SWEETOS_user_scratchcards_')) {
+              supabaseKey = `sweetos_scratchcards_${safeKey}`;
+              type = 'scratchcards';
+            } else if (key.startsWith('SWEETOS_coupons_')) {
+              supabaseKey = `sweetos_coupons_${safeKey}`;
+              type = 'coupons';
+            } else if (key.startsWith('SWEETOS_user_profile_')) {
+              await saveCustomerToSupabase(data);
+              type = 'profile';
+            }
+            
+            if (supabaseKey) {
+              const ok = await saveSiteSettingInSupabase(supabaseKey, data);
+              if (ok) {
+                sessionStorage.setItem(`SUPABASE_SYNC_${type}_${safeKey}`, 'synced');
+              } else {
+                sessionStorage.setItem(`SUPABASE_SYNC_${type}_${safeKey}`, 'pending');
+              }
+            }
+          }
+        }
+      } catch(e) {
+        console.error('[Supabase] Auto-sync failed for key:', key, e);
+        try {
+          const userJson = getStorageItem('SWEETOS_logged_in_user');
+          if (userJson) {
+            const user = JSON.parse(userJson);
+            if (user && user.email) {
+              const safeKey = user.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+              const type = key.replace('SWEETOS_', '').split('_')[0] || 'data';
+              sessionStorage.setItem(`SUPABASE_SYNC_${type}_${safeKey}`, 'pending');
+            }
+          }
+        } catch(inner) {}
+      } finally {
+        _supabaseSaving = false;
+      }
+    }, 100);
+  }
 }
 
 export function getStorageItem(key) {
@@ -136,12 +210,14 @@ export async function saveNotificationsToStorage(notifs, targetEmail) {
       const safeKey = String(targetEmail).toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
       await saveSiteSettingInSupabase(`sweetos_notifications_${safeKey}`, notifs);
       console.log('[Supabase Cloud] Notifications synced successfully for:', targetEmail);
+      sessionStorage.setItem(`SUPABASE_SYNC_notifications_${safeKey}`, 'synced');
     } catch(e) {
       console.error('[Supabase Cloud Notifications Sync Error]:', e);
+      const safeKey = String(targetEmail).toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+      sessionStorage.setItem(`SUPABASE_SYNC_notifications_${safeKey}`, 'pending');
     }
   }
 }
-
 
 export function getScratchcardsStorageKey() {
   const userJson = getStorageItem('SWEETOS_logged_in_user');
@@ -157,6 +233,72 @@ export function getScratchcardsStorageKey() {
   return 'SWEETOS_user_scratchcards_guest';
 }
 
+export async function saveScratchcardsToStorage(scratchcards, targetEmail) {
+  if (!Array.isArray(scratchcards)) return;
+  const email = targetEmail || (() => {
+    try {
+      const u = JSON.parse(getStorageItem('SWEETOS_logged_in_user'));
+      return u?.email;
+    } catch(e) { return null; }
+  })();
+  
+  if (!email) return;
+  
+  const safeKey = email.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+  const key = `SWEETOS_user_scratchcards_${safeKey}`;
+  const jsonStr = JSON.stringify(scratchcards);
+  try { localStorage.setItem(key, jsonStr); } catch(e) {}
+  try { sessionStorage.setItem(key, jsonStr); } catch(e) {}
+  
+  // Save to Supabase
+  try {
+    const { saveSiteSettingInSupabase } = await import('./supabase.js');
+    const ok = await saveSiteSettingInSupabase(`sweetos_scratchcards_${safeKey}`, scratchcards);
+    if (ok) {
+      console.log('[Supabase Cloud] Scratchcards synced');
+      sessionStorage.setItem(`SUPABASE_SYNC_scratchcards_${safeKey}`, 'synced');
+    } else {
+      sessionStorage.setItem(`SUPABASE_SYNC_scratchcards_${safeKey}`, 'pending');
+    }
+  } catch(e) {
+    console.error('[Supabase Cloud] Scratchcards sync failed:', e);
+    sessionStorage.setItem(`SUPABASE_SYNC_scratchcards_${safeKey}`, 'pending');
+  }
+}
+
+export async function saveCouponsToStorage(coupons, targetEmail) {
+  if (!Array.isArray(coupons)) return;
+  const email = targetEmail || (() => {
+    try {
+      const u = JSON.parse(getStorageItem('SWEETOS_logged_in_user'));
+      return u?.email;
+    } catch(e) { return null; }
+  })();
+  
+  if (!email) return;
+  
+  const safeKey = email.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+  const key = `SWEETOS_coupons_${safeKey}`;
+  const jsonStr = JSON.stringify(coupons);
+  try { localStorage.setItem(key, jsonStr); } catch(e) {}
+  try { sessionStorage.setItem(key, jsonStr); } catch(e) {}
+  
+  // Save to Supabase
+  try {
+    const { saveSiteSettingInSupabase } = await import('./supabase.js');
+    const ok = await saveSiteSettingInSupabase(`sweetos_coupons_${safeKey}`, coupons);
+    if (ok) {
+      console.log('[Supabase Cloud] Coupons synced');
+      sessionStorage.setItem(`SUPABASE_SYNC_coupons_${safeKey}`, 'synced');
+    } else {
+      sessionStorage.setItem(`SUPABASE_SYNC_coupons_${safeKey}`, 'pending');
+    }
+  } catch(e) {
+    console.error('[Supabase Cloud] Coupons sync failed:', e);
+    sessionStorage.setItem(`SUPABASE_SYNC_coupons_${safeKey}`, 'pending');
+  }
+}
+
 export function formatPrice(price) {
   const currency = getStorageItem('SWEETOS_currency') || 'CFA';
   let symbol = currency;
@@ -170,7 +312,7 @@ export function formatPrice(price) {
   return `${Math.round(price).toLocaleString()} ${symbol}`;
 }
 
-export function syncDeliveredNotifications() {
+export async function syncDeliveredNotifications() {
   const profileKey = getProfileStorageKey();
   const profileJson = getStorageItem(profileKey) || getStorageItem('SWEETOS_user_profile');
   if (!profileJson) return;
@@ -185,7 +327,7 @@ export function syncDeliveredNotifications() {
   const userEmail = profile.email;
   if (!userEmail) return;
 
-  const processOrders = (ordersList) => {
+  const processOrders = async (ordersList) => {
     if (!Array.isArray(ordersList)) return;
     
     let processedDeliveries = [];
@@ -247,6 +389,8 @@ export function syncDeliveredNotifications() {
                   expiresAt: Date.now() + 14 * 24 * 60 * 60 * 1000
                 });
                 sessionStorage.setItem('SWEETOS_user_scratchcards', JSON.stringify(scratchcards));
+                // Also save to Supabase
+                saveScratchcardsToStorage(scratchcards, userEmail);
               }
             } catch(e) {}
             
@@ -273,28 +417,34 @@ export function syncDeliveredNotifications() {
       sessionStorage.setItem('SWEETOS_processed_deliveries', JSON.stringify(processedDeliveries));
       sessionStorage.setItem(notifKey, JSON.stringify(customerNotifs));
       window.dispatchEvent(new CustomEvent('notifications:updated'));
+      
+      // Save notifications to Supabase
+      await saveNotificationsToStorage(customerNotifs, userEmail);
+      console.log('[Supabase Cloud] Delivery notifications synced');
     }
   };
 
   try {
-    import('./supabase.js').then(({ fetchOrdersFromSupabase }) => {
-      fetchOrdersFromSupabase(userEmail).then(orders => {
-        if (Array.isArray(orders) && orders.length > 0) {
-          processOrders(orders);
-        } else {
-          fetch('/api/orders')
-            .then(res => res.ok ? res.json() : [])
-            .then(processOrders)
-            .catch(() => {});
-        }
-      }).catch(() => {
-        fetch('/api/orders')
-          .then(res => res.ok ? res.json() : [])
-          .then(processOrders)
-          .catch(() => {});
-      });
-    });
-  } catch(e) {}
+    const { fetchOrdersFromSupabase } = await import('./supabase.js');
+    const orders = await fetchOrdersFromSupabase(userEmail);
+    if (Array.isArray(orders) && orders.length > 0) {
+      await processOrders(orders);
+    } else {
+      const res = await fetch('/api/orders');
+      const ordersData = res.ok ? await res.json() : [];
+      await processOrders(ordersData);
+    }
+  } catch(e) {
+    console.error('[syncDeliveredNotifications] Error:', e);
+    // Fallback to local API
+    try {
+      const res = await fetch('/api/orders');
+      const ordersData = res.ok ? await res.json() : [];
+      await processOrders(ordersData);
+    } catch(fallbackErr) {
+      console.error('[syncDeliveredNotifications] Fallback error:', fallbackErr);
+    }
+  }
 }
 
 export function formatTimeAgo(dateOrTimestamp) {
@@ -380,13 +530,44 @@ export function isLocalDevHost() {
   return host === 'localhost' || host === '127.0.0.1' || host.startsWith('192.168.') || host.endsWith('.local');
 }
 
-export function saveAllOrdersToStorage(orders, silent = false) {
+export async function saveAllOrdersToStorage(orders, silent = false) {
   if (!Array.isArray(orders)) return;
   const jsonStr = JSON.stringify(orders);
   try { localStorage.setItem('SWEETOS_all_orders', jsonStr); } catch(e) {}
   try { sessionStorage.setItem('SWEETOS_all_orders', jsonStr); } catch(e) {}
   if (!silent) {
     window.dispatchEvent(new CustomEvent('orders:updated', { detail: orders }));
+  }
+  
+  // Save to Supabase
+  try {
+    const userJson = getStorageItem('SWEETOS_logged_in_user');
+    if (userJson) {
+      const user = JSON.parse(userJson);
+      if (user && user.email) {
+        const { saveSiteSettingInSupabase } = await import('./supabase.js');
+        const safeKey = user.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+        const ok = await saveSiteSettingInSupabase(`sweetos_orders_${safeKey}`, orders);
+        if (ok) {
+          console.log('[Supabase Cloud] Orders synced successfully');
+          sessionStorage.setItem(`SUPABASE_SYNC_orders_${safeKey}`, 'synced');
+        } else {
+          sessionStorage.setItem(`SUPABASE_SYNC_orders_${safeKey}`, 'pending');
+        }
+      }
+    }
+  } catch(e) {
+    console.error('[Supabase Cloud] Orders sync failed:', e);
+    try {
+      const userJson = getStorageItem('SWEETOS_logged_in_user');
+      if (userJson) {
+        const user = JSON.parse(userJson);
+        if (user && user.email) {
+          const safeKey = user.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+          sessionStorage.setItem(`SUPABASE_SYNC_orders_${safeKey}`, 'pending');
+        }
+      }
+    } catch(inner) {}
   }
   
   // Persist to local Node server disk asynchronously only in local dev environment
@@ -450,7 +631,7 @@ export async function loadUserDataFromSupabase(email) {
     });
     
     if (fetchedOrders.length > 0) {
-      saveAllOrdersToStorage(currentAllOrders, false); // Triggers orders:updated event!
+      await saveAllOrdersToStorage(currentAllOrders, false);
     }
 
     // 2. Hydrate user profile with cloud profile & cloud orders
@@ -482,15 +663,15 @@ export async function loadUserDataFromSupabase(email) {
     }
 
     if (cloudNotifs.status === 'fulfilled' && Array.isArray(cloudNotifs.value)) {
-      saveNotificationsToStorage(cloudNotifs.value, userEmailLower);
+      await saveNotificationsToStorage(cloudNotifs.value, userEmailLower);
     }
 
     if (cloudScratchcards.status === 'fulfilled' && Array.isArray(cloudScratchcards.value)) {
-      saveStorageItem(`SWEETOS_user_scratchcards_${safeKey}`, cloudScratchcards.value);
+      await saveScratchcardsToStorage(cloudScratchcards.value, userEmailLower);
     }
 
     if (cloudCoupons.status === 'fulfilled' && Array.isArray(cloudCoupons.value)) {
-      saveStorageItem(`SWEETOS_coupons_${safeKey}`, cloudCoupons.value);
+      await saveCouponsToStorage(cloudCoupons.value, userEmailLower);
     }
 
     window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: true, email: userEmailLower } }));
@@ -528,6 +709,7 @@ export async function saveUserDataToSupabase(email, dataType, data) {
         await saveSiteSettingInSupabase(`sweetos_coupons_${safeKey}`, data);
         break;
     }
+    console.log(`[Supabase Cloud] ${dataType} saved successfully for:`, email);
   } catch (e) {
     console.error('[Supabase Cloud Save Error]:', e);
   }
@@ -542,7 +724,7 @@ export async function retryPendingSupabaseSyncs() {
     if (!user || !user.email) return;
 
     const safeKey = user.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
-    const types = ['cart', 'notifications', 'scratchcards', 'coupons'];
+    const types = ['cart', 'notifications', 'scratchcards', 'coupons', 'orders'];
 
     for (const type of types) {
       const syncKey = `SUPABASE_SYNC_${type}_${safeKey}`;
@@ -550,7 +732,8 @@ export async function retryPendingSupabaseSyncs() {
         const dataKey = type === 'cart' ? `SWEETOS_cart_${safeKey}` :
                         type === 'notifications' ? `SWEETOS_notifications_${safeKey}` :
                         type === 'scratchcards' ? `SWEETOS_user_scratchcards_${safeKey}` :
-                        `SWEETOS_coupons_${safeKey}`;
+                        type === 'coupons' ? `SWEETOS_coupons_${safeKey}` :
+                        `SWEETOS_all_orders`;
 
         const dataStr = getStorageItem(dataKey);
         if (dataStr) {
@@ -573,6 +756,12 @@ export async function retryPendingSupabaseSyncs() {
   }
 }
 
+// ============================================
+// INITIALIZATION - Call this on app start
+// ============================================
 
-
-
+export async function initStorageSync() {
+  console.log('[Storage] Initializing with Supabase sync...');
+  await retryPendingSupabaseSyncs();
+  console.log('[Storage] Initialization complete');
+}

@@ -6,7 +6,7 @@ if (window.location.pathname !== '/' && window.location.pathname !== '/index.htm
   }
 }
 
-import { getCartStorageKey, getStorageItem, saveStorageItem } from './utils/storage.js';
+import { getCartStorageKey, getStorageItem, saveStorageItem, initStorageSync } from './utils/storage.js';
 import { initSupabaseSync } from './utils/supabase.js';
 import './utils/modal.js';
 import products from './data/products.js';
@@ -26,8 +26,9 @@ import './components/MobileNav/MobileNav.js';
 import './components/WhatsApp/WhatsAppButton.js';
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Initialize Supabase Live Backend Sync
+  // Initialize Supabase Live Backend Sync & Storage Sync Engine
   initSupabaseSync();
+  initStorageSync();
 
   // Live Background Customer Revocation Guard (Every 6 seconds)
   setInterval(async () => {
