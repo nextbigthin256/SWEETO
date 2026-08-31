@@ -1057,20 +1057,9 @@ class AdminPage extends HTMLElement {
     if (!container) {
       container = document.createElement('div');
       container.className = 'admin-page-wrapper';
-      container.style.opacity = '0';
-      container.style.transition = 'opacity 0.15s ease';
       this.shadowRoot.appendChild(container);
-      
-      const link = this.shadowRoot.querySelector('link[href*="AdminPage.css"]');
-      if (link) {
-        link.addEventListener('load', () => {
-          container.style.opacity = '1';
-        });
-      }
-      setTimeout(() => {
-        container.style.opacity = '1';
-      }, 50);
     }
+    container.style.opacity = '1';
     
     // 3. Render HTML content inside container
     container.innerHTML = `
