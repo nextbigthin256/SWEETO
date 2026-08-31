@@ -2707,12 +2707,7 @@ class ProductList extends HTMLElement {
         const gridHot = this.shadowRoot.getElementById('grid-hot-deals');
         if (gridHot) {
           gridHot.innerHTML = '';
-          let displayProducts = [];
-          if (hasAssigned) {
-            displayProducts = assignedProducts.slice(0, 12);
-          } else {
-            displayProducts = (pools.deals || []).slice(0, 12);
-          }
+          const displayProducts = (pools.deals || []).slice(0, 12);
           const secWrapper = gridHot.closest('.home-section');
           if (displayProducts.length === 0) {
             if (secWrapper) secWrapper.style.display = 'none';
@@ -2730,12 +2725,7 @@ class ProductList extends HTMLElement {
         const gridNew = this.shadowRoot.getElementById('grid-new-arrivals');
         if (gridNew) {
           gridNew.innerHTML = '';
-          let displayProducts = [];
-          if (hasAssigned) {
-            displayProducts = assignedProducts.slice(0, 12);
-          } else {
-            displayProducts = (pools.newArrivals || []).slice(0, 12);
-          }
+          const displayProducts = (pools.newArrivals || []).slice(0, 12);
           const secWrapper = gridNew.closest('.home-section');
           if (displayProducts.length === 0) {
             if (secWrapper) secWrapper.style.display = 'none';
@@ -2752,12 +2742,7 @@ class ProductList extends HTMLElement {
         const gridBest = this.shadowRoot.getElementById('grid-best-sellers');
         if (gridBest) {
           gridBest.innerHTML = '';
-          let displayProducts = [];
-          if (hasAssigned) {
-            displayProducts = assignedProducts.slice(0, 12);
-          } else {
-            displayProducts = (pools.bestSellers || []).slice(0, 12);
-          }
+          const displayProducts = (pools.bestSellers || []).slice(0, 12);
           const secWrapper = gridBest.closest('.home-section');
           if (displayProducts.length === 0) {
             if (secWrapper) secWrapper.style.display = 'none';
