@@ -394,22 +394,7 @@ class AdminPage extends HTMLElement {
   }
 
   isAutofilledCredential(val) {
-    if (!val || typeof val !== 'string') return false;
-    const trimmed = val.trim().toLowerCase();
-    
-    // Check saved login email from session
-    const savedEmail = (sessionStorage.getItem('SWEETOS_admin_login_email') || '').trim().toLowerCase();
-    if (savedEmail && trimmed === savedEmail) return true;
-    
-    // Check SWEETOS_admin_user email
-    const userObjStr = sessionStorage.getItem('SWEETOS_admin_user');
-    if (userObjStr) {
-      try {
-        const parsed = JSON.parse(userObjStr);
-        if (parsed && parsed.email && trimmed === parsed.email.trim().toLowerCase()) return true;
-      } catch (e) {}
-    }
-
+    // Disable aggressive input wiping so mobile typing and autofill work reliably
     return false;
   }
 
@@ -525,23 +510,29 @@ class AdminPage extends HTMLElement {
     window.addEventListener('failed_searches:updated', this._failedSearchesListener);
 
     // Live order updates across tabs & local checkout actions
-    this._ordersUpdatedHandler = () => {
-      const prevJson = JSON.stringify(this.orders || []);
-      this.loadDatabase();
-      const newJson = JSON.stringify(this.orders || []);
-      
-      // Only re-render if order data actually changed
-      if (prevJson !== newJson) {
-        if (['orders', 'dashboard', 'analytics', 'customers', 'loyalty'].includes(this.currentTab)) {
-          this.render();
-          this.attachListeners();
+    this._ordersUpdatedHandler = async () => {
+      if (this._isDatabaseLoading) return;
+      this._isDatabaseLoading = true;
+      try {
+        const prevLen = (this.orders || []).length;
+        await this.loadDatabase(false);
+        const newLen = (this.orders || []).length;
+        
+        // Only re-render if order count actually changed
+        if (prevLen !== newLen) {
+          if (['orders', 'dashboard', 'analytics', 'customers', 'loyalty'].includes(this.currentTab)) {
+            this.render(false);
+            this.attachListeners();
+          }
         }
+      } finally {
+        this._isDatabaseLoading = false;
       }
     };
     window.addEventListener('orders:updated', this._ordersUpdatedHandler);
 
     this._storageOrdersListener = (e) => {
-      if (e.key === 'SWEETOS_all_orders' || (e.key && e.key.startsWith('SWEETOS_user_profile_'))) {
+      if (e.key === 'SWEETOS_all_orders') {
         this._ordersUpdatedHandler();
       }
     };
@@ -549,29 +540,43 @@ class AdminPage extends HTMLElement {
 
     // Load database state from Supabase Cloud on mount
     bootstrapFromSupabase(this).then(() => {
-      this.render();
-      this.attachListeners();
+      if (this.isAuthenticated) {
+        this.render(false);
+        this.attachListeners();
+      }
     });
 
-    // Listen to live database sync & order update signals
-    this._supabaseListener = () => {
-      this.loadDatabase().then(() => {
-        this.render();
-        this.attachListeners();
-      });
+    // Listen to live database sync signals
+    this._supabaseListener = async () => {
+      if (this._isDatabaseLoading) return;
+      this._isDatabaseLoading = true;
+      try {
+        await this.loadDatabase(false);
+        if (this.isAuthenticated) {
+          this.render(false);
+          this.attachListeners();
+        }
+      } finally {
+        this._isDatabaseLoading = false;
+      }
     };
     window.addEventListener('supabase:ready', this._supabaseListener);
-    window.addEventListener('orders:updated', this._supabaseListener);
-    window.addEventListener('storage', this._supabaseListener);
 
     // Multi-tab BroadcastChannel Cross-Sync
     if (typeof BroadcastChannel !== 'undefined') {
       this._adminSyncChannel = new BroadcastChannel('SWEETOS_ADMIN_SYNC');
-      this._adminSyncChannel.onmessage = () => {
-        this.loadDatabase().then(() => {
-          this.render();
-          this.attachListeners();
-        });
+      this._adminSyncChannel.onmessage = async () => {
+        if (this._isDatabaseLoading) return;
+        this._isDatabaseLoading = true;
+        try {
+          await this.loadDatabase(false);
+          if (this.isAuthenticated) {
+            this.render(false);
+            this.attachListeners();
+          }
+        } finally {
+          this._isDatabaseLoading = false;
+        }
       };
     }
 
@@ -623,7 +628,7 @@ class AdminPage extends HTMLElement {
           sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(coupons));
           needsRender = true;
         }
-        if (needsRender) {
+        if (needsRender && this.isAuthenticated) {
           this.render();
           this.attachListeners();
         }
@@ -634,7 +639,7 @@ class AdminPage extends HTMLElement {
     }).catch(() => {});
   }
 
-  async loadDatabase() {
+  async loadDatabase(autoRender = true) {
     console.log('[Supabase Cloud] Loading database state from Cloud...');
     try {
       const [prods, cats, brands, ords, custs, cpps, secs] = await Promise.allSettled([
@@ -696,8 +701,12 @@ class AdminPage extends HTMLElement {
       this.customers = Array.from(custsMap.values());
       try {
         const custsJson = JSON.stringify(this.customers);
-        sessionStorage.setItem('SWEETOS_customers', custsJson);
-        localStorage.setItem('SWEETOS_customers', custsJson);
+        if (sessionStorage.getItem('SWEETOS_customers') !== custsJson) {
+          sessionStorage.setItem('SWEETOS_customers', custsJson);
+        }
+        if (localStorage.getItem('SWEETOS_customers') !== custsJson) {
+          localStorage.setItem('SWEETOS_customers', custsJson);
+        }
       } catch(e) {}
 
       if (cpps.status === 'fulfilled' && Array.isArray(cpps.value) && cpps.value.length > 0) {
@@ -718,12 +727,9 @@ class AdminPage extends HTMLElement {
       if (storedReviews) try { this.reviews = JSON.parse(storedReviews); } catch(e) {}
 
       sessionStorage.setItem('SWEETOS_db_initialized', 'true');
-      if (Array.isArray(this.orders) && this.orders.length > 0) {
-        saveAllOrdersToStorage(this.orders, true);
-      }
 
-      if (this.isConnected) {
-        this.render();
+      if (autoRender && this.isConnected && this.isAuthenticated) {
+        this.render(false);
         this.attachListeners();
       }
     } catch (err) {
@@ -1030,7 +1036,14 @@ class AdminPage extends HTMLElement {
     });
   }
 
-  render() {
+  render(animate = true) {
+    // Prevent wiping DOM while user is actively typing in login inputs
+    const activeEl = this.shadowRoot ? this.shadowRoot.activeElement : null;
+    const isTypingInLogin = !this.isAuthenticated && activeEl && (activeEl.id === 'admin-email' || activeEl.id === 'admin-password');
+    if (isTypingInLogin) {
+      return;
+    }
+
     // 1. Ensure stylesheet is injected exactly once to prevent FOUC on tab changes
     if (!this.shadowRoot.querySelector('link[href*="AdminPage.css"]')) {
       const link = document.createElement('link');
@@ -1061,15 +1074,15 @@ class AdminPage extends HTMLElement {
     
     // 3. Render HTML content inside container
     container.innerHTML = `
-      ${!this.isAuthenticated ? this.renderLogin() : this.renderDashboardLayout()}
+      ${!this.isAuthenticated ? this.renderLogin(animate) : this.renderDashboardLayout(animate)}
       <div class="admin-toast-container" id="admin-toast-container"></div>
     `;
   }
 
-  renderLogin() {
+  renderLogin(animate = true) {
     return `
       <div class="admin-login-wrapper">
-        <div class="admin-login-card animate-in">
+        <div class="admin-login-card ${animate ? 'animate-in' : ''}">
           <div class="brand-logo-glow"></div>
           <div class="login-header">
             <div class="admin-logo-badge">
@@ -1080,14 +1093,14 @@ class AdminPage extends HTMLElement {
             <h2>SWEETOS Admin Portal</h2>
             <p>⚡ Authentification Cloud Supabase</p>
           </div>
-          <form id="admin-login-form" autocomplete="off">
+          <form id="admin-login-form" autocomplete="on">
             <div class="form-group">
               <label>Email Admin Supabase</label>
-              <input type="email" id="admin-email" name="admin_login_email_no_autofill" required placeholder="admin@example.com" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
+              <input type="email" id="admin-email" name="email" required placeholder="admin@example.com" autocomplete="email" autocorrect="off" autocapitalize="off" spellcheck="false" style="font-size: 16px;">
             </div>
             <div class="form-group">
               <label>Mot de Passe Admin</label>
-              <input type="password" id="admin-password" name="admin_login_pass_no_autofill" required placeholder="••••••••" autocomplete="new-password" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none">
+              <input type="password" id="admin-password" name="password" required placeholder="••••••••" autocomplete="current-password" autocorrect="off" autocapitalize="off" spellcheck="false" style="font-size: 16px;">
             </div>
             <div id="login-error-msg" class="error-text" style="color: #f87171; font-size: 13px; font-weight: 650; margin-bottom: 12px; text-align: center;"></div>
             <button type="submit" id="admin-submit-btn">Connexion Supabase 🚀</button>
@@ -1103,9 +1116,9 @@ class AdminPage extends HTMLElement {
     `;
   }
 
-  renderDashboardLayout() {
+  renderDashboardLayout(animate = true) {
     return `
-      <div class="admin-dashboard-container animate-in">
+      <div class="admin-dashboard-container ${animate ? 'animate-in' : ''}">
         ${renderAdminSidebar(this)}
         <main class="admin-main">
           ${renderAdminHeader(this)}
