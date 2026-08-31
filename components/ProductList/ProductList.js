@@ -2853,14 +2853,18 @@ class ProductList extends HTMLElement {
     const gridForYou = this.shadowRoot.getElementById('grid-for-you');
     if (gridForYou) {
       gridForYou.innerHTML = '';
-      const batchSize = 4;
-      for (let i = 0; i < batchSize; i++) {
-        const p = this.products[i % this.products.length];
-        const card = document.createElement('product-card');
-        card.product = p;
-        gridForYou.appendChild(card);
+      if (this.products && this.products.length > 0) {
+        const batchSize = Math.min(4, this.products.length);
+        for (let i = 0; i < batchSize; i++) {
+          const p = this.products[i % this.products.length];
+          if (p) {
+            const card = document.createElement('product-card');
+            card.product = p;
+            gridForYou.appendChild(card);
+          }
+        }
+        this.forYouIndex = batchSize;
       }
-      this.forYouIndex = batchSize;
     }
 
     // Attach category card click listeners
@@ -3046,7 +3050,14 @@ class ProductList extends HTMLElement {
     const shadow = this.shadowRoot;
     const grid = shadow.getElementById('grid-for-you');
     const loadingEl = shadow.getElementById('for-you-loading');
-    if (!grid) {
+    if (!grid || !this.products || this.products.length === 0) {
+      this.forYouLoading = false;
+      return;
+    }
+
+    // Cap infinite scroll at max 24 total items (3 batches of 4) to prevent DOM memory overflow on Desktop
+    if (this.forYouIndex >= Math.min(this.products.length * 2, 24)) {
+      if (loadingEl) loadingEl.style.display = 'none';
       this.forYouLoading = false;
       return;
     }
@@ -3055,24 +3066,23 @@ class ProductList extends HTMLElement {
       loadingEl.style.opacity = '1';
     }
 
-    // Simulate premium async loading delay
     setTimeout(() => {
-      const batchSize = 8;
+      const batchSize = 4;
       for (let i = 0; i < batchSize; i++) {
-        // Wrap around index to make it truly endless!
         const prodIndex = (this.forYouIndex + i) % this.products.length;
         const p = this.products[prodIndex];
-        
-        const card = document.createElement('product-card');
-        card.product = p;
-        grid.appendChild(card);
+        if (p) {
+          const card = document.createElement('product-card');
+          card.product = p;
+          grid.appendChild(card);
+        }
       }
       this.forYouIndex += batchSize;
       this.forYouLoading = false;
       if (loadingEl) {
         loadingEl.style.opacity = '0';
       }
-    }, 600);
+    }, 400);
   }
 
   renderCategoryHeroBanner() {
@@ -3955,18 +3965,23 @@ class ProductList extends HTMLElement {
       }
     });
 
-    // Infinite scroll window listener for "For You"
+    // Throttled Infinite scroll window listener for "For You"
+    let scrollThrottleTimer = null;
     window.addEventListener('scroll', () => {
       if (this.currentPage !== 'home') return;
+      if (scrollThrottleTimer) return;
       
-      const threshold = 250; // px from bottom
-      const position = window.scrollY + window.innerHeight;
-      const height = document.documentElement.scrollHeight;
-      
-      if (height - position < threshold) {
-        this.loadMoreForYouProducts();
-      }
-    });
+      scrollThrottleTimer = setTimeout(() => {
+        scrollThrottleTimer = null;
+        const threshold = 300; // px from bottom
+        const position = window.scrollY + window.innerHeight;
+        const height = document.documentElement.scrollHeight;
+        
+        if (height - position < threshold) {
+          this.loadMoreForYouProducts();
+        }
+      }, 250);
+    }, { passive: true });
   }
 
   attachDynamicUIListeners() {
