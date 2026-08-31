@@ -886,11 +886,14 @@ class CheckoutModal extends HTMLElement {
         }).catch(() => {});
 
         // Dispatch WhatsApp Confirmation (to Customer) & Store Owner Alert (+2250500619923)
-        import('../../utils/whatsapp.js').then(({ sendOrderConfirmationWhatsApp, sendAdminNewOrderWhatsApp }) => {
+        import('../../utils/whatsapp.js').then(({ sendOrderConfirmationWhatsApp, notifyNewOrder, notifyHighValueOrder }) => {
           if (this.formData.phone) {
             sendOrderConfirmationWhatsApp(newOrder, this.formData.phone);
           }
-          sendAdminNewOrderWhatsApp(newOrder);
+          notifyNewOrder(newOrder);
+          if ((newOrder.total || 0) >= 100000) {
+            notifyHighValueOrder(newOrder);
+          }
         }).catch(() => {});
 
         let localOrders = getAllOrdersFromStorage();

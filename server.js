@@ -42,6 +42,38 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // WhatsApp Webhook GET Verification (Meta Dashboard)
+  const reqUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+  if (req.method === 'GET' && (reqUrl.pathname === '/webhook/whatsapp' || reqUrl.pathname === '/api/webhook/whatsapp' || reqUrl.pathname === '/webhook/whatsapp.php')) {
+    const VERIFY_TOKEN = 'sweeto@256';
+    const mode = reqUrl.searchParams.get('hub.mode') || reqUrl.searchParams.get('hub_mode');
+    const token = reqUrl.searchParams.get('hub.verify_token') || reqUrl.searchParams.get('hub_verify_token');
+    const challenge = reqUrl.searchParams.get('hub.challenge') || reqUrl.searchParams.get('hub_challenge');
+
+    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+      console.log('✅ [WhatsApp Webhook] Meta subscription verified successfully!');
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end(challenge || '');
+      return;
+    }
+    
+    res.writeHead(200, { 'Content-Type': 'text/plain' });
+    res.end('✅ SWEETOS WhatsApp Webhook is active and online!');
+    return;
+  }
+
+  // WhatsApp Webhook POST (Incoming Event Notifications)
+  if (req.method === 'POST' && (reqUrl.pathname === '/webhook/whatsapp' || reqUrl.pathname === '/api/webhook/whatsapp' || reqUrl.pathname === '/webhook/whatsapp.php')) {
+    let body = '';
+    req.on('data', chunk => { body += chunk.toString(); });
+    req.on('end', () => {
+      console.log('📩 [WhatsApp Webhook Payload Received]:', body);
+      res.writeHead(200, { 'Content-Type': 'text/plain' });
+      res.end('EVENT_RECEIVED');
+    });
+    return;
+  }
+
   // 1. API: POST /api/products (Save products permanently to disk)
   if (req.method === 'POST' && req.url === '/api/products') {
     let body = '';
