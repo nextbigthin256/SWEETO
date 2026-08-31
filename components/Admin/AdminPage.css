@@ -308,13 +308,36 @@
   padding-right: 0;
 }
 
+.admin-sidebar.collapsed .admin-brand-text {
+  display: none !important;
+}
+
 .admin-sidebar.collapsed .admin-nav-item {
   justify-content: center;
   padding: 12px;
 }
 
+.admin-sidebar.collapsed .admin-nav-item span {
+  display: none !important;
+}
+
 .admin-sidebar.collapsed .admin-sidebar-footer {
   justify-content: center;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.admin-sidebar.collapsed .admin-profile-badge .info {
+  display: none !important;
+}
+
+.admin-sidebar.collapsed .sidebar-nav-badge {
+  position: absolute !important;
+  top: 4px !important;
+  right: 4px !important;
+  padding: 2px 4px !important;
+  font-size: 8px !important;
+  margin-left: 0 !important;
 }
 
 .admin-brand {
@@ -2182,26 +2205,37 @@ textarea.admin-input {
     display: none !important;
   }
 
-  .admin-sidebar.collapsed .admin-brand {
-    justify-content: flex-start;
+  .admin-sidebar .admin-brand {
+    justify-content: flex-start !important;
   }
 
-  .admin-sidebar.collapsed .admin-nav-item {
-    justify-content: flex-start;
-    padding: 11px 13px;
+  .admin-sidebar .admin-brand-text {
+    display: flex !important;
   }
 
-  .admin-sidebar.collapsed .admin-nav-item span {
+  .admin-sidebar .admin-nav-item {
+    justify-content: flex-start !important;
+    padding: 11px 13px !important;
+  }
+
+  .admin-sidebar .admin-nav-item span {
     display: inline !important;
   }
 
-  .admin-sidebar.collapsed .admin-sidebar-footer {
-    justify-content: space-between;
+  .admin-sidebar .admin-sidebar-footer {
+    justify-content: space-between !important;
     flex-direction: row !important;
   }
 
-  .admin-sidebar.collapsed .admin-profile-badge .info {
+  .admin-sidebar .admin-profile-badge .info {
     display: flex !important;
+  }
+
+  .admin-sidebar .sidebar-nav-badge {
+    position: static !important;
+    margin-left: auto !important;
+    padding: 2px 6px !important;
+    font-size: 10px !important;
   }
 
   /* Main Viewport Adjustments */
