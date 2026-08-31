@@ -60,26 +60,7 @@ export const productCardCSS = `
 }
 
 .discount-badge {
-  position: absolute;
-  bottom: 8px;
-  right: 8px;
-  background: #ef4444;
-  color: white;
-  font-size: 11px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 20px;
-  line-height: 1.2;
-  z-index: 4;
-}
-
-@media (min-width: 600px) {
-  .discount-badge {
-    font-size: 13px;
-    padding: 5px 12px;
-    bottom: 12px;
-    right: 12px;
-  }
+  display: none !important;
 }
 
 .heart-btn {

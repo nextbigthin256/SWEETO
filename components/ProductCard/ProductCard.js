@@ -153,7 +153,6 @@ class ProductCard extends HTMLElement {
               ${hasDiscount ? `
                 <div class="old-price-row">
                   <span class="old-price">${formatPrice(originalPriceVal)}</span>
-                  <span class="discount-badge">-${discountVal}%</span>
                 </div>
               ` : ''}
             </div>
