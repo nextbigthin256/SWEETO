@@ -3044,8 +3044,8 @@ class ProductList extends HTMLElement {
       return;
     }
 
-    // Cap infinite scroll at max 24 total items (3 batches of 4) to prevent DOM memory overflow on Desktop
-    if (this.forYouIndex >= Math.min(this.products.length * 2, 24)) {
+    const maxItems = Math.min(this.products.length, 12);
+    if (this.forYouIndex >= maxItems) {
       if (loadingEl) loadingEl.style.display = 'none';
       this.forYouLoading = false;
       return;
@@ -3057,21 +3057,24 @@ class ProductList extends HTMLElement {
 
     setTimeout(() => {
       const batchSize = 4;
-      for (let i = 0; i < batchSize; i++) {
-        const prodIndex = (this.forYouIndex + i) % this.products.length;
-        const p = this.products[prodIndex];
+      const end = Math.min(this.forYouIndex + batchSize, maxItems);
+      for (let i = this.forYouIndex; i < end; i++) {
+        const p = this.products[i];
         if (p) {
           const card = document.createElement('product-card');
           card.product = p;
           grid.appendChild(card);
         }
       }
-      this.forYouIndex += batchSize;
+      this.forYouIndex = end;
       this.forYouLoading = false;
-      if (loadingEl) {
+
+      if (this.forYouIndex >= maxItems) {
+        if (loadingEl) loadingEl.style.display = 'none';
+      } else if (loadingEl) {
         loadingEl.style.opacity = '0';
       }
-    }, 400);
+    }, 300);
   }
 
   renderCategoryHeroBanner() {
