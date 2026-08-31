@@ -879,6 +879,16 @@ class CheckoutModal extends HTMLElement {
           await createOrderInSupabase(newOrder);
         }).catch(() => {});
 
+        // Trigger Instant Background Web Push Notification (Admin & Device Alert)
+        import('../../utils/pushNotifications.js').then(({ showLocalNotification }) => {
+          const totalFormatted = formatPrice(newOrder.total);
+          showLocalNotification(`🚨 NEW ORDER #${newOrder.id} (${totalFormatted})`, {
+            body: `Customer ${newOrder.customerName || 'Guest'} placed order #${newOrder.id}! Payment: ${newOrder.paymentMethod}. Click to open Admin Panel.`,
+            tag: `order-${newOrder.id}`,
+            data: { url: '/#/admin' }
+          });
+        }).catch(() => {});
+
         // Dispatch EmailJS Order Confirmation Email (to Customer) & Store Owner Alert
         import('../../utils/emailNotifications.js').then(({ sendOrderConfirmationEmail, sendAdminNewOrderEmail }) => {
           sendOrderConfirmationEmail(newOrder.id || newOrder.order_number, this.formData.email);
