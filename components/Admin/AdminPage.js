@@ -564,59 +564,74 @@ class AdminPage extends HTMLElement {
     window.addEventListener('orders:updated', this._supabaseListener);
     window.addEventListener('storage', this._supabaseListener);
 
-    // Fallback local API fetch
-    const safeFetchJson = (url) => fetch(url).then(res => {
-      if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return null;
-      return res.json().catch(() => null);
-    }).catch(() => null);
+    // Multi-tab BroadcastChannel Cross-Sync
+    if (typeof BroadcastChannel !== 'undefined') {
+      this._adminSyncChannel = new BroadcastChannel('SWEETOS_ADMIN_SYNC');
+      this._adminSyncChannel.onmessage = () => {
+        this.loadDatabase().then(() => {
+          this.render();
+          this.attachListeners();
+        });
+      };
+    }
 
-    Promise.all([
-      safeFetchJson('/api/products'),
-      safeFetchJson('/api/categories'),
-      safeFetchJson('/api/brands'),
-      safeFetchJson('/api/reviews'),
-      safeFetchJson('/api/orders'),
-      safeFetchJson('/api/coupons')
-    ]).then(([products, categories, brands, reviews, orders, coupons]) => {
-      let needsRender = false;
-      if (Array.isArray(products) && products.length > 0) {
-        this.products = products;
-        sessionStorage.setItem('SWEETOS_products', JSON.stringify(products));
-        needsRender = true;
-      }
-      if (Array.isArray(categories) && categories.length > 0) {
-        this.categories = categories;
-        sessionStorage.setItem('SWEETOS_categories', JSON.stringify(categories));
-        needsRender = true;
-      }
-      if (Array.isArray(brands) && brands.length > 0) {
-        this.brands = brands;
-        sessionStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
-        needsRender = true;
-      }
-      if (Array.isArray(reviews) && reviews.length > 0) {
-        this.reviews = reviews;
-        sessionStorage.setItem('SWEETOS_reviews_all', JSON.stringify(reviews));
-        needsRender = true;
-      }
-      if (Array.isArray(orders) && orders.length > 0) {
-        this.orders = orders;
-        saveAllOrdersToStorage(orders);
-        needsRender = true;
-      }
-      if (Array.isArray(coupons) && coupons.length > 0) {
-        this.coupons = coupons;
-        sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(coupons));
-        needsRender = true;
-      }
-      if (needsRender) {
-        this.render();
-        this.attachListeners();
-      }
+    // Fallback local API fetch only in local dev environment
+    import('../../utils/storage.js').then(({ isLocalDevHost }) => {
+      if (!isLocalDevHost()) return;
 
-      // Establish real-time notification stream (SSE)
-      this.initRealTimeNotificationStream();
-    });
+      const safeFetchJson = (url) => fetch(url).then(res => {
+        if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return null;
+        return res.json().catch(() => null);
+      }).catch(() => null);
+
+      Promise.all([
+        safeFetchJson('/api/products'),
+        safeFetchJson('/api/categories'),
+        safeFetchJson('/api/brands'),
+        safeFetchJson('/api/reviews'),
+        safeFetchJson('/api/orders'),
+        safeFetchJson('/api/coupons')
+      ]).then(([products, categories, brands, reviews, orders, coupons]) => {
+        let needsRender = false;
+        if (Array.isArray(products) && products.length > 0) {
+          this.products = products;
+          sessionStorage.setItem('SWEETOS_products', JSON.stringify(products));
+          needsRender = true;
+        }
+        if (Array.isArray(categories) && categories.length > 0) {
+          this.categories = categories;
+          sessionStorage.setItem('SWEETOS_categories', JSON.stringify(categories));
+          needsRender = true;
+        }
+        if (Array.isArray(brands) && brands.length > 0) {
+          this.brands = brands;
+          sessionStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
+          needsRender = true;
+        }
+        if (Array.isArray(reviews) && reviews.length > 0) {
+          this.reviews = reviews;
+          sessionStorage.setItem('SWEETOS_reviews_all', JSON.stringify(reviews));
+          needsRender = true;
+        }
+        if (Array.isArray(orders) && orders.length > 0) {
+          this.orders = orders;
+          saveAllOrdersToStorage(orders);
+          needsRender = true;
+        }
+        if (Array.isArray(coupons) && coupons.length > 0) {
+          this.coupons = coupons;
+          sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(coupons));
+          needsRender = true;
+        }
+        if (needsRender) {
+          this.render();
+          this.attachListeners();
+        }
+
+        // Establish real-time notification stream (SSE)
+        this.initRealTimeNotificationStream();
+      });
+    }).catch(() => {});
   }
 
   async loadDatabase() {
@@ -698,6 +713,14 @@ class AdminPage extends HTMLElement {
       if (storedReviews) try { this.reviews = JSON.parse(storedReviews); } catch(e) {}
 
       sessionStorage.setItem('SWEETOS_db_initialized', 'true');
+      if (Array.isArray(this.orders) && this.orders.length > 0) {
+        saveAllOrdersToStorage(this.orders, true);
+      }
+
+      if (this.isConnected) {
+        this.render();
+        this.attachListeners();
+      }
     } catch (err) {
       console.warn('[Supabase Cloud] loadDatabase notice:', err);
     }
@@ -913,35 +936,36 @@ class AdminPage extends HTMLElement {
     }
     
     // Check if SSE endpoint is supported on host before initializing EventSource
-    fetch('/api/live-alerts', { method: 'HEAD' })
-      .then(res => {
-        const contentType = res.headers.get('content-type') || '';
-        if (res.ok && contentType.includes('text/event-stream')) {
-          this.eventSource = new EventSource('/api/live-alerts');
-          
-          this.eventSource.onmessage = (event) => {
-            try {
-              const data = JSON.parse(event.data);
-              console.log('Real-time notification alert received:', data);
-              window.dispatchEvent(new CustomEvent('toast:show', { detail: `🔔 LIVE ALERT: ${data.message}` }));
-              this.syncAllDatabasesFromServer();
-            } catch (e) {
-              console.error('Failed to parse SSE event:', e);
-            }
-          };
+    import('../../utils/storage.js').then(({ isLocalDevHost }) => {
+      if (!isLocalDevHost()) return;
 
-          this.eventSource.onerror = () => {
-            // Silently close on static/serverless hosts where SSE is unsupported
-            if (this.eventSource) {
-              this.eventSource.close();
-              this.eventSource = null;
-            }
-          };
-        }
-      })
-      .catch(() => {
-        // Quietly ignore network failures on static deployments
-      });
+      fetch('/api/live-alerts', { method: 'HEAD' })
+        .then(res => {
+          const contentType = res.headers.get('content-type') || '';
+          if (res.ok && contentType.includes('text/event-stream')) {
+            this.eventSource = new EventSource('/api/live-alerts');
+            
+            this.eventSource.onmessage = (event) => {
+              try {
+                const data = JSON.parse(event.data);
+                console.log('Real-time notification alert received:', data);
+                window.dispatchEvent(new CustomEvent('toast:show', { detail: `🔔 LIVE ALERT: ${data.message}` }));
+                this.syncAllDatabasesFromServer();
+              } catch (e) {
+                console.error('Failed to parse SSE event:', e);
+              }
+            };
+
+            this.eventSource.onerror = () => {
+              if (this.eventSource) {
+                this.eventSource.close();
+                this.eventSource = null;
+              }
+            };
+          }
+        })
+        .catch(() => {});
+    }).catch(() => {});
   }
 
   syncAllDatabasesFromServer() {
