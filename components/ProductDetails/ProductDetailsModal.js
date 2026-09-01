@@ -1,4 +1,5 @@
 import { formatPrice } from '../../utils/storage.js';
+import { shareProduct } from '../../utils/share.js';
 
 class ProductDetailsModal extends HTMLElement {
   constructor() {
@@ -157,68 +158,8 @@ class ProductDetailsModal extends HTMLElement {
     const shareBtn = shadow.getElementById('details-share-btn');
     if (shareBtn) {
       shareBtn.addEventListener('click', async () => {
-        const p = this.product;
-        if (!p) return;
-        
-        const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
-        const productUrl = `${window.location.origin}${window.location.pathname}#/?product=${p.id}`;
-        const priceText = formatPrice(p.price);
-        const compareText = p.comparePrice && p.comparePrice > p.price 
-          ? ` (Was ~${formatPrice(p.comparePrice)}~)` 
-          : '';
-
-        const shareText = 
-`🔥 *NEW ARRIVAL ON ${storeName.toUpperCase()}* 🔥
-
-📦 *${p.name.toUpperCase()}*
-🏷️ *Brand:* ${p.brand || 'SWEETOS'}
-📂 *Category:* ${p.category || 'General'}
-💰 *Price:* ${priceText}${compareText}
-
-📝 *Details:*
-"${(p.description || p.shortDesc || '').slice(0, 220)}"
-
-👇 *Tap link below to view & order directly:*
-🔗 ${productUrl}`;
-
-        const copyToClipboardFallback = () => {
-          const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
-          window.open(whatsappUrl, '_blank');
-          window.dispatchEvent(new CustomEvent('toast:show', { detail: '📱 Opening WhatsApp! Select "My Status" to publish.' }));
-        };
-
-        if (navigator.share) {
-          try {
-            // Fetch product image to share as file blob
-            const response = await fetch(p.image);
-            const blob = await response.blob();
-            const extension = p.image.split('.').pop().split('?')[0] || 'jpg';
-            const file = new File([blob], `product-${p.id}.${extension}`, { type: blob.type });
-
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-              await navigator.share({
-                title: shareTitle,
-                text: shareText,
-                url: shareUrl,
-                files: [file]
-              });
-            } else {
-              await navigator.share({
-                title: shareTitle,
-                text: shareText,
-                url: shareUrl
-              });
-            }
-          } catch (err) {
-            console.log('Error sharing image file, falling back to text:', err);
-            navigator.share({
-              title: shareTitle,
-              text: shareText,
-              url: shareUrl
-            }).catch(() => copyToClipboardFallback());
-          }
-        } else {
-          copyToClipboardFallback();
+        if (this.product) {
+          await shareProduct(this.product);
         }
       });
     }

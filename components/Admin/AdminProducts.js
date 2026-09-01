@@ -3,6 +3,7 @@ import { showConfirmModal, showPromptModal } from '../../utils/modal.js';
 import { deleteProductPermanentlyFromSupabase, deleteMultipleProductsPermanentlyFromSupabase } from '../../utils/supabase.js';
 import { getCategorySchema } from '../../data/productFieldsConfig.js';
 import defaultSections from '../../data/sections.js';
+import { shareProduct } from '../../utils/share.js';
 
 // Global internal state helpers for filters & selection
 let selectedProductIds = new Set();
@@ -143,52 +144,9 @@ function generateShortProductDescription({ name, category, brand, price, image, 
   return text;
 }
 
-function shareProductToWhatsAppStatus(product) {
+async function shareProductToWhatsAppStatus(product) {
   if (!product) return;
-  
-  const origin = window.location.origin;
-  const path = window.location.pathname;
-  const productUrl = `${origin}${path}#/?product=${product.id}`;
-
-  const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
-  const priceText = formatPrice(product.price);
-  const compareText = product.comparePrice && product.comparePrice > product.price 
-    ? ` (Was ~${formatPrice(product.comparePrice)}~)` 
-    : '';
-
-  let desc = (product.description || '').trim();
-  if (!desc || desc.length > 240) {
-    desc = generateShortProductDescription({
-      name: product.name,
-      category: product.category,
-      brand: product.brand,
-      price: product.price,
-      image: product.image
-    });
-  }
-
-  const message = 
-`🔥 *NEW ARRIVAL ON ${storeName.toUpperCase()}* 🔥
-
-📦 *${product.name.toUpperCase()}*
-🏷️ *Brand:* ${product.brand || 'SWEETOS'}
-📂 *Category:* ${product.category || 'General'}
-💰 *Price:* ${priceText}${compareText}
-
-📝 *Details:*
-"${desc}"
-
-⚡ *Stock:* ${product.stock > 0 ? `In Stock (${product.stock} units available)` : 'Limited Stock!'}
-
-👇 *Tap link below to view & order directly:*
-🔗 ${productUrl}`;
-
-  const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
-  window.open(whatsappUrl, '_blank');
-  
-  window.dispatchEvent(new CustomEvent('toast:show', { 
-    detail: '📱 Opening WhatsApp! Select "My Status" to publish.' 
-  }));
+  await shareProduct(product);
 }
 
 export function renderAdminProducts(context) {

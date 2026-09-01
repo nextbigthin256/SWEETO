@@ -2,6 +2,7 @@ import { formatPrice, getStorageItem } from '../../utils/storage.js';
 import { loadStyles } from '../../utils/cssLoader.js';
 import { productCardCSS } from './ProductCard.styles.js';
 import { getInitialLanguage, getText } from '../../utils/language.js';
+import { shareProduct } from '../../utils/share.js';
 
 class ProductCard extends HTMLElement {
   constructor() {
@@ -218,30 +219,9 @@ class ProductCard extends HTMLElement {
     if (shareCardBtn) {
       shareCardBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
-        const productUrl = `${window.location.origin}${window.location.pathname}#/?product=${p.id}`;
-        const priceText = formatPrice(p.price);
-        const compareText = p.comparePrice && p.comparePrice > p.price 
-          ? ` (Was ~${formatPrice(p.comparePrice)}~)` 
-          : '';
-
-        const shareText = 
-`🔥 *NEW ARRIVAL ON ${storeName.toUpperCase()}* 🔥
-
-📦 *${p.name.toUpperCase()}*
-🏷️ *Brand:* ${p.brand || 'SWEETOS'}
-📂 *Category:* ${p.category || 'General'}
-💰 *Price:* ${priceText}${compareText}
-
-📝 *Details:*
-"${(p.description || p.shortDesc || '').slice(0, 220)}"
-
-👇 *Tap link below to view & order directly:*
-🔗 ${productUrl}`;
-
-        const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
-        window.open(whatsappUrl, '_blank');
-        window.dispatchEvent(new CustomEvent('toast:show', { detail: '📱 Opening WhatsApp! Select "My Status" to publish.' }));
+        if (p) {
+          await shareProduct(p);
+        }
       });
     }
 

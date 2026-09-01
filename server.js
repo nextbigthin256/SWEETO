@@ -428,6 +428,79 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // 2h. API: GET /api/share or /share (Dynamic Open Graph Preview)
+  if (req.method === 'GET' && (reqUrl.pathname === '/api/share' || reqUrl.pathname === '/share')) {
+    try {
+      const productId = parseInt(reqUrl.searchParams.get('product') || reqUrl.searchParams.get('id') || reqUrl.searchParams.get('p') || '1');
+      const productsPath = path.join(__dirname, 'data', 'products.js');
+      fs.readFile(productsPath, 'utf8', (err, content) => {
+        let rawProduct = null;
+        if (!err && content) {
+          const startIdx = content.indexOf('[');
+          const endIdx = content.lastIndexOf(']');
+          if (startIdx !== -1 && endIdx !== -1) {
+            try {
+              const list = JSON.parse(content.substring(startIdx, endIdx + 1));
+              rawProduct = list.find(p => p.id === productId) || list[0];
+            } catch (e) {}
+          }
+        }
+
+        if (!rawProduct) {
+          rawProduct = { id: productId, name: 'SWEETOS Product', price: 0, image: '/assets/sweetos_logo.svg' };
+        }
+
+        const host = req.headers.host || 'localhost:8080';
+        const protocol = req.headers['x-forwarded-proto'] || 'http';
+        const baseUrl = `${protocol}://${host}`;
+
+        let imageUrl = rawProduct.image || '';
+        if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.startsWith('data:image/')) {
+          const encodedName = encodeURIComponent(rawProduct.name || 'SWEETOS Product');
+          imageUrl = `https://placehold.co/1200x630/0052cc/FFFFFF.png?text=${encodedName}`;
+        } else if (imageUrl.startsWith('/')) {
+          imageUrl = `${baseUrl}${imageUrl}`;
+        } else if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+          imageUrl = `${baseUrl}/${imageUrl}`;
+        }
+
+        const priceText = rawProduct.price ? `${rawProduct.price.toLocaleString('fr-FR')} FCFA` : '';
+        const targetUrl = `${baseUrl}/#/?product=${rawProduct.id}`;
+        const shareUrl = `${baseUrl}/api/share?product=${rawProduct.id}`;
+        const desc = `${rawProduct.name}. ${priceText}. High-tech & workspace gear available on SWEETOS.`;
+
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>${rawProduct.name} - ${priceText} | SWEETOS</title>
+  <meta name="description" content="${desc}">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="SWEETOS">
+  <meta property="og:title" content="${rawProduct.name} - ${priceText} | SWEETOS">
+  <meta property="og:description" content="${desc}">
+  <meta property="og:image" content="${imageUrl}">
+  <meta property="og:image:secure_url" content="${imageUrl}">
+  <meta property="og:url" content="${shareUrl}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${rawProduct.name} - ${priceText} | SWEETOS">
+  <meta name="twitter:description" content="${desc}">
+  <meta name="twitter:image" content="${imageUrl}">
+  <meta http-equiv="refresh" content="0;url=${targetUrl}">
+</head>
+<body>
+  <p>Redirection vers <a href="${targetUrl}">${rawProduct.name}</a>...</p>
+</body>
+</html>`);
+      });
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end('Server Error');
+    }
+    return;
+  }
+
   // 3. Static File Server with SPA Fallback
   let filePath = path.join(__dirname, req.url === '/' ? 'index.html' : req.url.split('?')[0]);
   
