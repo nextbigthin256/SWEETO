@@ -2,11 +2,12 @@
 import products from '../data/products.js';
 
 export default async function handler(req, res) {
-  // Get product ID from query parameters
-  const { product: productIdQuery, p: pQuery, id: idQuery } = req.query || {};
-  const productId = parseInt(productIdQuery || pQuery || idQuery || '1');
+  // Get product ID from query parameters (?product=2, ?id=2, ?p=2)
+  const query = req.query || {};
+  const rawId = query.product || query.id || query.p || '2';
+  const productId = parseInt(rawId) || 2;
 
-  // Find product or fallback to first catalog item
+  // Find product or fallback to product #2 (HP ELITEBOOK)
   const product = products.find(item => item.id === productId) || products[0];
 
   // ===== CONFIGURATION =====
@@ -26,13 +27,13 @@ export default async function handler(req, res) {
     : 'Stock Limité';
   const description = `${product.name} par ${brand}. ${category} de haute précision. ${priceFormatted}. ${stockText}. Commandez sur ${siteName}!`;
 
-  // ===== FIXED: DYNAMIC IMAGE URL LOGIC =====
+  // ===== DYNAMIC IMAGE URL LOGIC (PNG/JPG ONLY FOR SOCIAL CRAWLERS) =====
   let imageUrl = product.image;
 
-  // 1. If missing, null, or Base64 Data URI (which Facebook/WhatsApp CANNOT crawl), use high-res placeholder
+  // 1. If missing, null, or Base64 Data URI (which Facebook/WhatsApp CANNOT crawl), use high-res 1200x630 PNG placeholder
   if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.startsWith('data:image/')) {
     const encodedName = encodeURIComponent(product.name || 'SWEETOS Product');
-    imageUrl = `https://placehold.co/1200x630/0052cc/FFFFFF?text=${encodedName}`;
+    imageUrl = `https://placehold.co/1200x630/0052cc/FFFFFF.png?text=${encodedName}`;
   } 
   // 2. If relative path starting with /, prepend baseUrl
   else if (imageUrl.startsWith('/')) {
@@ -42,7 +43,7 @@ export default async function handler(req, res) {
   else if (imageUrl.startsWith('.')) {
     imageUrl = `${baseUrl}${imageUrl.substring(1)}`;
   }
-  // 4. If image doesn't start with http, assume relative to products folder
+  // 4. If image doesn't start with http, assume relative to images/products
   else if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
     imageUrl = `${baseUrl}/images/products/${imageUrl}`;
   }
@@ -54,7 +55,7 @@ export default async function handler(req, res) {
 
   // ===== URLS =====
   const directPdpUrl = `${baseUrl}/?product=${product.id}`;
-  const sharePageUrl = `${baseUrl}/api/share?product=${product.id}`;
+  const sharePageUrl = `${baseUrl}/share?product=${product.id}`;
 
   // ===== BOT DETECTION =====
   const userAgent = req.headers['user-agent'] || '';
@@ -75,10 +76,10 @@ export default async function handler(req, res) {
   <meta property="og:title" content="${title}" />
   <meta property="og:description" content="${description}" />
   
-  <!-- ⚠️ VALID ABSOLUTE HTTPS IMAGE URL FOR CRAWLERS -->
+  <!-- ⚠️ VALID ABSOLUTE HTTPS PNG/JPG IMAGE URL FOR CRAWLERS -->
   <meta property="og:image" content="${imageUrl}" />
   <meta property="og:image:secure_url" content="${imageUrl}" />
-  <meta property="og:image:type" content="image/jpeg" />
+  <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   
