@@ -5089,21 +5089,12 @@ class ProductList extends HTMLElement {
       : '';
     const desc = (p.description || `High-precision ${p.name} from ${p.brand || 'SWEETOS'}.`).slice(0, 180);
 
-    const formattedWaMessage = 
-`🔥 *NEW ARRIVAL ON SWEETOS* 🔥
+    const formattedWaMessage = `${shareUrl}
 
 📦 *${p.name.toUpperCase()}*
-🏷️ *Brand:* ${p.brand || 'SWEETOS'}
-📂 *Category:* ${p.category || 'General'}
-💰 *Price:* ${priceText}${compareText}
-
-📝 *Details:*
-"${desc}"
-
-⚡ *Stock:* ${p.stock > 0 ? `In Stock (${p.stock} units available)` : 'Limited Stock!'}
-
-👇 *Tap link below to view & order directly:*
-🔗 ${shareUrl}`;
+🏷️ *Marque:* ${p.brand || 'SWEETOS'} | *Prix:* ${priceText}${compareText}
+📝 ${desc}
+⚡ ${p.stock > 0 ? `En Stock (${p.stock} disponibles)` : 'Stock Limité !'}`;
 
     const fbBtn = shadow.getElementById('pdpShareFacebook');
     if (fbBtn) {
