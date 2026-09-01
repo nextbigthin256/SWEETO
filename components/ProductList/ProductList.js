@@ -10,6 +10,14 @@ import { getTodaysDealsConfig, isTodaysDealsActive, getTimeRemaining, awardMyste
 import { getMoreToLoveConfig } from '../../utils/moreToLove.js';
 import '../Admin/AdminPage.js';
 
+function safeParseArray(raw) {
+  if (!raw) return [];
+  let p = raw;
+  if (typeof p === 'string') { try { p = JSON.parse(p); } catch(e) {} }
+  if (typeof p === 'string') { try { p = JSON.parse(p); } catch(e) {} }
+  return Array.isArray(p) ? p : [];
+}
+
 class ProductList extends HTMLElement {
   constructor() {
     super();
@@ -19,18 +27,16 @@ class ProductList extends HTMLElement {
     let loadedProducts = null;
     try {
       const storedProds = getStorageItem('SWEETOS_products');
-      if (storedProds !== null) {
-        const parsed = JSON.parse(storedProds);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          loadedProducts = parsed;
-        }
+      const parsed = safeParseArray(storedProds);
+      if (parsed.length > 0) {
+        loadedProducts = parsed;
       }
     } catch (e) {}
 
     if (!loadedProducts || loadedProducts.length === 0) {
       loadedProducts = products;
       this.initializeHomepageSectionsForProducts(loadedProducts);
-      saveStorageItem('SWEETOS_products', JSON.stringify(loadedProducts));
+      saveStorageItem('SWEETOS_products', loadedProducts);
     }
 
     this.products = loadedProducts;
@@ -49,24 +55,24 @@ class ProductList extends HTMLElement {
         }
       });
       if (prodsModified) {
-        saveStorageItem('SWEETOS_products', JSON.stringify(this.products));
+        saveStorageItem('SWEETOS_products', this.products);
       }
     }
 
     // Auto-sanitize categories and homepage sections
     try {
-      const rawCats = JSON.parse(getStorageItem('SWEETOS_categories') || '[]');
+      const rawCats = safeParseArray(getStorageItem('SWEETOS_categories'));
       const cleanCats = rawCats.filter(c => c && c.name && c.name !== 'undefined' && c.name !== 'null');
       if (cleanCats.length !== rawCats.length) {
-        saveStorageItem('SWEETOS_categories', JSON.stringify(cleanCats));
+        saveStorageItem('SWEETOS_categories', cleanCats);
       }
     } catch(e) {}
 
     try {
-      const rawSecs = JSON.parse(getStorageItem('SWEETOS_homepage_sections') || '[]');
+      const rawSecs = safeParseArray(getStorageItem('SWEETOS_homepage_sections'));
       const cleanSecs = rawSecs.filter(s => s && s.name && s.name !== 'undefined' && s.name !== 'null');
       if (cleanSecs.length !== rawSecs.length) {
-        saveStorageItem('SWEETOS_homepage_sections', JSON.stringify(cleanSecs));
+        saveStorageItem('SWEETOS_homepage_sections', cleanSecs);
       }
     } catch(e) {}
     
@@ -2662,11 +2668,10 @@ class ProductList extends HTMLElement {
   }
 
   injectHomeProducts() {
-    let sectionsList = [];
-    try {
-      const storedSecs = getStorageItem('SWEETOS_homepage_sections');
-      sectionsList = storedSecs ? JSON.parse(storedSecs) : [];
-    } catch(e) {}
+    let sectionsList = safeParseArray(getStorageItem('SWEETOS_homepage_sections'));
+    if (sectionsList.length === 0) {
+      sectionsList = defaultSections || [];
+    }
 
     // Sort active sections by order
     sectionsList.forEach((s, idx) => {
