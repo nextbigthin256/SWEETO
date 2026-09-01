@@ -708,7 +708,7 @@ class ProductList extends HTMLElement {
     if (!title) return '';
     const low = title.toLowerCase().trim();
     if (low === 'more to love' || low === 'more to love.' || low.includes('more to love')) {
-      return `<span class="more-to-love-title" style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; color: var(--text-dark, #0A2540); letter-spacing: -0.015em;">More to <em style="font-style: italic; color: #1F6FEB; font-family: 'Fraunces', Georgia, serif;">love.</em></span>`;
+      return `<span class="more-to-love-title" style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; color: var(--text-dark, #0A2540); letter-spacing: -0.015em;">Vous aimerez <em style="font-style: italic; color: #1F6FEB; font-family: 'Fraunces', Georgia, serif;">aussi.</em></span>`;
     }
     return title;
   }
@@ -2405,7 +2405,7 @@ class ProductList extends HTMLElement {
                     <button id="pdpQtyInc">+</button>
                   </div>
                   <button class="btn-add" id="pdpAddBtn" ${isOutOfStock ? 'disabled style="opacity:0.5;cursor:not-allowed;"' : ''}>
-                    ${isOutOfStock ? 'Out of Stock' : 'Add to cart →'}
+                    ${isOutOfStock ? 'Rupture de Stock' : 'Ajouter au panier 🛒'}
                   </button>
                   <button class="btn-wish ${isWishlisted ? 'on' : ''}" id="pdpWishBtn" title="Wishlist">
                     <svg viewBox="0 0 24 24"><path d="M12 20s-7.5-4.7-9.5-9C1 7.5 3 4.5 6.5 4.5c2.2 0 3.9 1.3 5.5 3.4 1.6-2.1 3.3-3.4 5.5-3.4C21 4.5 23 7.5 21.5 11c-2 4.3-9.5 9-9.5 9z"/></svg>
@@ -8278,7 +8278,7 @@ class ProductList extends HTMLElement {
       <div class="section-header" style="margin-bottom: 22px; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px;">
         <div>
           <h3 class="more-to-love-title" style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: clamp(24px, 3.2vw, 32px); line-height: 1.15; color: var(--text-dark, #0A2540); letter-spacing: -0.015em;">
-            More to <em style="font-style: italic; color: #1F6FEB; font-family: 'Fraunces', Georgia, serif;">love.</em>
+            Vous aimerez <em style="font-style: italic; color: #1F6FEB; font-family: 'Fraunces', Georgia, serif;">aussi.</em>
           </h3>
           ${config.subtitle ? `<p style="margin: 6px 0 0 0; font-size: 13.5px; color: var(--text-gray, #5A6B84); font-weight: 500;">${config.subtitle}</p>` : ''}
         </div>

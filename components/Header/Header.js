@@ -292,6 +292,12 @@ class Header extends HTMLElement {
             <span class="nav-btn-label">Panier</span>
           </button>
           
+          <!-- Language Switcher Toggle -->
+          <button class="nav-btn lang-toggle-btn" id="header-lang-toggle-btn" title="Changer la langue / Switch language" style="padding: 0 10px; background: rgba(0, 82, 204, 0.08); border: 1px solid rgba(0, 82, 204, 0.18); border-radius: 12px; height: 38px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; color: #0052cc; transition: all 0.2s ease;">
+            <span>🌐</span>
+            <span id="headerLangLabel">${(sessionStorage.getItem('SWEETOS_lang') || 'fr').toUpperCase()}</span>
+          </button>
+
           <!-- Customer Profile -->
           <div class="user-profile" id="profile-pill">
             <div class="user-avatar" style="background: #e2e8f0; color: #475569;">👤</div>
@@ -308,6 +314,19 @@ class Header extends HTMLElement {
     const searchBtn = shadow.getElementById('header-search-btn');
     const clearSearchBtn = shadow.getElementById('header-search-clear-btn');
     const scopeSelect = shadow.getElementById('header-search-scope');
+    const langBtn = shadow.getElementById('header-lang-toggle-btn');
+
+    if (langBtn) {
+      langBtn.addEventListener('click', () => {
+        const curLang = sessionStorage.getItem('SWEETOS_lang') || 'fr';
+        const newLang = curLang === 'fr' ? 'en' : 'fr';
+        sessionStorage.setItem('SWEETOS_lang', newLang);
+        const labelEl = shadow.getElementById('headerLangLabel');
+        if (labelEl) labelEl.textContent = newLang.toUpperCase();
+        window.dispatchEvent(new CustomEvent('language:changed', { detail: newLang }));
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: `🌐 Langue modifiée: ${newLang.toUpperCase()}` }));
+      });
+    }
 
     const updateClearBtnVisibility = () => {
       if (clearSearchBtn) {

@@ -42,22 +42,35 @@ class ProductCard extends HTMLElement {
 
     const isOutOfStock = p.stock === 0;
 
-    // Load reviews with fallback to product rating
-    const key = `SWEETOS_reviews_${p.id}`;
-    const saved = getStorageItem(key);
-    let reviewsList = [];
-    if (saved) {
-      try {
-        reviewsList = JSON.parse(saved);
-      } catch (e) {}
+    // Load genuine customer reviews for this product
+    let realReviewsCount = 0;
+    let avgRating = 0;
+    try {
+      const allRevsStr = getStorageItem('SWEETOS_reviews_all') || getStorageItem('SWEETOS_reviews');
+      if (allRevsStr) {
+        const revs = JSON.parse(allRevsStr);
+        if (Array.isArray(revs)) {
+          const match = revs.filter(r => Number(r.productId) === Number(p.id));
+          if (match.length > 0) {
+            realReviewsCount = match.length;
+            avgRating = (match.reduce((sum, r) => sum + (Number(r.rating) || 5), 0) / match.length).toFixed(1);
+          }
+        }
+      }
+    } catch(e) {}
+
+    let ratingBadgeHtml = '';
+    if (realReviewsCount > 0) {
+      ratingBadgeHtml = `<span style="font-size:11px; font-weight:750; color:#f59e0b; background:rgba(245,158,11,0.1); padding:2px 7px; border-radius:10px;">⭐ ${avgRating} (${realReviewsCount})</span>`;
+    } else {
+      if (isOutOfStock) {
+        ratingBadgeHtml = `<span style="font-size:10.5px; font-weight:750; color:#ef4444; background:rgba(239,68,68,0.1); padding:2px 7px; border-radius:10px;">✕ Rupture</span>`;
+      } else if (hasDiscount) {
+        ratingBadgeHtml = `<span style="font-size:10.5px; font-weight:750; color:#f97316; background:rgba(249,115,22,0.1); padding:2px 7px; border-radius:10px;">🔥 Offre Flash</span>`;
+      } else {
+        ratingBadgeHtml = `<span style="font-size:10.5px; font-weight:750; color:#10b981; background:rgba(16,185,129,0.1); padding:2px 7px; border-radius:10px;">✅ En Stock</span>`;
+      }
     }
-    const realReviewsCount = reviewsList.length;
-    const ratingVal = realReviewsCount > 0 
-      ? (reviewsList.reduce((sum, r) => sum + r.rating, 0) / realReviewsCount).toFixed(1)
-      : (p.rating || 5.0).toFixed(1);
-    const reviewsDisplayCount = realReviewsCount > 0 
-      ? realReviewsCount 
-      : (p.reviews || 24);
 
     // Badges determination
     const hasCustomBadge = Boolean(p.badge && String(p.badge).trim() !== '');
@@ -107,35 +120,6 @@ class ProductCard extends HTMLElement {
       } catch (e) {}
     }
 
-    let realReviewsCount = 0;
-    let avgRating = 0;
-    try {
-      const allRevsStr = getStorageItem('SWEETOS_reviews_all') || getStorageItem('SWEETOS_reviews');
-      if (allRevsStr) {
-        const revs = JSON.parse(allRevsStr);
-        if (Array.isArray(revs)) {
-          const match = revs.filter(r => Number(r.productId) === Number(p.id));
-          if (match.length > 0) {
-            realReviewsCount = match.length;
-            avgRating = (match.reduce((sum, r) => sum + (Number(r.rating) || 5), 0) / match.length).toFixed(1);
-          }
-        }
-      }
-    } catch(e) {}
-
-    let ratingBadgeHtml = '';
-    if (realReviewsCount > 0) {
-      ratingBadgeHtml = `<span style="font-size:11px; font-weight:750; color:#f59e0b; background:rgba(245,158,11,0.1); padding:2px 7px; border-radius:10px;">⭐ ${avgRating} (${realReviewsCount})</span>`;
-    } else {
-      if (isOutOfStock) {
-        ratingBadgeHtml = `<span style="font-size:10.5px; font-weight:750; color:#ef4444; background:rgba(239,68,68,0.1); padding:2px 7px; border-radius:10px;">✕ Rupture</span>`;
-      } else if (hasDiscount) {
-        ratingBadgeHtml = `<span style="font-size:10.5px; font-weight:750; color:#f97316; background:rgba(249,115,22,0.1); padding:2px 7px; border-radius:10px;">🔥 Offre Flash</span>`;
-      } else {
-        ratingBadgeHtml = `<span style="font-size:10.5px; font-weight:750; color:#10b981; background:rgba(16,185,129,0.1); padding:2px 7px; border-radius:10px;">✅ En Stock</span>`;
-      }
-    }
-
     this.shadowRoot.innerHTML = `
       <div class="card glass-panel">
         <div class="image-wrapper">
@@ -149,10 +133,10 @@ class ProductCard extends HTMLElement {
           
           <div class="status-badge-container">
             ${hasCustomBadge ? `<span class="status-badge custom-badge" style="background: linear-gradient(135deg, #0052cc 0%, #00b4d8 100%);">✨ ${customBadgeText.toUpperCase()}</span>` : ''}
-            ${!hasCustomBadge && p.isDeal ? `<span class="status-badge hot-deal">⚡ FLASH DEAL</span>` : ''}
+            ${!hasCustomBadge && p.isDeal ? `<span class="status-badge hot-deal">⚡ OFFRE FLASH</span>` : ''}
             ${!hasCustomBadge && !p.isDeal && isHotDeal ? `<span class="status-badge hot-deal">🔥 -${discountVal || 20}%</span>` : ''}
-            ${!hasCustomBadge && !p.isDeal && isBestSeller ? `<span class="status-badge bestseller">⭐ BEST</span>` : ''}
-            ${!hasCustomBadge && !p.isDeal && isNew ? `<span class="status-badge new">✨ NEW</span>` : ''}
+            ${!hasCustomBadge && !p.isDeal && isBestSeller ? `<span class="status-badge bestseller">⭐ TOP VENTE</span>` : ''}
+            ${!hasCustomBadge && !p.isDeal && isNew ? `<span class="status-badge new">✨ NOUVEAU</span>` : ''}
           </div>
           
           <button class="heart-btn ${isWishlisted ? 'active' : ''}" id="wishlist-add-btn" title="${isWishlisted ? 'Retirer des favoris' : 'Ajouter aux favoris'}">
@@ -190,8 +174,8 @@ class ProductCard extends HTMLElement {
             </div>
             
             <button class="add-btn" id="add-to-cart-btn" ${isOutOfStock ? 'disabled style="opacity: 0.45; cursor: not-allowed; background: #64748b;"' : ''}>
-              <span class="add-btn-text">${isOutOfStock ? 'Out' : 'Add'}</span>
-              <span class="add-btn-icon">+</span>
+              <span class="add-btn-text">${isOutOfStock ? 'Rupture' : 'Ajouter'}</span>
+              <span class="add-btn-icon">🛒</span>
             </button>
           </div>
         </div>
