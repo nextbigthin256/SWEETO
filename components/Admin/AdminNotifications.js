@@ -279,6 +279,8 @@ export function renderAdminNotifications(context) {
           <span class="kpi-title">Stock Warnings</span>
           <span class="kpi-val" style="color: #d97706;">${stockAlertsCount}</span>
         </div>
+      </div>
+    </div>
     <!-- Web Push Broadcast Card for Admin -->
     <div class="glass-panel" style="padding: 20px; border-radius: 16px; margin-bottom: 20px; background: linear-gradient(135deg, rgba(0,82,204,0.05) 0%, rgba(0,180,216,0.05) 100%); border: 1.5px solid rgba(0,82,204,0.15);">
       <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; margin-bottom:12px;">
