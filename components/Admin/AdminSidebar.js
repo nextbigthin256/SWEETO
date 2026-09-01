@@ -15,6 +15,11 @@ export function renderAdminSidebar(context) {
     !readAlerts.includes(`stock-${p.id || p.sku}`)
   ).length;
 
+  const lowCouponsCount = (context.coupons || []).filter(c => 
+    c.stock !== undefined && c.stock <= 2 &&
+    !readAlerts.includes(`coupon-stock-${c.code}`)
+  ).length;
+
   const totalAlertsCount = pendingOrdersCount + lowStockCount + lowCouponsCount;
   const isCollapsed = context.sidebarCollapsed;
 
