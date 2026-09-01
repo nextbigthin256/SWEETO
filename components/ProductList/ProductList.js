@@ -1367,15 +1367,24 @@ class ProductList extends HTMLElement {
         <div class="home-section" id="for-you-section" style="margin-bottom: 40px;">
           <div class="section-header" style="margin-bottom: 24px;">
             <h3 class="section-title" style="font-size: 22px; font-weight: 850; color: var(--text-dark); margin:0;">For You</h3>
+            <p style="margin: 4px 0 0 0; font-size: 13px; color: var(--text-gray); font-weight: 500;">Feed infini de recommandations sur-mesure pour votre équipement</p>
           </div>
           <div class="home-grid-4" id="grid-for-you"></div>
           
-          <div id="for-you-loading" style="display: flex; justify-content: center; align-items: center; padding: 40px; font-weight: 750; color: #ff2e93; gap: 10px; font-size: 14px; opacity: 0; transition: opacity 0.2s ease;">
-            <svg width="20" height="20" viewBox="0 0 50 50" style="animation: rotate 1s linear infinite; fill: none; stroke: #ff2e93; stroke-width: 5; stroke-linecap: round;">
-              <circle cx="25" cy="25" r="20" stroke-dasharray="80, 200" stroke-dashoffset="0"></circle>
-            </svg>
-            Loading more premium gear...
+          <div id="for-you-loading" style="display: none; justify-content: center; align-items: center; padding: 20px; font-weight: 750; color: #0052cc; gap: 10px; font-size: 13.5px; opacity: 0; transition: opacity 0.2s ease;">
+            <span style="display: inline-flex; align-items: center; gap: 8px; background: rgba(0,82,204,0.08); padding: 8px 18px; border-radius: 20px;">
+              <span>⚡ Chargement d'autres produits...</span>
+            </span>
           </div>
+
+          <div style="text-align: center; margin-top: 16px;">
+            <button id="for-you-load-more-btn" style="background: rgba(0,82,204,0.08); border: 1.5px solid rgba(0,82,204,0.2); color: #0052cc; font-weight: 800; font-size: 13px; padding: 12px 28px; border-radius: 24px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(0,82,204,0.1);">
+              <span>⚡ Voir plus de produits</span>
+              <span>↓</span>
+            </button>
+          </div>
+
+          <div id="for-you-sentinel" style="height: 30px; width: 100%; margin-top: 10px;"></div>
         </div>
       `;
 
@@ -2861,7 +2870,7 @@ class ProductList extends HTMLElement {
       }
     });
 
-    // Initial For You products load (1 line of 4 products)
+    // Initial For You products load (12 products for a rich grid)
     this.forYouIndex = 0;
     this.forYouLoading = false;
     
@@ -2869,7 +2878,7 @@ class ProductList extends HTMLElement {
     if (gridForYou) {
       gridForYou.innerHTML = '';
       if (this.products && this.products.length > 0) {
-        const batchSize = Math.min(4, this.products.length);
+        const batchSize = Math.min(12, this.products.length);
         for (let i = 0; i < batchSize; i++) {
           const p = this.products[i % this.products.length];
           if (p) {
@@ -2880,6 +2889,7 @@ class ProductList extends HTMLElement {
         }
         this.forYouIndex = batchSize;
       }
+      this.setupForYouInfiniteScroll();
     }
 
     // Attach category card click listeners
@@ -3058,7 +3068,7 @@ class ProductList extends HTMLElement {
     return migrated;
   }
 
-  loadMoreForYouProducts() {
+  loadMoreForYouProducts(batchSize = 8) {
     if (this.forYouLoading) return;
     this.forYouLoading = true;
 
@@ -3072,11 +3082,10 @@ class ProductList extends HTMLElement {
 
     if (loadingEl) {
       loadingEl.style.opacity = '1';
-      loadingEl.style.display = 'block';
+      loadingEl.style.display = 'flex';
     }
 
     setTimeout(() => {
-      const batchSize = 4;
       for (let i = 0; i < batchSize; i++) {
         const prodIndex = (this.forYouIndex + i) % this.products.length;
         const p = this.products[prodIndex];
@@ -3090,8 +3099,52 @@ class ProductList extends HTMLElement {
       this.forYouLoading = false;
       if (loadingEl) {
         loadingEl.style.opacity = '0';
+        loadingEl.style.display = 'none';
       }
-    }, 350);
+    }, 120);
+  }
+
+  setupForYouInfiniteScroll() {
+    const shadow = this.shadowRoot;
+    const sentinel = shadow.getElementById('for-you-sentinel');
+    const loadBtn = shadow.getElementById('for-you-load-more-btn');
+
+    if (loadBtn) {
+      loadBtn.addEventListener('click', () => {
+        this.loadMoreForYouProducts(8);
+      });
+    }
+
+    if (this._forYouObserver) {
+      this._forYouObserver.disconnect();
+      this._forYouObserver = null;
+    }
+
+    if ('IntersectionObserver' in window && sentinel) {
+      this._forYouObserver = new IntersectionObserver((entries) => {
+        if (entries[0] && entries[0].isIntersecting) {
+          this.loadMoreForYouProducts(8);
+        }
+      }, { rootMargin: '1200px' });
+      this._forYouObserver.observe(sentinel);
+    }
+
+    if (this._forYouScrollHandler) {
+      window.removeEventListener('scroll', this._forYouScrollHandler);
+      window.removeEventListener('touchmove', this._forYouScrollHandler);
+    }
+
+    this._forYouScrollHandler = () => {
+      if (this.currentPage !== 'home') return;
+      const scrollPos = window.innerHeight + window.scrollY;
+      const threshold = Math.max(300, document.documentElement.scrollHeight - 1500);
+      if (scrollPos >= threshold) {
+        this.loadMoreForYouProducts(8);
+      }
+    };
+
+    window.addEventListener('scroll', this._forYouScrollHandler, { passive: true });
+    window.addEventListener('touchmove', this._forYouScrollHandler, { passive: true });
   }
 
   renderCategoryHeroBanner() {
@@ -8266,17 +8319,6 @@ class ProductList extends HTMLElement {
     const config = getMoreToLoveConfig();
     if (config.enabled === false) return;
 
-    // Clean up any existing infinite scroll observer & handlers
-    if (this._infiniteScrollObserver) {
-      this._infiniteScrollObserver.disconnect();
-      this._infiniteScrollObserver = null;
-    }
-    if (this._infiniteScrollWindowHandler) {
-      window.removeEventListener('scroll', this._infiniteScrollWindowHandler);
-      window.removeEventListener('touchmove', this._infiniteScrollWindowHandler);
-      this._infiniteScrollWindowHandler = null;
-    }
-
     const wrapper = document.createElement('div');
     wrapper.className = 'more-to-love-recommendations-section animate-in';
     wrapper.style.maxWidth = '1280px';
@@ -8289,99 +8331,31 @@ class ProductList extends HTMLElement {
       <div class="section-header" style="margin-bottom: 22px; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px;">
         <div>
           <h3 class="more-to-love-title" style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: clamp(24px, 3.2vw, 32px); line-height: 1.15; color: var(--text-dark, #0A2540); letter-spacing: -0.015em;">
-            Pour vous · <em style="font-style: italic; color: #1F6FEB; font-family: 'Fraunces', Georgia, serif;">Infiniment.</em>
+            Vous aimerez <em style="font-style: italic; color: #1F6FEB; font-family: 'Fraunces', Georgia, serif;">aussi.</em>
           </h3>
-          <p style="margin: 6px 0 0 0; font-size: 13.5px; color: var(--text-gray, #5A6B84); font-weight: 500;">Feed infini de produits et accessoires recommandés pour votre setup</p>
+          ${config.subtitle ? `<p style="margin: 6px 0 0 0; font-size: 13.5px; color: var(--text-gray, #5A6B84); font-weight: 500;">${config.subtitle}</p>` : ''}
         </div>
         <button class="view-all-btn" id="global-more-love-view-all" style="font-size: 13px; font-weight: 700; color: #1F6FEB; background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 6px 0;">Tout le catalogue →</button>
       </div>
       <div class="home-grid-4" id="global-more-to-love-grid"></div>
-      <div id="infinite-scroll-loader" style="display: none; text-align: center; padding: 16px 0; font-size: 13px; font-weight: 750; color: #2563eb;">
-        <span style="display: inline-flex; align-items: center; gap: 8px; background: rgba(37,99,235,0.08); padding: 8px 16px; border-radius: 20px;">
-          <span>⚡ Chargement d'autres produits...</span>
-        </span>
-      </div>
-      <div style="text-align: center; margin-top: 14px;">
-        <button id="infinite-load-more-btn" style="background: rgba(37,99,235,0.08); border: 1.5px solid rgba(37,99,235,0.2); color: #2563eb; font-weight: 800; font-size: 13px; padding: 12px 28px; border-radius: 24px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(37,99,235,0.1);">
-          <span>⚡ Voir plus de produits</span>
-          <span>↓</span>
-        </button>
-      </div>
-      <div id="infinite-scroll-sentinel" style="height: 40px; width: 100%; margin-top: 10px;"></div>
     `;
     
     contentArea.appendChild(wrapper);
 
-    const allProds = Array.isArray(this.products) && this.products.length > 0 ? this.products : [];
-    if (allProds.length === 0) return;
-
-    let poolIndex = 0;
+    const productMap = new Map((this.products || []).map(p => [p.id, p]));
+    let moreToLove = (config.productIds || []).map(id => productMap.get(id)).filter(Boolean);
+    if (moreToLove.length < 4 && (this.products || []).length >= 4) {
+      const currentId = this.currentProductId;
+      moreToLove = (this.products || []).filter(p => p.id !== currentId).slice(0, 12);
+    }
     const gridMore = this.shadowRoot.getElementById('global-more-to-love-grid');
-    const loader = this.shadowRoot.getElementById('infinite-scroll-loader');
-    const sentinel = this.shadowRoot.getElementById('infinite-scroll-sentinel');
-    const loadMoreBtn = this.shadowRoot.getElementById('infinite-load-more-btn');
-
-    const appendNextBatch = (batchSize = 8) => {
-      if (!gridMore || allProds.length === 0) return;
-      let added = 0;
-      while (added < batchSize) {
-        const p = allProds[poolIndex % allProds.length];
-        poolIndex = (poolIndex + 1) % allProds.length;
-
-        if (p) {
-          const card = document.createElement('product-card');
-          card.product = p;
-          gridMore.appendChild(card);
-          added++;
-        }
-      }
-    };
-
-    // Initial batch (12 products for rich grid on mobile & desktop)
-    appendNextBatch(12);
-
-    // Infinite Scroll trigger logic
-    let isFetching = false;
-    const triggerInfiniteLoad = () => {
-      if (isFetching) return;
-      isFetching = true;
-      if (loader) loader.style.display = 'block';
-
-      setTimeout(() => {
-        appendNextBatch(8);
-        if (loader) loader.style.display = 'none';
-        isFetching = false;
-      }, 120);
-    };
-
-    if (loadMoreBtn) {
-      loadMoreBtn.addEventListener('click', () => {
-        triggerInfiniteLoad();
+    if (gridMore) {
+      moreToLove.forEach(p => {
+        const card = document.createElement('product-card');
+        card.product = p;
+        gridMore.appendChild(card);
       });
     }
-
-    // Mobile & Desktop Intersection Observer with aggressive 1200px rootMargin
-    if ('IntersectionObserver' in window && sentinel) {
-      this._infiniteScrollObserver = new IntersectionObserver((entries) => {
-        if (entries[0] && entries[0].isIntersecting) {
-          triggerInfiniteLoad();
-        }
-      }, { rootMargin: '1200px' });
-      this._infiniteScrollObserver.observe(sentinel);
-    }
-
-    // Scroll & Touchmove listener fallback for mobile screens
-    this._infiniteScrollWindowHandler = () => {
-      if (this.currentPage !== 'home') return;
-      const scrollPosition = window.innerHeight + window.scrollY;
-      const threshold = Math.max(300, document.documentElement.scrollHeight - 1500);
-      if (scrollPosition >= threshold) {
-        triggerInfiniteLoad();
-      }
-    };
-
-    window.addEventListener('scroll', this._infiniteScrollWindowHandler, { passive: true });
-    window.addEventListener('touchmove', this._infiniteScrollWindowHandler, { passive: true });
 
     const viewAllBtn = this.shadowRoot.getElementById('global-more-love-view-all');
     if (viewAllBtn) {
