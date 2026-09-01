@@ -8266,6 +8266,16 @@ class ProductList extends HTMLElement {
     const config = getMoreToLoveConfig();
     if (config.enabled === false) return;
 
+    // Clean up any existing infinite scroll observer & handlers
+    if (this._infiniteScrollObserver) {
+      this._infiniteScrollObserver.disconnect();
+      this._infiniteScrollObserver = null;
+    }
+    if (this._infiniteScrollWindowHandler) {
+      window.removeEventListener('scroll', this._infiniteScrollWindowHandler);
+      this._infiniteScrollWindowHandler = null;
+    }
+
     const wrapper = document.createElement('div');
     wrapper.className = 'more-to-love-recommendations-section animate-in';
     wrapper.style.maxWidth = '1280px';
@@ -8278,31 +8288,87 @@ class ProductList extends HTMLElement {
       <div class="section-header" style="margin-bottom: 22px; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px;">
         <div>
           <h3 class="more-to-love-title" style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: clamp(24px, 3.2vw, 32px); line-height: 1.15; color: var(--text-dark, #0A2540); letter-spacing: -0.015em;">
-            Vous aimerez <em style="font-style: italic; color: #1F6FEB; font-family: 'Fraunces', Georgia, serif;">aussi.</em>
+            Pour vous · <em style="font-style: italic; color: #1F6FEB; font-family: 'Fraunces', Georgia, serif;">Infiniment.</em>
           </h3>
-          ${config.subtitle ? `<p style="margin: 6px 0 0 0; font-size: 13.5px; color: var(--text-gray, #5A6B84); font-weight: 500;">${config.subtitle}</p>` : ''}
+          <p style="margin: 6px 0 0 0; font-size: 13.5px; color: var(--text-gray, #5A6B84); font-weight: 500;">Feed infini de produits et accessoires recommandés pour votre setup</p>
         </div>
-        <button class="view-all-btn" id="global-more-love-view-all" style="font-size: 13px; font-weight: 700; color: #1F6FEB; background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 6px 0;">View All →</button>
+        <button class="view-all-btn" id="global-more-love-view-all" style="font-size: 13px; font-weight: 700; color: #1F6FEB; background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 6px 0;">Tout le catalogue →</button>
       </div>
       <div class="home-grid-4" id="global-more-to-love-grid"></div>
+      <div id="infinite-scroll-loader" style="display: none; text-align: center; padding: 24px 0; font-size: 13px; font-weight: 750; color: #2563eb;">
+        <span style="display: inline-flex; align-items: center; gap: 8px; background: rgba(37,99,235,0.08); padding: 8px 16px; border-radius: 20px;">
+          <span>⚡ Chargement d'autres produits...</span>
+        </span>
+      </div>
+      <div id="infinite-scroll-sentinel" style="height: 20px; width: 100%;"></div>
     `;
     
     contentArea.appendChild(wrapper);
 
-    const productMap = new Map((this.products || []).map(p => [p.id, p]));
-    let moreToLove = (config.productIds || []).map(id => productMap.get(id)).filter(Boolean);
-    if (moreToLove.length < 2 && (this.products || []).length >= 2) {
-      const currentId = this.currentProductId;
-      moreToLove = (this.products || []).filter(p => p.id !== currentId).slice(0, 4);
-    }
+    const allProds = Array.isArray(this.products) && this.products.length > 0 ? this.products : [];
+    if (allProds.length === 0) return;
+
+    let poolIndex = 0;
     const gridMore = this.shadowRoot.getElementById('global-more-to-love-grid');
-    if (gridMore) {
-      moreToLove.forEach(p => {
-        const card = document.createElement('product-card');
-        card.product = p;
-        gridMore.appendChild(card);
-      });
+    const loader = this.shadowRoot.getElementById('infinite-scroll-loader');
+    const sentinel = this.shadowRoot.getElementById('infinite-scroll-sentinel');
+
+    const appendNextBatch = (batchSize = 8) => {
+      if (!gridMore) return;
+      let added = 0;
+      let attempts = 0;
+
+      while (added < batchSize && attempts < allProds.length * 4) {
+        const p = allProds[poolIndex % allProds.length];
+        poolIndex++;
+        attempts++;
+
+        if (p) {
+          const card = document.createElement('product-card');
+          card.product = p;
+          gridMore.appendChild(card);
+          added++;
+        }
+      }
+    };
+
+    // Initial batch (12 products)
+    appendNextBatch(12);
+
+    // Infinite Scroll trigger logic
+    let isFetching = false;
+    const triggerInfiniteLoad = () => {
+      if (isFetching) return;
+      isFetching = true;
+      if (loader) loader.style.display = 'block';
+
+      setTimeout(() => {
+        appendNextBatch(8);
+        if (loader) loader.style.display = 'none';
+        isFetching = false;
+      }, 350);
+    };
+
+    // Intersection Observer for smooth infinite scroll
+    if ('IntersectionObserver' in window && sentinel) {
+      this._infiniteScrollObserver = new IntersectionObserver((entries) => {
+        if (entries[0] && entries[0].isIntersecting) {
+          triggerInfiniteLoad();
+        }
+      }, { rootMargin: '300px' });
+      this._infiniteScrollObserver.observe(sentinel);
     }
+
+    // Scroll listener fallback
+    this._infiniteScrollWindowHandler = () => {
+      if (this.currentPage !== 'home') return;
+      const scrollPosition = window.innerHeight + window.scrollY;
+      const threshold = document.documentElement.scrollHeight - 600;
+      if (scrollPosition >= threshold) {
+        triggerInfiniteLoad();
+      }
+    };
+    window.addEventListener('scroll', this._infiniteScrollWindowHandler);
 
     const viewAllBtn = this.shadowRoot.getElementById('global-more-love-view-all');
     if (viewAllBtn) {

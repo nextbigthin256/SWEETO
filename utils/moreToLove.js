@@ -10,9 +10,9 @@ const STORAGE_KEY = 'SWEETOS_more_to_love_config';
 
 export const DEFAULT_MORE_TO_LOVE_CONFIG = {
   enabled: true,
-  title: 'More to Love',
+  title: 'Vous aimerez aussi',
   subtitle: 'Recommandations sélectionnées pour vous',
-  productIds: [7, 8, 11, 12, 17, 18, 23, 24, 2, 4, 9, 15]
+  productIds: [7, 8, 11, 12, 17, 18, 23, 24, 2, 4, 9, 15, 1, 3, 14, 20]
 };
 
 export function getMoreToLoveConfig() {
