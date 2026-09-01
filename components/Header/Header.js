@@ -562,6 +562,8 @@ class Header extends HTMLElement {
         e.preventDefault();
         e.stopPropagation();
         window.scrollTo({ top: 0, behavior: 'smooth' });
+        window.dispatchEvent(new CustomEvent('cart:toggle', { detail: { open: false } }));
+        window.dispatchEvent(new CustomEvent('notifications:toggle', { detail: { open: false } }));
         window.dispatchEvent(new CustomEvent('navigation:changed', {
           detail: { page: 'home', category: 'All' }
         }));

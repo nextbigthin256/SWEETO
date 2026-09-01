@@ -352,9 +352,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Close sidebar drawer on any navigation changes
+  // Close ALL drawers (Cart, Notifications, Mobile Sidebar) on any navigation changes or Home click
   window.addEventListener('navigation:changed', () => {
     closeSidebarMobile();
+    closeCart();
+    closeNotifications();
   });
 
   // Custom event listener to trigger mobile sidebar drawer

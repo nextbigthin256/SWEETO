@@ -100,6 +100,8 @@ class MobileNav extends HTMLElement {
         if (page) {
           items.forEach(i => i.classList.remove('active'));
           item.classList.add('active');
+          window.dispatchEvent(new CustomEvent('cart:toggle', { detail: { open: false } }));
+          window.dispatchEvent(new CustomEvent('notifications:toggle', { detail: { open: false } }));
           window.dispatchEvent(new CustomEvent('navigation:changed', {
             detail: { page, category: 'All' }
           }));
