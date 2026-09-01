@@ -1,11 +1,54 @@
 import { formatPrice, getStorageItem, saveStorageItem } from '../../utils/storage.js';
 import { showConfirmModal, showPromptModal } from '../../utils/modal.js';
 import { deleteProductPermanentlyFromSupabase, deleteMultipleProductsPermanentlyFromSupabase } from '../../utils/supabase.js';
+import { getCategorySchema } from '../../data/productFieldsConfig.js';
 
 // Global internal state helpers for filters & selection
 let selectedProductIds = new Set();
 let brandFilter = 'All';
 let sortBy = 'newest';
+
+function renderCategorySpecsFieldsHtml(categoryName, existingSpecs = {}) {
+  const schema = getCategorySchema(categoryName);
+  if (!schema || !schema.fields || schema.fields.length === 0) return '';
+
+  return `
+    <div class="dynamic-category-specs-card" style="background:#0c101b; border:1px solid rgba(0,82,204,0.35); border-radius:12px; padding:16px; margin-top:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <span style="color:white; font-size:13px; font-weight:750; display:flex; align-items:center; gap:6px;">
+          ⚡ <span>${schema.label || 'Technical Specifications'}</span>
+        </span>
+        <small style="color:#38bdf8; font-size:11px; font-weight:700; background:rgba(0,82,204,0.2); padding:2px 8px; border-radius:6px;">Dynamic Specs</small>
+      </div>
+
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        ${schema.fields.map(f => {
+          const val = existingSpecs[f.name] || existingSpecs[f.key] || '';
+          if (f.type === 'select') {
+            return `
+              <div class="form-group-modern" style="margin:0;">
+                <label style="font-size:11.5px; color:#cbd5e1; font-weight:600; margin-bottom:4px;">${f.name}</label>
+                <select class="dynamic-spec-input" data-spec-name="${f.name}" style="padding:8px 10px; font-size:12px; background:#141b2d; border:1px solid rgba(255,255,255,0.1); color:white; border-radius:6px; width:100%;">
+                  <option value="">Choose ${f.name}...</option>
+                  ${f.options.map(opt => `
+                    <option value="${opt}" ${val === opt ? 'selected' : ''}>${opt}</option>
+                  `).join('')}
+                </select>
+              </div>
+            `;
+          } else {
+            return `
+              <div class="form-group-modern" style="margin:0;">
+                <label style="font-size:11.5px; color:#cbd5e1; font-weight:600; margin-bottom:4px;">${f.name}</label>
+                <input type="text" class="dynamic-spec-input" data-spec-name="${f.name}" placeholder="${f.placeholder || ''}" value="${val}" style="padding:8px 10px; font-size:12px; background:#141b2d; border:1px solid rgba(255,255,255,0.1); color:white; border-radius:6px; width:100%;" autocomplete="off">
+              </div>
+            `;
+          }
+        }).join('')}
+      </div>
+    </div>
+  `;
+}
 
 function getCatAndSubNames(targetCat, allCats) {
   if (!targetCat || targetCat === 'All') return null;
@@ -926,6 +969,15 @@ export function renderAdminProducts(context) {
                 <textarea id="prod-desc" rows="4" placeholder="Highlight key features, or click ✨ Auto-Generate for a concise 30-word description...">${isEditing ? (context.editingProduct.description || '') : ''}</textarea>
               </div>
 
+              <!-- Dynamic Category Specification Fields -->
+              <div id="dynamic-category-specs-container">
+                ${(() => {
+                  const initialCat = isEditing ? context.editingProduct.category : '';
+                  const initialSpecs = isEditing ? (context.editingProduct.specs || {}) : {};
+                  return renderCategorySpecsFieldsHtml(initialCat, initialSpecs);
+                })()}
+              </div>
+
             </div>
 
             <!-- RIGHT COLUMN: Media, Gallery, Badges, Homepage Sections -->
@@ -1544,6 +1596,18 @@ export function attachAdminProductsListeners(context, shadow) {
     });
   }
 
+  // Dynamic Category Specs change listener
+  const catSelect = shadow.getElementById('prod-cat');
+  const specsContainer = shadow.getElementById('dynamic-category-specs-container');
+
+  if (catSelect && specsContainer) {
+    catSelect.addEventListener('change', () => {
+      const selectedCat = catSelect.value;
+      const currentSpecs = (context.editingProduct && context.editingProduct.specs) ? context.editingProduct.specs : {};
+      specsContainer.innerHTML = renderCategorySpecsFieldsHtml(selectedCat, currentSpecs);
+    });
+  }
+
   // Quick Add Category prompt
   const quickAddCat = shadow.getElementById('quick-add-cat-btn');
   if (quickAddCat) {
@@ -1897,6 +1961,20 @@ export function attachAdminProductsListeners(context, shadow) {
       
       const finalColors = hasVariants ? currentVariants.filter(c => c && c.name && c.name.trim() !== '') : [];
 
+      // Collect dynamic category specs values
+      const specInputs = shadow.querySelectorAll('.dynamic-spec-input');
+      const specsObject = {};
+      specInputs.forEach(inp => {
+        const specName = inp.getAttribute('data-spec-name');
+        const specVal = inp.value ? inp.value.trim() : '';
+        if (specName && specVal) {
+          specsObject[specName] = specVal;
+        }
+      });
+
+      const prevSpecs = (context.editingProduct && context.editingProduct.specs) ? context.editingProduct.specs : {};
+      const finalSpecs = { ...prevSpecs, ...specsObject };
+
       const errorMsg = shadow.getElementById('prod-error-msg');
       errorMsg.textContent = '';
 
@@ -1928,7 +2006,8 @@ export function attachAdminProductsListeners(context, shadow) {
             image: imageUrl,
             hasVariants: hasVariants && finalColors.length > 0,
             colors: finalColors,
-            homepageSections: checkedSections
+            homepageSections: checkedSections,
+            specs: finalSpecs
           };
           window.dispatchEvent(new CustomEvent('toast:show', { detail: `Product "${name}" updated successfully!` }));
         }
@@ -1956,6 +2035,7 @@ export function attachAdminProductsListeners(context, shadow) {
           hasVariants: hasVariants && finalColors.length > 0,
           colors: finalColors,
           homepageSections: checkedSections,
+          specs: finalSpecs,
           rating: 5.0,
           reviews: 0
         };
