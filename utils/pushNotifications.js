@@ -160,8 +160,8 @@ export async function showLocalNotification(title, options = {}) {
     if (reg && reg.showNotification) {
       await reg.showNotification(title, {
         body: options.body || '',
-        icon: options.icon || '/assets/keyboard_1786712380801.jpg',
-        badge: options.badge || '/assets/keyboard_1786712380801.jpg',
+        icon: options.icon || '/assets/sweetos_logo.svg',
+        badge: options.badge || '/assets/sweetos_logo.svg',
         tag: options.tag || 'sweetos-alert',
         data: options.data || { url: '/' },
         vibrate: [200, 100, 200],

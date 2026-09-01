@@ -63,8 +63,8 @@ self.addEventListener('push', (event) => {
   let data = {
     title: '📦 SWEETOS Store Update',
     body: 'New products & exclusive offers are available!',
-    icon: '/assets/keyboard_1786712380801.jpg',
-    badge: '/assets/keyboard_1786712380801.jpg',
+    icon: '/assets/sweetos_logo.svg',
+    badge: '/assets/sweetos_logo.svg',
     tag: 'sweetos-push-notification',
     data: {
       url: '/'
@@ -95,8 +95,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: data.icon || '/assets/keyboard_1786712380801.jpg',
-      badge: data.badge || '/assets/keyboard_1786712380801.jpg',
+      icon: data.icon || '/assets/sweetos_logo.svg',
+      badge: data.badge || '/assets/sweetos_logo.svg',
       tag: data.tag || 'sweetos-push',
       data: data.data || { url: '/' },
       actions: data.actions || [],
