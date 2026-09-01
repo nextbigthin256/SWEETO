@@ -68,12 +68,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const font = sessionStorage.getItem('SWEETOS_font_family') || 'Outfit';
     const theme = sessionStorage.getItem('SWEETOS_theme_mode') || 'dark';
 
-    // Inject Google Font link tag dynamically if it isn't already loaded
-    if (font && !document.getElementById(`font-link-${font}`)) {
+    // Inject Google Font link tag dynamically if it isn't already loaded in index.html
+    const preloadedFonts = ['Inter', 'Poppins', 'Fraunces'];
+    if (font && !document.getElementById(`font-link-${font}`) && !preloadedFonts.includes(font)) {
       const link = document.createElement('link');
       link.id = `font-link-${font}`;
       link.rel = 'stylesheet';
-      link.href = `https://fonts.googleapis.com/css2?family=${font.replace(/ /g, '+')}:wght@300;400;500;600;700;800;900&display=swap`;
+      const cleanFont = font.replace(/ /g, '+');
+      link.href = `https://fonts.googleapis.com/css2?family=${cleanFont}:wght@400;500;600;700;800&display=swap`;
       document.head.appendChild(link);
     }
 
