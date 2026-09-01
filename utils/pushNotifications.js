@@ -62,8 +62,8 @@ export async function registerServiceWorker() {
   }
 
   try {
-    const swPath = new URL('./sw.js', import.meta.url).pathname;
-    const registration = await navigator.serviceWorker.register(swPath, { scope: './' });
+    const swPath = '/sw.js';
+    const registration = await navigator.serviceWorker.register(swPath, { scope: '/' });
     console.log('✅ Service Worker registered successfully:', registration.scope);
 
     // Auto-update check
@@ -71,13 +71,9 @@ export async function registerServiceWorker() {
 
     return registration;
   } catch (error) {
-    try {
-      const fallbackRegistration = await navigator.serviceWorker.register('/sw.js');
-      return fallbackRegistration;
-    } catch(e) {
-      console.error('❌ Service Worker registration failed:', error);
-      return null;
-    }
+    console.error('❌ Service Worker registration failed:', error);
+    return null;
+  }
   }
 }
 
