@@ -8273,6 +8273,7 @@ class ProductList extends HTMLElement {
     }
     if (this._infiniteScrollWindowHandler) {
       window.removeEventListener('scroll', this._infiniteScrollWindowHandler);
+      window.removeEventListener('touchmove', this._infiniteScrollWindowHandler);
       this._infiniteScrollWindowHandler = null;
     }
 
@@ -8295,12 +8296,18 @@ class ProductList extends HTMLElement {
         <button class="view-all-btn" id="global-more-love-view-all" style="font-size: 13px; font-weight: 700; color: #1F6FEB; background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 6px 0;">Tout le catalogue →</button>
       </div>
       <div class="home-grid-4" id="global-more-to-love-grid"></div>
-      <div id="infinite-scroll-loader" style="display: none; text-align: center; padding: 24px 0; font-size: 13px; font-weight: 750; color: #2563eb;">
+      <div id="infinite-scroll-loader" style="display: none; text-align: center; padding: 16px 0; font-size: 13px; font-weight: 750; color: #2563eb;">
         <span style="display: inline-flex; align-items: center; gap: 8px; background: rgba(37,99,235,0.08); padding: 8px 16px; border-radius: 20px;">
           <span>⚡ Chargement d'autres produits...</span>
         </span>
       </div>
-      <div id="infinite-scroll-sentinel" style="height: 20px; width: 100%;"></div>
+      <div style="text-align: center; margin-top: 14px;">
+        <button id="infinite-load-more-btn" style="background: rgba(37,99,235,0.08); border: 1.5px solid rgba(37,99,235,0.2); color: #2563eb; font-weight: 800; font-size: 13px; padding: 12px 28px; border-radius: 24px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; box-shadow: 0 4px 14px rgba(37,99,235,0.1);">
+          <span>⚡ Voir plus de produits</span>
+          <span>↓</span>
+        </button>
+      </div>
+      <div id="infinite-scroll-sentinel" style="height: 40px; width: 100%; margin-top: 10px;"></div>
     `;
     
     contentArea.appendChild(wrapper);
@@ -8312,6 +8319,7 @@ class ProductList extends HTMLElement {
     const gridMore = this.shadowRoot.getElementById('global-more-to-love-grid');
     const loader = this.shadowRoot.getElementById('infinite-scroll-loader');
     const sentinel = this.shadowRoot.getElementById('infinite-scroll-sentinel');
+    const loadMoreBtn = this.shadowRoot.getElementById('infinite-load-more-btn');
 
     const appendNextBatch = (batchSize = 8) => {
       if (!gridMore || allProds.length === 0) return;
@@ -8329,7 +8337,7 @@ class ProductList extends HTMLElement {
       }
     };
 
-    // Initial batch (12 products)
+    // Initial batch (12 products for rich grid on mobile & desktop)
     appendNextBatch(12);
 
     // Infinite Scroll trigger logic
@@ -8343,29 +8351,37 @@ class ProductList extends HTMLElement {
         appendNextBatch(8);
         if (loader) loader.style.display = 'none';
         isFetching = false;
-      }, 150);
+      }, 120);
     };
 
-    // Intersection Observer for smooth infinite scroll
+    if (loadMoreBtn) {
+      loadMoreBtn.addEventListener('click', () => {
+        triggerInfiniteLoad();
+      });
+    }
+
+    // Mobile & Desktop Intersection Observer with aggressive 1200px rootMargin
     if ('IntersectionObserver' in window && sentinel) {
       this._infiniteScrollObserver = new IntersectionObserver((entries) => {
         if (entries[0] && entries[0].isIntersecting) {
           triggerInfiniteLoad();
         }
-      }, { rootMargin: '800px' });
+      }, { rootMargin: '1200px' });
       this._infiniteScrollObserver.observe(sentinel);
     }
 
-    // Scroll listener fallback
+    // Scroll & Touchmove listener fallback for mobile screens
     this._infiniteScrollWindowHandler = () => {
       if (this.currentPage !== 'home') return;
       const scrollPosition = window.innerHeight + window.scrollY;
-      const threshold = document.documentElement.scrollHeight - 1000;
+      const threshold = Math.max(300, document.documentElement.scrollHeight - 1500);
       if (scrollPosition >= threshold) {
         triggerInfiniteLoad();
       }
     };
-    window.addEventListener('scroll', this._infiniteScrollWindowHandler);
+
+    window.addEventListener('scroll', this._infiniteScrollWindowHandler, { passive: true });
+    window.addEventListener('touchmove', this._infiniteScrollWindowHandler, { passive: true });
 
     const viewAllBtn = this.shadowRoot.getElementById('global-more-love-view-all');
     if (viewAllBtn) {
