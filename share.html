@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- STATIC DEFAULT META TAGS -->
+    <title>SWEETOS | High-Precision Tech & Workspace Gear</title>
+    <meta name="description" content="Découvrez les équipements high-tech et accessoires de bureau sur-mesure chez SWEETOS.">
+    
+    <!-- OPEN GRAPH / WHATSAPP PREVIEW TAGS -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="SWEETOS">
+    <meta property="og:title" content="SWEETOS | High-Precision Tech & Workspace Gear">
+    <meta property="og:description" content="Équipements high-tech et accessoires de bureau sur-mesure.">
+    <meta property="og:image" content="https://www.sweeto.store/assets/sweetos_logo.svg">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:url" content="https://www.sweeto.store/share.html">
+    
+    <!-- TWITTER CARD -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="SWEETOS | Premium Tech">
+    <meta name="twitter:description" content="High-precision tech & workspace accessories.">
+    <meta name="twitter:image" content="https://www.sweeto.store/assets/sweetos_logo.svg">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+
+    <style>
+        body { 
+          font-family: 'Inter', -apple-system, sans-serif; 
+          display: flex; 
+          justify-content: center; 
+          align-items: center; 
+          height: 100vh; 
+          margin: 0; 
+          background: #f8fafc; 
+          color: #0f172a; 
+        }
+        .loader { text-align: center; padding: 2rem; background: white; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.05); }
+        .spinner { width: 44px; height: 44px; border: 4px solid #e2e8f0; border-top-color: #0052cc; border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 1rem; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        a { color: #0052cc; font-weight: 600; text-decoration: none; }
+    </style>
+</head>
+<body>
+    <div class="loader">
+        <div class="spinner"></div>
+        <h3 style="margin:0 0 8px 0; font-size:18px;">SWEETOS Store</h3>
+        <p style="margin:0 0 12px 0; color:#64748b; font-size:14px;">Chargement du produit en cours...</p>
+        <p style="margin:0; font-size:12px; color:#94a3b8;">Si vous n'êtes pas redirigé, <a id="fallbackLink" href="https://www.sweeto.store/">cliquez ici</a>.</p>
+    </div>
+
+    <script>
+        // PRODUCT DATABASE LOOKUP TABLE
+        const products = {
+            "2": {
+                name: "HP ELITEBOOK",
+                price: "150 000 FCFA",
+                desc: "HP ELITEBOOK par HP. Computer & IT de haute précision. En Stock!",
+                image: "https://placehold.co/1200x630/0052cc/FFFFFF.png?text=HP+ELITEBOOK"
+            },
+            "1": {
+                name: "Clavier Mécanique Sans Fil Pro",
+                price: "45 000 FCFA",
+                desc: "Clavier mécanique sans fil premium avec rétroéclairage RGB.",
+                image: "https://placehold.co/1200x630/0052cc/FFFFFF.png?text=Wireless+Keyboard+Pro"
+            }
+        };
+
+        // GET PRODUCT ID FROM URL (?id=2 or ?product=2)
+        const params = new URLSearchParams(window.location.search);
+        const productId = params.get('id') || params.get('product') || '2';
+        const product = products[productId] || products["2"];
+
+        const targetUrl = `https://www.sweeto.store/?product=${productId}`;
+        const fallbackLink = document.getElementById('fallbackLink');
+        if (fallbackLink) fallbackLink.href = targetUrl;
+
+        if (product) {
+            // UPDATE META TAGS FOR CLIENT BOT PARSERS
+            document.title = `${product.name} - ${product.price} | SWEETOS`;
+            
+            const setMeta = (selector, attr, val) => {
+              const el = document.querySelector(selector);
+              if (el) el.setAttribute(attr, val);
+            };
+
+            setMeta('meta[name="description"]', 'content', product.desc);
+            setMeta('meta[property="og:title"]', 'content', `${product.name} - ${product.price} | SWEETOS`);
+            setMeta('meta[property="og:description"]', 'content', product.desc);
+            setMeta('meta[property="og:image"]', 'content', product.image);
+            setMeta('meta[property="og:image:secure_url"]', 'content', product.image);
+            setMeta('meta[property="og:url"]', 'content', `https://www.sweeto.store/share.html?id=${productId}`);
+            setMeta('meta[name="twitter:title"]', 'content', `${product.name} - ${product.price} | SWEETOS`);
+            setMeta('meta[name="twitter:description"]', 'content', product.desc);
+            setMeta('meta[name="twitter:image"]', 'content', product.image);
+
+            // REDIRECT HUMAN USERS TO MAIN APP AFTER SHORT PAUSE
+            setTimeout(() => {
+                window.location.href = targetUrl;
+            }, 800);
+        } else {
+            setTimeout(() => {
+                window.location.href = "https://www.sweeto.store/";
+            }, 800);
+        }
+    </script>
+</body>
+</html>

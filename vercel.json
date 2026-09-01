@@ -2,7 +2,7 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/((?!api/|sw\\.js|manifest\\.json|.*\\.(js|css|json|svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot)).*)",
+      "source": "/((?!api/|sw\\.js|share\\.html|manifest\\.json|.*\\.(js|css|json|svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot)).*)",
       "destination": "/index.html"
     }
   ],
