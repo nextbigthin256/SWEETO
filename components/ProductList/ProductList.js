@@ -8314,14 +8314,11 @@ class ProductList extends HTMLElement {
     const sentinel = this.shadowRoot.getElementById('infinite-scroll-sentinel');
 
     const appendNextBatch = (batchSize = 8) => {
-      if (!gridMore) return;
+      if (!gridMore || allProds.length === 0) return;
       let added = 0;
-      let attempts = 0;
-
-      while (added < batchSize && attempts < allProds.length * 4) {
+      while (added < batchSize) {
         const p = allProds[poolIndex % allProds.length];
-        poolIndex++;
-        attempts++;
+        poolIndex = (poolIndex + 1) % allProds.length;
 
         if (p) {
           const card = document.createElement('product-card');
@@ -8346,7 +8343,7 @@ class ProductList extends HTMLElement {
         appendNextBatch(8);
         if (loader) loader.style.display = 'none';
         isFetching = false;
-      }, 350);
+      }, 150);
     };
 
     // Intersection Observer for smooth infinite scroll
@@ -8355,7 +8352,7 @@ class ProductList extends HTMLElement {
         if (entries[0] && entries[0].isIntersecting) {
           triggerInfiniteLoad();
         }
-      }, { rootMargin: '300px' });
+      }, { rootMargin: '800px' });
       this._infiniteScrollObserver.observe(sentinel);
     }
 
@@ -8363,7 +8360,7 @@ class ProductList extends HTMLElement {
     this._infiniteScrollWindowHandler = () => {
       if (this.currentPage !== 'home') return;
       const scrollPosition = window.innerHeight + window.scrollY;
-      const threshold = document.documentElement.scrollHeight - 600;
+      const threshold = document.documentElement.scrollHeight - 1000;
       if (scrollPosition >= threshold) {
         triggerInfiniteLoad();
       }
