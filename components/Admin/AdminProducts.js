@@ -2,6 +2,7 @@ import { formatPrice, getStorageItem, saveStorageItem } from '../../utils/storag
 import { showConfirmModal, showPromptModal } from '../../utils/modal.js';
 import { deleteProductPermanentlyFromSupabase, deleteMultipleProductsPermanentlyFromSupabase } from '../../utils/supabase.js';
 import { getCategorySchema } from '../../data/productFieldsConfig.js';
+import defaultSections from '../../data/sections.js';
 
 // Global internal state helpers for filters & selection
 let selectedProductIds = new Set();
@@ -986,11 +987,13 @@ export function renderAdminProducts(context) {
               </div>
 
               <!-- Dynamic Category Specification Fields -->
-              <div id="dynamic-category-specs-container">
+              <div id="dynamic-category-specs-container" style="${isEditing && context.editingProduct.name ? '' : 'display:none;'}">
                 ${(() => {
+                  const initialName = isEditing ? (context.editingProduct.name || '') : '';
                   const initialCat = isEditing ? context.editingProduct.category : '';
                   const initialSpecs = isEditing ? (context.editingProduct.specs || {}) : {};
-                  return renderCategorySpecsFieldsHtml(initialCat, initialSpecs);
+                  if (!initialName.trim()) return '';
+                  return renderCategorySpecsFieldsHtml(initialCat || initialName, initialSpecs);
                 })()}
               </div>
 
@@ -1099,13 +1102,33 @@ export function renderAdminProducts(context) {
                 <label>Show in Homepage Curated Sections</label>
                 <div class="sections-checkbox-grid" style="display:flex; flex-direction:column; gap:8px; background:#0c101b; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); max-height:140px; overflow-y:auto;">
                   ${(() => {
-                    const secs = JSON.parse(getStorageItem('SWEETOS_homepage_sections') || '[]');
-                    const targetSecs = secs.filter(s => s.type !== 'categories');
+                    const secsStr = getStorageItem('SWEETOS_homepage_sections');
+                    let secs = [];
+                    if (secsStr) {
+                      try { secs = JSON.parse(secsStr); } catch(e) {}
+                    }
+                    if (!Array.isArray(secs) || secs.length === 0) {
+                      secs = (context.homepageSections && context.homepageSections.length > 0) 
+                        ? context.homepageSections 
+                        : (defaultSections || []);
+                    }
+
+                    const targetSecs = secs.filter(s => s && s.type !== 'categories');
                     if (targetSecs.length === 0) {
                       return `<small style="color:#64748b;">No dynamic sections configured.</small>`;
                     }
+
+                    const currentHpSecs = (isEditing && context.editingProduct && Array.isArray(context.editingProduct.homepageSections)) 
+                      ? context.editingProduct.homepageSections 
+                      : [];
+
                     return targetSecs.map(sec => {
-                      const isChecked = isEditing && context.editingProduct.homepageSections && context.editingProduct.homepageSections.includes(sec.id);
+                      const isChecked = isEditing && currentHpSecs.some(val => 
+                        String(val) === String(sec.id) || 
+                        String(val) === String(sec.name) || 
+                        String(val) === String(sec.type)
+                      );
+
                       return `
                         <label style="display:flex; align-items:center; gap:8px; cursor:pointer; color:#ffffff; font-size:13px; font-weight:600; margin:0;">
                           <input type="checkbox" class="product-section-checkbox" value="${sec.id}" ${isChecked ? 'checked' : ''} style="width:16px; height:16px; cursor:pointer; accent-color:#0052cc; margin:0;">
@@ -1612,16 +1635,42 @@ export function attachAdminProductsListeners(context, shadow) {
     });
   }
 
-  // Dynamic Category Specs change listener
+  // Dynamic Category Specs visibility & change listener
+  const nameInput = shadow.getElementById('prod-name');
   const catSelect = shadow.getElementById('prod-cat');
   const specsContainer = shadow.getElementById('dynamic-category-specs-container');
 
-  if (catSelect && specsContainer) {
-    catSelect.addEventListener('change', () => {
-      const selectedCat = catSelect.value;
-      const currentSpecs = (context.editingProduct && context.editingProduct.specs) ? context.editingProduct.specs : {};
-      specsContainer.innerHTML = renderCategorySpecsFieldsHtml(selectedCat, currentSpecs);
+  const updateDynamicSpecsVisibility = () => {
+    if (!specsContainer) return;
+    const nameVal = (nameInput ? nameInput.value : '').trim();
+    const catVal = (catSelect ? catSelect.value : '').trim();
+
+    if (!nameVal) {
+      specsContainer.innerHTML = '';
+      specsContainer.style.display = 'none';
+      return;
+    }
+
+    specsContainer.style.display = 'block';
+    const effectiveCategory = catVal || nameVal;
+
+    // Preserve existing filled spec values
+    const currentSpecs = (context.editingProduct && context.editingProduct.specs) ? { ...context.editingProduct.specs } : {};
+    specsContainer.querySelectorAll('.dynamic-spec-input').forEach(inp => {
+      const sName = inp.getAttribute('data-spec-name');
+      const sVal = inp.value ? inp.value.trim() : '';
+      if (sName && sVal) currentSpecs[sName] = sVal;
     });
+
+    specsContainer.innerHTML = renderCategorySpecsFieldsHtml(effectiveCategory, currentSpecs);
+  };
+
+  if (nameInput) {
+    nameInput.addEventListener('input', updateDynamicSpecsVisibility);
+  }
+
+  if (catSelect) {
+    catSelect.addEventListener('change', updateDynamicSpecsVisibility);
   }
 
   // Quick Add Category prompt

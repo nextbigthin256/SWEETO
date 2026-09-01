@@ -2707,7 +2707,8 @@ class ProductList extends HTMLElement {
         const gridHot = this.shadowRoot.getElementById('grid-hot-deals');
         if (gridHot) {
           gridHot.innerHTML = '';
-          const displayProducts = (pools.deals || []).slice(0, 12);
+          const poolDeals = pools.deals || [];
+          const displayProducts = [...new Set([...assignedProducts, ...poolDeals])].slice(0, 12);
           const secWrapper = gridHot.closest('.home-section');
           if (displayProducts.length === 0) {
             if (secWrapper) secWrapper.style.display = 'none';
@@ -2725,7 +2726,8 @@ class ProductList extends HTMLElement {
         const gridNew = this.shadowRoot.getElementById('grid-new-arrivals');
         if (gridNew) {
           gridNew.innerHTML = '';
-          const displayProducts = (pools.newArrivals || []).slice(0, 12);
+          const poolNew = pools.newArrivals || [];
+          const displayProducts = [...new Set([...assignedProducts, ...poolNew])].slice(0, 12);
           const secWrapper = gridNew.closest('.home-section');
           if (displayProducts.length === 0) {
             if (secWrapper) secWrapper.style.display = 'none';
@@ -2742,7 +2744,8 @@ class ProductList extends HTMLElement {
         const gridBest = this.shadowRoot.getElementById('grid-best-sellers');
         if (gridBest) {
           gridBest.innerHTML = '';
-          const displayProducts = (pools.bestSellers || []).slice(0, 12);
+          const poolBest = pools.bestSellers || [];
+          const displayProducts = [...new Set([...assignedProducts, ...poolBest])].slice(0, 12);
           const secWrapper = gridBest.closest('.home-section');
           if (displayProducts.length === 0) {
             if (secWrapper) secWrapper.style.display = 'none';
