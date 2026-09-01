@@ -4,6 +4,44 @@ import { getStorageItem, saveStorageItem } from './storage.js';
 // VAPID Public Key for Web Push
 export const VAPID_PUBLIC_KEY = 'BCunnq9lgySYczAOjIipLc9LXkTs5cs5_n12Nc5WMVEIKHZfPATzbdPtvFMEnec8UIXQzK40F9TnG6XTiQueaRI';
 
+// Web Audio API Notification Sound Synthesizer
+export function playNotificationChimeSound() {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const now = ctx.currentTime;
+
+    // Oscillator 1: High crisp chime (E6 -> A6)
+    const osc1 = ctx.createOscillator();
+    const gain1 = ctx.createGain();
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(1318.51, now); // E6
+    osc1.frequency.exponentialRampToValueAtTime(1760.00, now + 0.12); // A6
+    gain1.gain.setValueAtTime(0.35, now);
+    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.35);
+    osc1.connect(gain1);
+    gain1.connect(ctx.destination);
+
+    // Oscillator 2: Harmonics chime (C6)
+    const osc2 = ctx.createOscillator();
+    const gain2 = ctx.createGain();
+    osc2.type = 'triangle';
+    osc2.frequency.setValueAtTime(1046.50, now + 0.08); // C6
+    gain2.gain.setValueAtTime(0.2, now + 0.08);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.45);
+    osc2.connect(gain2);
+    gain2.connect(ctx.destination);
+
+    osc1.start(now);
+    osc1.stop(now + 0.35);
+    osc2.start(now + 0.08);
+    osc2.stop(now + 0.45);
+  } catch (e) {
+    console.warn('Web Audio chime sound unavailable:', e);
+  }
+}
+
 // Helper to convert VAPID Base64 key to Uint8Array
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -24,7 +62,8 @@ export async function registerServiceWorker() {
   }
 
   try {
-    const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    const swPath = new URL('./sw.js', import.meta.url).pathname;
+    const registration = await navigator.serviceWorker.register(swPath, { scope: './' });
     console.log('✅ Service Worker registered successfully:', registration.scope);
 
     // Auto-update check
@@ -32,8 +71,13 @@ export async function registerServiceWorker() {
 
     return registration;
   } catch (error) {
-    console.error('❌ Service Worker registration failed:', error);
-    return null;
+    try {
+      const fallbackRegistration = await navigator.serviceWorker.register('/sw.js');
+      return fallbackRegistration;
+    } catch(e) {
+      console.error('❌ Service Worker registration failed:', error);
+      return null;
+    }
   }
 }
 
@@ -151,6 +195,9 @@ export async function unsubscribeFromWebPush() {
 
 // 5. Trigger local notification popup via Service Worker
 export async function showLocalNotification(title, options = {}) {
+  // Play Web Audio chime sound
+  playNotificationChimeSound();
+
   if (!('Notification' in window) || Notification.permission !== 'granted') {
     return;
   }
@@ -160,12 +207,14 @@ export async function showLocalNotification(title, options = {}) {
     if (reg && reg.showNotification) {
       await reg.showNotification(title, {
         body: options.body || '',
-        icon: options.icon || '/assets/sweetos_logo.svg',
-        badge: options.badge || '/assets/sweetos_logo.svg',
+        icon: options.icon || './assets/sweetos_logo.svg',
+        badge: options.badge || './assets/sweetos_logo.svg',
         tag: options.tag || 'sweetos-alert',
         data: options.data || { url: '/' },
-        vibrate: [200, 100, 200],
-        requireInteraction: true
+        vibrate: [200, 100, 200, 100, 200, 100, 400],
+        requireInteraction: true,
+        renotify: true,
+        silent: false
       });
     }
   } catch(e) {

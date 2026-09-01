@@ -95,13 +95,14 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(data.title, {
       body: data.body,
-      icon: data.icon || '/assets/sweetos_logo.svg',
-      badge: data.badge || '/assets/sweetos_logo.svg',
+      icon: data.icon || './assets/sweetos_logo.svg',
+      badge: data.badge || './assets/sweetos_logo.svg',
       tag: data.tag || 'sweetos-push',
       data: data.data || { url: '/' },
       actions: data.actions || [],
-      vibrate: data.vibrate || [200, 100, 200],
+      vibrate: data.vibrate || [200, 100, 200, 100, 200, 100, 400],
       requireInteraction: data.requireInteraction !== undefined ? data.requireInteraction : true,
+      renotify: true,
       silent: false
     })
   );
