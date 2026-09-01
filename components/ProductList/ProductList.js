@@ -2635,25 +2635,21 @@ class ProductList extends HTMLElement {
               <div class="eyebrow">Share this product</div>
               <h3 class="modal-title">${p.name}</h3>
               <div class="share-options">
+                <button class="share-option whatsapp" id="pdpShareWhatsApp">
+                  <svg viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L2 21l2.1-6.4A8.5 8.5 0 1 1 21 11.5z"/><path d="M8.5 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1"/></svg>
+                  WhatsApp
+                </button>
                 <button class="share-option facebook" id="pdpShareFacebook">
                   <svg viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/></svg>
                   Facebook
                 </button>
                 <button class="share-option twitter" id="pdpShareTwitter">
                   <svg viewBox="0 0 24 24"><path d="M23 3a10.9 10.9 0 0 1-3.14 1.53 4.48 4.48 0 0 0-7.86 3v1A10.66 10.66 0 0 1 3 4s-4 9 5 13a11.64 11.64 0 0 1-7 2c9 5 20 0 20-11.5a4.5 4.5 0 0 0-.08-.83A7.72 7.72 0 0 0 23 3z"/></svg>
-                  Twitter
+                  Twitter / X
                 </button>
-                <button class="share-option linkedin" id="pdpShareLinkedIn">
-                  <svg viewBox="0 0 24 24"><path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-2-2 2 2 0 0 0-2 2v7h-4V9h4v1.5A6 6 0 0 1 16 8z"/><rect x="2" y="9" width="4" height="12"/><circle cx="4" cy="4" r="2"/></svg>
-                  LinkedIn
-                </button>
-                <button class="share-option whatsapp" id="pdpShareWhatsApp">
-                  <svg viewBox="0 0 24 24"><path d="M21 11.5a8.5 8.5 0 0 1-12.6 7.4L2 21l2.1-6.4A8.5 8.5 0 1 1 21 11.5z"/><path d="M8.5 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1"/></svg>
-                  WhatsApp
-                </button>
-                <button class="share-option native" id="pdpShareNative">
-                  <svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.6"/><circle cx="17.5" cy="5.5" r="2.6"/><circle cx="17.5" cy="18.5" r="2.6"/><path d="M8.4 10.8l6.8-4M8.4 13.2l6.8 4"/></svg>
-                  More...
+                <button class="share-option native" id="pdpShareCopy" style="background: linear-gradient(135deg, #0052cc 0%, #00b4d8 100%); color: #ffffff;">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                  Copier le lien
                 </button>
               </div>
             </div>
@@ -5085,12 +5081,13 @@ class ProductList extends HTMLElement {
     if (shareModalBack) shareModalBack.addEventListener('click', closeShare);
     if (shareModalClose) shareModalClose.addEventListener('click', closeShare);
 
-    const shareUrl = `${window.location.origin}${window.location.pathname}#/?product=${p.id}`;
+    const shareUrl = `${window.location.origin}/api/share?product=${p.id}`;
+    const directPdpUrl = `${window.location.origin}/?product=${p.id}`;
     const priceText = formatPrice(p.price);
     const compareText = p.comparePrice && p.comparePrice > p.price 
-      ? ` (Was ~${formatPrice(p.comparePrice)}~)` 
+      ? ` (Au lieu de ~${formatPrice(p.comparePrice)}~)` 
       : '';
-    const desc = (p.description || `High-precision ${p.name} from ${p.brand || 'SWEETOS'}.`).slice(0, 200);
+    const desc = (p.description || `High-precision ${p.name} from ${p.brand || 'SWEETOS'}.`).slice(0, 180);
 
     const formattedWaMessage = 
 `🔥 *NEW ARRIVAL ON SWEETOS* 🔥
@@ -5135,30 +5132,20 @@ class ProductList extends HTMLElement {
     const waBtn = shadow.getElementById('pdpShareWhatsApp');
     if (waBtn) {
       waBtn.addEventListener('click', () => {
-        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(formattedWaMessage)}`, '_blank');
+        window.open(`https://wa.me/?text=${encodeURIComponent(formattedWaMessage)}`, '_blank');
         closeShare();
       });
     }
 
-    const nativeShare = shadow.getElementById('pdpShareNative');
-    if (nativeShare) {
-      if (!navigator.share) nativeShare.style.display = 'none';
-      nativeShare.addEventListener('click', async () => {
+    const copyBtn = shadow.getElementById('pdpShareCopy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', () => {
+        navigator.clipboard.writeText(shareUrl).then(() => {
+          window.dispatchEvent(new CustomEvent('toast:show', { detail: '📋 Lien du produit copié dans le presse-papier !' }));
+        }).catch(() => {
+          window.dispatchEvent(new CustomEvent('toast:show', { detail: `Lien: ${shareUrl}` }));
+        });
         closeShare();
-        if (navigator.share) {
-          const shareData = { title: p.name, text: shareText, url: shareUrl };
-          if (p.image) {
-            try {
-              const res = await fetch(p.image);
-              const blob = await res.blob();
-              const file = new File([blob], 'product.jpg', { type: blob.type || 'image/jpeg' });
-              if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                shareData.files = [file];
-              }
-            } catch(e) {}
-          }
-          navigator.share(shareData).catch(() => {});
-        }
       });
     }
 
