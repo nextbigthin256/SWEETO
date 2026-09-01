@@ -89,6 +89,8 @@ export async function shareProduct(product) {
   const absImageUrl = getAbsoluteImageUrl(product.image);
 
   const shareTitle = `${product.name} | ${storeName}`;
+  
+  // Construct clean text payload including product link with Open Graph preview
   const shareText = 
 `🔥 *NEW ARRIVAL ON ${storeName.toUpperCase()}* 🔥
 
@@ -98,19 +100,17 @@ export async function shareProduct(product) {
 💰 *Price:* ${priceText}${compareText}
 
 📝 *Details:*
-"${(product.description || product.shortDesc || '').slice(0, 200)}"
+"${(product.description || product.shortDesc || '').slice(0, 180)}"
 
-📷 *Product Image:* ${absImageUrl}
-
-👇 *Tap link below to view & order directly:*
-🔗 ${productUrl}`;
+👇 *Tap link below to view product & image:*
+🔗 ${ogShareUrl}`;
 
   // WhatsApp fallback handler (used when navigator.share is unavailable or fails)
   const openWhatsAppFallback = () => {
     const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText)}`;
     window.open(whatsappUrl, '_blank');
     window.dispatchEvent(new CustomEvent('toast:show', { 
-      detail: '📱 Opening WhatsApp! Product image and link included.' 
+      detail: '📱 Opening WhatsApp! Product image preview and link included.' 
     }));
   };
 
