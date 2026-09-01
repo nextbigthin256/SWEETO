@@ -1102,15 +1102,20 @@ export function renderAdminProducts(context) {
                 <label>Show in Homepage Curated Sections</label>
                 <div class="sections-checkbox-grid" style="display:flex; flex-direction:column; gap:8px; background:#0c101b; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); max-height:140px; overflow-y:auto;">
                   ${(() => {
-                    const secsStr = getStorageItem('SWEETOS_homepage_sections');
-                    let secs = null;
-                    if (secsStr !== null) {
-                      try { secs = JSON.parse(secsStr); } catch(e) {}
-                    }
-                    if (!Array.isArray(secs)) {
-                      secs = (context.homepageSections && Array.isArray(context.homepageSections)) 
-                        ? context.homepageSections 
-                        : (defaultSections || []);
+                    const parseSecs = (raw) => {
+                      if (!raw) return null;
+                      let p = raw;
+                      if (typeof p === 'string') { try { p = JSON.parse(p); } catch(e) {} }
+                      if (typeof p === 'string') { try { p = JSON.parse(p); } catch(e) {} }
+                      return Array.isArray(p) ? p : null;
+                    };
+
+                    let secs = (context.homepageSections && Array.isArray(context.homepageSections) && context.homepageSections.length > 0)
+                      ? context.homepageSections
+                      : parseSecs(getStorageItem('SWEETOS_homepage_sections'));
+
+                    if (!Array.isArray(secs) || secs.length === 0) {
+                      secs = defaultSections || [];
                     }
 
                     const targetSecs = secs.filter(s => s && s.type !== 'categories');
@@ -1371,9 +1376,12 @@ export function attachAdminProductsListeners(context, shadow) {
 
         // 3. Clear curated sections
         try {
-          const secs = JSON.parse(getStorageItem('SWEETOS_homepage_sections') || '[]');
-          secs.forEach(s => { s.productIds = []; });
-          saveStorageItem('SWEETOS_homepage_sections', JSON.stringify(secs));
+          const secsStr = getStorageItem('SWEETOS_homepage_sections');
+          const secs = secsStr ? JSON.parse(secsStr) : [];
+          if (Array.isArray(secs)) {
+            secs.forEach(s => { s.productIds = []; });
+            saveStorageItem('SWEETOS_homepage_sections', secs);
+          }
         } catch(e) {}
 
         window.dispatchEvent(new CustomEvent('toast:show', { detail: '🔥 All products permanently wiped from store and cloud! (0 Items)' }));
@@ -1446,15 +1454,18 @@ export function attachAdminProductsListeners(context, shadow) {
 
       // 3. Clean up from curated homepage sections
       try {
-        const secs = JSON.parse(getStorageItem('SWEETOS_homepage_sections') || '[]');
+        const secsStr = getStorageItem('SWEETOS_homepage_sections');
+        const secs = secsStr ? JSON.parse(secsStr) : [];
         let secMod = false;
-        secs.forEach(s => {
-          if (s.productIds && s.productIds.includes(prod.id)) {
-            s.productIds = s.productIds.filter(id => id !== prod.id);
-            secMod = true;
-          }
-        });
-        if (secMod) saveStorageItem('SWEETOS_homepage_sections', JSON.stringify(secs));
+        if (Array.isArray(secs)) {
+          secs.forEach(s => {
+            if (s.productIds && s.productIds.includes(prod.id)) {
+              s.productIds = s.productIds.filter(id => id !== prod.id);
+              secMod = true;
+            }
+          });
+          if (secMod) saveStorageItem('SWEETOS_homepage_sections', secs);
+        }
       } catch(e) {}
 
       window.dispatchEvent(new CustomEvent('toast:show', { detail: `🔥 "${prod.name}" permanently deleted forever.` }));
