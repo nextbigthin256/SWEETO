@@ -112,17 +112,21 @@ export function getCustomerLevelGradient(levelKeyOrObject) {
 }
 
 export function getCustomerAvatarStyle(profile, size = 88) {
-  const totalSpent = profile.orders 
-    ? profile.orders.filter(o => o.status !== 'Cancelled').reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0) 
-    : (profile.totalSpent || 0);
-  const level = getCustomerLevel(totalSpent, profile.level);
+  const safeProfile = (profile && typeof profile === 'object') ? profile : {};
+  const totalSpent = (safeProfile.orders && Array.isArray(safeProfile.orders)) 
+    ? safeProfile.orders.filter(o => o && o.status !== 'Cancelled').reduce((sum, o) => sum + (parseFloat(o.total || o.total_amount || o.price) || 0), 0) 
+    : (parseFloat(safeProfile.totalSpent || safeProfile.total_spent) || 0);
+
+  const level = getCustomerLevel(totalSpent, safeProfile.level);
   const color = level.color || '#64748b';
   const gradient = getCustomerLevelGradient(level);
-  const borderSize = size > 60 ? '3.5px' : (size > 30 ? '2px' : '1.5px');
+  const numericSize = typeof size === 'number' ? size : (parseInt(size) || 88);
+  const borderSize = numericSize > 60 ? '3.5px' : (numericSize > 30 ? '2px' : '1.5px');
 
-  if (profile.avatar) {
+  const avatarUrl = safeProfile.avatar || safeProfile.avatar_url;
+  if (avatarUrl) {
     return {
-      style: `background-image: url('${profile.avatar}'); background-size: cover; background-position: center; border: ${borderSize} solid ${color}; box-shadow: 0 4px 14px ${color}35;`,
+      style: `background-image: url('${avatarUrl}'); background-size: cover; background-position: center; border: ${borderSize} solid ${color}; box-shadow: 0 4px 14px ${color}35;`,
       color: color,
       gradient: gradient,
       level: level

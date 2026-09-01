@@ -100,7 +100,7 @@ class Header extends HTMLElement {
     const profileSaved = sessionStorage.getItem('SWEETOS_user_profile');
     const badgeHtml = renderVerificationBadge(effectiveBadge, 14);
 
-    const avatarData = getCustomerAvatarStyle(profile, effectiveLevel);
+    const avatarData = getCustomerAvatarStyle(profile || { totalSpent, level: effectiveLevel }, 36);
     const initials = (fullName || 'U').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     const avatarStyle = avatarData.style;
 
