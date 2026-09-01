@@ -1,6 +1,36 @@
 // api/share.js - Serverless Function for WhatsApp/Social OG Cards & Full Styled Product View
 import products from '../data/products.js';
 
+function getImageUrl(product, baseUrl) {
+  if (!product) return `${baseUrl}/assets/sweetos_logo.svg`;
+
+  const img = product.image;
+
+  // 1. WhatsApp & Facebook crawlers CANNOT parse Base64 Data URIs (data:image/...)
+  // Fallback to high-res dynamic placeholder with product title
+  if (!img || typeof img !== 'string' || img.startsWith('data:image/')) {
+    const encodedName = encodeURIComponent(product.name || 'SWEETOS Product');
+    return `https://placehold.co/1200x630/0052cc/FFFFFF.png?text=${encodedName}`;
+  }
+
+  // 2. Already absolute HTTP/HTTPS URL
+  if (img.startsWith('http://') || img.startsWith('https://')) {
+    return img;
+  }
+
+  // 3. Absolute path on root domain (e.g. /images/products/hp.jpg)
+  if (img.startsWith('/')) {
+    return `${baseUrl}${img}`;
+  }
+
+  // 4. Relative path starting with ./
+  if (img.startsWith('.')) {
+    return `${baseUrl}${img.substring(1)}`;
+  }
+
+  return `${baseUrl}/${img}`;
+}
+
 export default async function handler(req, res) {
   const { product: productIdQuery, p: pQuery, id: idQuery } = req.query || {};
   const productId = parseInt(productIdQuery || pQuery || idQuery || '1');
@@ -23,13 +53,8 @@ export default async function handler(req, res) {
 
   const description = `${product.name} par ${brand}. ${category} de haute précision. ${priceFormatted}. ${stockText}. Commandez directement sur ${siteName}!`;
 
-  // Absolute image URL for WhatsApp & Facebook crawlers
-  let imageUrl = product.image || `${baseUrl}/assets/sweetos_logo.svg`;
-  if (imageUrl.startsWith('.')) {
-    imageUrl = `${baseUrl}${imageUrl.substring(1)}`;
-  } else if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
-    imageUrl = `${baseUrl}/${imageUrl}`;
-  }
+  // Get robust absolute image URL for WhatsApp, Facebook & Twitter link preview crawlers
+  const imageUrl = getImageUrl(product, baseUrl);
 
   const directPdpUrl = `${baseUrl}/?product=${product.id}`;
   const sharePageUrl = `${baseUrl}/api/share?product=${product.id}`;
@@ -52,7 +77,7 @@ export default async function handler(req, res) {
   <meta property="og:description" content="${description}">
   <meta property="og:image" content="${imageUrl}">
   <meta property="og:image:secure_url" content="${imageUrl}">
-  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:type" content="image/png">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:url" content="${sharePageUrl}">
