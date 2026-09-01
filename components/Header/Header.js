@@ -3,6 +3,7 @@ import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, ge
 import { loadStyles } from '../../utils/cssLoader.js';
 import { headerCSS } from './Header.styles.js';
 import { renderVerificationBadge, getCustomerBadge, getCustomerLevel, getCustomerAvatarStyle, renderLevelChevronV } from '../../utils/badges.js';
+import { getInitialLanguage, setUserLanguage } from '../../utils/language.js';
 
 class Header extends HTMLElement {
   constructor() {
@@ -295,7 +296,7 @@ class Header extends HTMLElement {
           <!-- Language Switcher Toggle -->
           <button class="nav-btn lang-toggle-btn" id="header-lang-toggle-btn" title="Changer la langue / Switch language" style="padding: 0 10px; background: rgba(0, 82, 204, 0.08); border: 1px solid rgba(0, 82, 204, 0.18); border-radius: 12px; height: 38px; cursor: pointer; display: flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 800; color: #0052cc; transition: all 0.2s ease;">
             <span>🌐</span>
-            <span id="headerLangLabel">${(sessionStorage.getItem('SWEETOS_lang') || 'fr').toUpperCase()}</span>
+            <span id="headerLangLabel">${getInitialLanguage().toUpperCase()}</span>
           </button>
 
           <!-- Customer Profile -->
@@ -318,13 +319,12 @@ class Header extends HTMLElement {
 
     if (langBtn) {
       langBtn.addEventListener('click', () => {
-        const curLang = sessionStorage.getItem('SWEETOS_lang') || 'fr';
+        const curLang = getInitialLanguage();
         const newLang = curLang === 'fr' ? 'en' : 'fr';
-        sessionStorage.setItem('SWEETOS_lang', newLang);
+        setUserLanguage(newLang);
         const labelEl = shadow.getElementById('headerLangLabel');
         if (labelEl) labelEl.textContent = newLang.toUpperCase();
-        window.dispatchEvent(new CustomEvent('language:changed', { detail: newLang }));
-        window.dispatchEvent(new CustomEvent('toast:show', { detail: `🌐 Langue modifiée: ${newLang.toUpperCase()}` }));
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: `🌐 ${newLang === 'fr' ? 'Langue : Français' : 'Language: English'}` }));
       });
     }
 
