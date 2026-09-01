@@ -1,10 +1,140 @@
 /**
  * Dynamic Product Specification Schemas per Category
- * Allows admin product creation/edit form to show unique, targeted fields based on product category.
+ * Fully customized category-specific field blueprint for SWEETOS tech e-commerce marketplace.
  */
 
+export const laptopBrandSeriesMap = {
+  "HP": ["EliteBook", "ProBook", "Pavilion", "Envy", "Omen", "Spectre", "ZBook"],
+  "Dell": ["Latitude", "XPS", "Inspiron", "Precision", "Vostro", "Alienware"],
+  "Lenovo": ["ThinkPad", "IdeaPad", "Legion", "Yoga", "ThinkBook"],
+  "Apple": ["MacBook Air", "MacBook Pro"],
+  "ASUS": ["ZenBook", "ROG", "TUF", "VivoBook", "ProArt"],
+  "Acer": ["Aspire", "Swift", "Predator", "Nitro"],
+  "MSI": ["GF Series", "Prestige", "Stealth", "Raider"],
+  "Samsung": ["Galaxy Book", "Chromebook"]
+};
+
 export const productCategorySchemas = {
-  // 1. RAM MODULES
+  // 1. LAPTOPS
+  laptop: {
+    label: "💻 Ordinateurs Portables (Laptops)",
+    keywords: ["laptop", "ordinateur portable", "macbook", "pc portable", "notebook"],
+    fields: [
+      { 
+        name: "Marque", 
+        key: "brand",
+        type: "select",
+        options: ["HP", "Dell", "Lenovo", "Apple", "ASUS", "Acer", "MSI", "Samsung", "Toshiba", "Microsoft Surface", "Autre"]
+      },
+      { 
+        name: "Gamme / Série", 
+        key: "productLine",
+        type: "select",
+        options: [
+          // HP
+          "HP EliteBook", "HP ProBook", "HP Pavilion", "HP Envy", "HP Omen", "HP Spectre", "HP ZBook",
+          // Dell
+          "Dell Latitude", "Dell XPS", "Dell Inspiron", "Dell Precision", "Dell Vostro", "Dell Alienware",
+          // Lenovo
+          "Lenovo ThinkPad", "Lenovo IdeaPad", "Lenovo Legion", "Lenovo Yoga", "Lenovo ThinkBook",
+          // Apple
+          "MacBook Air", "MacBook Pro",
+          // ASUS
+          "ASUS ZenBook", "ASUS ROG", "ASUS TUF", "ASUS VivoBook",
+          // Acer
+          "Acer Aspire", "Acer Swift", "Acer Predator", "Acer Nitro",
+          // MSI & Samsung
+          "MSI Gaming", "Samsung Galaxy Book", "Autre Série"
+        ]
+      },
+      { 
+        name: "Modèle Exact", 
+        key: "exactModel",
+        type: "text", 
+        placeholder: "Ex: EliteBook 840 G5, MacBook Pro M1, Latitude 5490..." 
+      },
+      { 
+        name: "Processeur", 
+        key: "processor",
+        type: "select",
+        options: [
+          "Intel Core i3", "Intel Core i5", "Intel Core i7", "Intel Core i9", "Intel Celeron / Pentium", "Intel Core Ultra",
+          "AMD Ryzen 3", "AMD Ryzen 5", "AMD Ryzen 7", "AMD Ryzen 9",
+          "Apple M1", "Apple M1 Pro / Max", "Apple M2", "Apple M2 Pro / Max", "Apple M3", "Apple M3 Pro / Max", "Apple M4"
+        ]
+      },
+      { 
+        name: "Génération CPU", 
+        key: "generation",
+        type: "select",
+        options: [
+          "14th Gen", "13th Gen", "12th Gen", "11th Gen", "10th Gen", "9th Gen", "8th Gen", "7th Gen", "6th Gen", "Apple Silicon M-Series", "N/A"
+        ]
+      },
+      { 
+        name: "RAM", 
+        key: "ram",
+        type: "select",
+        options: ["4GB", "8GB", "16GB", "32GB", "64GB", "128GB"]
+      },
+      { 
+        name: "Type de RAM", 
+        key: "ramType",
+        type: "select",
+        options: ["DDR5", "DDR4", "DDR3", "LPDDR5", "LPDDR4", "Soudée (Soldered)"]
+      },
+      { 
+        name: "Stockage", 
+        key: "storageType",
+        type: "select",
+        options: ["SSD NVMe (M.2)", "SSD SATA 2.5\"", "HDD", "Hybride SSD+HDD", "eMMC"]
+      },
+      { 
+        name: "Capacité Stockage", 
+        key: "storageSize",
+        type: "select",
+        options: ["128GB", "256GB", "512GB", "1TB", "2TB", "4TB"]
+      },
+      { 
+        name: "Carte Graphique", 
+        key: "gpu",
+        type: "text", 
+        placeholder: "Ex: Intel UHD 620, NVIDIA RTX 3060 6GB, Intel Iris Xe..." 
+      },
+      { 
+        name: "Taille Écran", 
+        key: "screenSize",
+        type: "select",
+        options: ["11.6\"", "12.5\"", "13.3\"", "14.0\"", "15.6\"", "16.0\"", "17.3\""]
+      },
+      { 
+        name: "Résolution Écran", 
+        key: "resolution",
+        type: "select",
+        options: ["HD (1366x768)", "Full HD (1080p)", "2K / QHD (1440p)", "3K / 3.2K", "4K UHD (3840x2160)", "Retina Display"]
+      },
+      { 
+        name: "Système d'exploitation", 
+        key: "os",
+        type: "select",
+        options: ["Windows 11 Pro", "Windows 11 Famille", "Windows 10 Pro", "Windows 10 Famille", "macOS", "ChromeOS", "Linux", "Aucun (FreeDOS)"]
+      },
+      { 
+        name: "État de la batterie", 
+        key: "batteryHealth",
+        type: "select",
+        options: ["Neuf 100%", "Excellente (90-100%)", "Bonne (70-89%)", "Moyenne (50-69%)", "Faible (<50%)", "Batterie Neuve Remplacée"]
+      },
+      { 
+        name: "Accessoires Inclus", 
+        key: "accessories",
+        type: "text",
+        placeholder: "Ex: Chargeur original, Sacoche offerte, Souris sans fil, Boîte d'origine"
+      }
+    ]
+  },
+
+  // 2. RAM MODULES
   ram: {
     label: "💾 Mémoire RAM",
     keywords: ["ram", "mémoire", "memoire"],
@@ -13,7 +143,7 @@ export const productCategorySchemas = {
         name: "Type de RAM", 
         key: "ramType",
         type: "select",
-        options: ["DDR5", "DDR4", "DDR3", "DDR3L", "DDR2", "LPDDR4", "LPDDR5"]
+        options: ["DDR5", "DDR4", "DDR3", "DDR3L", "LPDDR4", "LPDDR5"]
       },
       { 
         name: "Capacité", 
@@ -25,7 +155,7 @@ export const productCategorySchemas = {
         name: "Fréquence", 
         key: "speed",
         type: "select",
-        options: ["2133 MHz", "2400 MHz", "2666 MHz", "3000 MHz", "3200 MHz", "3600 MHz", "4800 MHz", "5600 MHz", "6000+ MHz"]
+        options: ["2133MHz", "2400MHz", "2666MHz", "3000MHz", "3200MHz", "3600MHz", "4000MHz+", "4800MHz", "5600MHz", "6000MHz+"]
       },
       { 
         name: "Format", 
@@ -34,44 +164,32 @@ export const productCategorySchemas = {
         options: ["DIMM (PC Bureau)", "SO-DIMM (PC Portable)"]
       },
       { 
-        name: "Latence CAS", 
-        key: "casLatency",
-        type: "text",
-        placeholder: "Ex: CL16, CL18, CL30, CL36..." 
-      },
-      { 
         name: "Marque", 
         key: "brand",
-        type: "text", 
-        placeholder: "Corsair, Kingston, Crucial, G.Skill..." 
-      },
-      { 
-        name: "État", 
-        key: "condition",
-        type: "select",
-        options: ["Neuf", "Occasion", "Reconditionné"]
+        type: "text",
+        placeholder: "Corsair, Kingston, Crucial, G.Skill, Hynix, Samsung..."
       }
     ]
   },
 
-  // 2. CABLES & ADAPTERS
+  // 3. CABLES
   cable: {
-    label: "🔌 Câbles & Adaptateurs",
+    label: "🔌 Câbles (USB-C, HDMI, etc.)",
     keywords: ["câble", "cable", "cordon", "adaptateur cable"],
     fields: [
       { 
-        name: "Type de câble", 
+        name: "Type de Câble", 
         key: "cableType",
         type: "select",
         options: [
           "USB-C vers USB-C", 
           "USB-C vers USB-A", 
-          "USB-C vers Lightning",
-          "Micro-USB", 
+          "USB-C vers Lightning", 
           "Lightning (iPhone)", 
-          "HDMI 2.1", 
-          "DisplayPort 1.4",
-          "Ethernet RJ45 (Cat 6/7/8)",
+          "Micro-USB",
+          "HDMI 2.1 / 2.0", 
+          "DisplayPort 1.4", 
+          "Ethernet RJ45 (Cat6/7/8)", 
           "Audio Jack 3.5mm",
           "VGA / DVI"
         ]
@@ -83,21 +201,21 @@ export const productCategorySchemas = {
         options: ["0.5m", "1m", "1.5m", "2m", "3m", "5m+"]
       },
       { 
-        name: "Puissance de charge", 
+        name: "Puissance de Charge", 
         key: "chargingPower",
         type: "select",
-        options: ["15W", "18W", "20W", "25W", "30W", "45W", "60W", "65W", "100W", "240W"]
+        options: ["15W", "18W", "20W", "30W", "60W", "100W", "240W"]
       },
       { 
-        name: "Vitesse de transfert", 
-        key: "dataTransfer",
+        name: "Vitesse de Données", 
+        key: "dataSpeed",
         type: "select",
         options: [
           "USB 2.0 (480 Mbps)", 
           "USB 3.0/3.1 (5 Gbps)", 
-          "USB 3.2 Gen2 (10 Gbps)",
+          "USB 3.2 (10 Gbps)", 
           "Thunderbolt 3 (40 Gbps)", 
-          "Thunderbolt 4 (40 Gbps)",
+          "Thunderbolt 4 (40 Gbps)", 
           "Charge uniquement (pas de données)"
         ]
       },
@@ -105,504 +223,323 @@ export const productCategorySchemas = {
         name: "Marque", 
         key: "brand",
         type: "text",
-        placeholder: "Anker, Ugreen, Baseus, Apple..."
-      },
-      { 
-        name: "État", 
-        key: "condition",
-        type: "select",
-        options: ["Neuf", "Occasion"] 
+        placeholder: "Anker, Baseus, Ugreen, Apple, Original..."
       }
     ]
   },
 
-  // 3. CHARGERS & POWER BANKS
+  // 4. CHARGERS & ADAPTERS
   charger: {
-    label: "⚡ Chargeurs & Adaptateurs Secteur",
-    keywords: ["chargeur", "charger", "powerbank", "secteur", "bloc de charge"],
+    label: "🔋 Chargeurs & Adaptateurs",
+    keywords: ["chargeur", "charger", "powerbank", "secteur", "bloc de charge", "alimentations"],
     fields: [
       { 
-        name: "Type de chargeur", 
+        name: "Type de Chargeur", 
         key: "chargerType",
         type: "select",
         options: [
-          "Chargeur mural (Prise)", 
-          "Chargeur voiture (Allume-cigare)", 
-          "Chargeur sans fil (MagSafe/Qi)",
-          "Batterie externe (Powerbank)", 
-          "Chargeur USB multiple ports",
-          "Station de charge / Dock"
+          "Mural (Prise)", 
+          "Voiture (Allume-cigare)", 
+          "Sans fil (Wireless / MagSafe)", 
+          "Powerbank (Batterie Externe)", 
+          "Station de charge USB multiple"
         ]
       },
       { 
         name: "Puissance (Watt)", 
         key: "wattage",
         type: "select",
-        options: ["5W", "10W", "12W", "15W", "18W", "20W", "25W", "30W", "45W", "65W", "87W", "96W", "100W", "120W+"]
+        options: ["5W", "10W", "18W", "20W", "25W", "30W", "45W", "65W", "87W", "100W", "120W+"]
       },
       { 
-        name: "Nombre de ports", 
-        key: "ports",
+        name: "Ports Disponibles", 
+        key: "portsAvailable",
         type: "select",
-        options: ["1 port", "2 ports", "3 ports", "4+ ports"]
+        options: ["1x USB-C", "1x USB-A", "2x USB-C", "1x USB-C + 1x USB-A", "3x Ports USB Multiple", "4+ Ports", "Qi Wireless"]
       },
       { 
-        name: "Charge rapide", 
-        key: "fastCharging",
+        name: "Technologie Charge Rapide", 
+        key: "fastChargingTech",
         type: "select",
         options: [
-          "Non", 
-          "Power Delivery (PD 3.0)",
-          "Quick Charge (QC 4.0/3.0)", 
+          "Power Delivery (PD 3.0)", 
+          "Quick Charge 3.0/4+", 
           "SuperVOOC / Warp Charge", 
-          "SuperCharge (Huawei)", 
-          "Adaptive Fast Charging (Samsung)"
+          "Adaptive Fast Charging (Samsung)",
+          "Charge Standard (Non rapide)"
         ]
       },
       { 
         name: "Compatibilité", 
         key: "compatibility",
         type: "text",
-        placeholder: "iPhone 15/14, Samsung Galaxy S24, MacBook, Universel..."
+        placeholder: "Ex: iPhone 15/14/13, Samsung Galaxy S24, MacBook Air, Universel..."
+      }
+    ]
+  },
+
+  // 5. WATCHES (Smartwatches & Classic)
+  watch: {
+    label: "⌚ Montres & Smartwatches",
+    keywords: ["montre", "watch", "smartwatch", "horloge"],
+    fields: [
+      { 
+        name: "Type de Montre", 
+        key: "watchType",
+        type: "select",
+        options: ["Smartwatch (Connectée)", "Classique (Analogique)", "Digitale (Casio style)", "Hybride", "Sport / Fitness Tracker", "Luxe"]
       },
       { 
         name: "Marque", 
         key: "brand",
-        type: "text",
-        placeholder: "Samsung, Apple, Anker, Baseus..."
-      },
-      { 
-        name: "État", 
-        key: "condition",
         type: "select",
-        options: ["Neuf", "Occasion"] 
-      }
-    ]
-  },
-
-  // 4. STORAGE (SSD, HDD, USB)
-  storage: {
-    label: "💽 Disques & Stockage",
-    keywords: ["stockage", "disque", "ssd", "hdd", "nvme", "clé usb", "cle usb", "carte sd"],
-    fields: [
+        options: ["Apple", "Samsung", "Garmin", "Casio", "Rolex", "Fossil", "Huawei", "Xiaomi / Amazfit", "Seiko", "Tissot", "Autre"]
+      },
       { 
-        name: "Type de stockage", 
-        key: "storageType",
+        name: "Taille Boîtier", 
+        key: "caseSize",
         type: "select",
-        options: [
-          "SSD NVMe M.2", 
-          "SSD Interne (SATA 2.5\")", 
-          "HDD Interne (2.5\" Laptop)",
-          "HDD Interne (3.5\" PC Bureau)", 
-          "SSD Externe Portable",
-          "HDD Externe", 
-          "Clé USB",
-          "Carte MicroSD / SDXC"
-        ]
+        options: ["38mm", "40mm", "41mm", "42mm", "44mm", "45mm", "46mm", "49mm Ultra"]
       },
       { 
-        name: "Capacité", 
-        key: "capacity",
+        name: "Matériau Boîtier", 
+        key: "caseMaterial",
         type: "select",
-        options: ["64GB", "120GB", "128GB", "240GB", "256GB", "480GB", "500GB", "512GB", "1TB", "2TB", "4TB", "8TB+"]
+        options: ["Aluminium", "Acier Inoxydable", "Titane", "Céramique", "Plastique / Résine"]
       },
       { 
-        name: "Interface", 
-        key: "interface",
+        name: "Matériau Bracelet", 
+        key: "strapMaterial",
         type: "select",
-        options: ["NVMe PCIe 4.0", "NVMe PCIe 3.0", "NVMe PCIe 5.0", "SATA III (6 Gb/s)", "USB 3.2 Gen2", "USB 3.0", "Type-C", "Thunderbolt 4"]
+        options: ["Silicone Sport", "Cuir Véritable", "Acier Inoxydable (Maillons)", "Nylon / Boucle Boucle", "Caoutchouc"]
       },
       { 
-        name: "Vitesse de lecture", 
-        key: "readSpeed",
-        type: "text",
-        placeholder: "Ex: 550 MB/s, 3500 MB/s, 7300 MB/s..."
-      },
-      { 
-        name: "Marque", 
-        key: "brand",
-        type: "text",
-        placeholder: "Samsung, Crucial, SanDisk, Western Digital, Kingston..."
-      },
-      { 
-        name: "État", 
-        key: "condition",
+        name: "Résistance Eau", 
+        key: "waterResistance",
         type: "select",
-        options: ["Neuf", "Occasion", "Reconditionné"] 
-      }
-    ]
-  },
-
-  // 5. LAPTOPS
-  laptop: {
-    label: "💻 Ordinateurs Portables",
-    keywords: ["laptop", "ordinateur portable", "macbook", "pc portable", "notebook"],
-    fields: [
-      { 
-        name: "Processeur (CPU)", 
-        key: "cpu",
-        type: "text",
-        placeholder: "Ex: Intel Core i7-13700H, Apple M2 Pro, AMD Ryzen 7 7840U..."
-      },
-      { 
-        name: "Mémoire RAM", 
-        key: "ram",
-        type: "select",
-        options: ["8GB", "16GB", "24GB", "32GB", "64GB"]
-      },
-      { 
-        name: "Stockage", 
-        key: "storage",
-        type: "select",
-        options: ["256GB SSD", "512GB SSD", "1TB SSD", "2TB SSD"]
-      },
-      { 
-        name: "Taille d'écran", 
-        key: "screenSize",
-        type: "select",
-        options: ["13.3\"", "14.0\"", "15.6\"", "16.0\"", "17.3\""]
-      },
-      { 
-        name: "Carte Graphique (GPU)", 
-        key: "gpu",
-        type: "text",
-        placeholder: "Ex: NVIDIA RTX 4060 8GB, Intel Iris Xe, Apple GPU 10-core..."
-      },
-      { 
-        name: "Système d'exploitation", 
-        key: "os",
-        type: "select",
-        options: ["Windows 11 Pro", "Windows 11 Home", "macOS", "Linux Ubuntu", "Sans OS (FreeDOS)"]
-      },
-      { 
-        name: "État", 
-        key: "condition",
-        type: "select",
-        options: ["Neuf", "Reconditionné Grade A+", "Occasion"] 
-      }
-    ]
-  },
-
-  // 6. DESKTOPS
-  desktop: {
-    label: "🖥️ Ordinateurs de Bureau",
-    keywords: ["desktop", "ordinateur de bureau", "pc fixe", "tour pc", "station de travail"],
-    fields: [
-      { 
-        name: "Processeur (CPU)", 
-        key: "cpu",
-        type: "text",
-        placeholder: "Ex: Intel Core i9-14900K, AMD Ryzen 9 7900X..."
-      },
-      { 
-        name: "Mémoire RAM", 
-        key: "ram",
-        type: "select",
-        options: ["8GB", "16GB", "32GB", "64GB", "128GB"]
-      },
-      { 
-        name: "Stockage Principal", 
-        key: "storage",
-        type: "select",
-        options: ["256GB SSD", "512GB SSD", "1TB NVMe SSD", "2TB NVMe SSD", "512GB SSD + 2TB HDD"]
-      },
-      { 
-        name: "Carte Graphique (GPU)", 
-        key: "gpu",
-        type: "text",
-        placeholder: "Ex: NVIDIA RTX 4070 Ti 12GB, AMD RX 7800 XT..."
-      },
-      { 
-        name: "Alimentation (PSU)", 
-        key: "psu",
-        type: "text",
-        placeholder: "Ex: Corsair 750W 80+ Gold"
-      },
-      { 
-        name: "Format Boîtier", 
-        key: "caseType",
-        type: "select",
-        options: ["Moyen Tour (ATX)", "Grande Tour (E-ATX)", "Mini PC / SFF (Micro-ATX)", "All-in-One (Tout-en-un)"]
-      },
-      { 
-        name: "État", 
-        key: "condition",
-        type: "select",
-        options: ["Neuf", "Occasion", "Reconditionné"] 
-      }
-    ]
-  },
-
-  // 7. PROCESSORS (CPU)
-  processor: {
-    label: "⚙️ Processeurs (CPU)",
-    keywords: ["processeur", "processor", "cpu", "intel core", "ryzen"],
-    fields: [
-      { 
-        name: "Socket", 
-        key: "socket",
-        type: "select",
-        options: ["LGA 1700 (Intel 12/13/14th)", "AM5 (AMD Ryzen 7000/8000/9000)", "AM4 (AMD Ryzen 3000/5000)", "LGA 1200", "Autre"]
-      },
-      { 
-        name: "Nombre de cœurs", 
-        key: "cores",
-        type: "select",
-        options: ["4 Cœurs / 8 Threads", "6 Cœurs / 12 Threads", "8 Cœurs / 16 Threads", "12 Cœurs / 24 Threads", "16 Cœurs / 32 Threads", "24 Cœurs"]
-      },
-      { 
-        name: "Fréquence Boost", 
-        key: "boostClock",
-        type: "text",
-        placeholder: "Ex: 4.9 GHz, 5.4 GHz, 5.8 GHz..."
-      },
-      { 
-        name: "TDP (Consommation)", 
-        key: "tdp",
-        type: "text",
-        placeholder: "Ex: 65W, 105W, 125W..."
-      },
-      { 
-        name: "Graphiques intégrés", 
-        key: "gpuIntegrated",
-        type: "select",
-        options: ["Oui (iGPU inclus)", "Non (Nécessite carte graphique dédiée)"]
-      }
-    ]
-  },
-
-  // 8. GRAPHICS CARDS (GPU)
-  graphics_card: {
-    label: "🎮 Cartes Graphiques (GPU)",
-    keywords: ["carte graphique", "graphics_card", "gpu", "rtx", "radeon", "nvidia"],
-    fields: [
-      { 
-        name: "VRAM Capacité", 
-        key: "vram",
-        type: "select",
-        options: ["4GB", "6GB", "8GB", "12GB", "16GB", "20GB", "24GB"]
-      },
-      { 
-        name: "Type de VRAM", 
-        key: "vramType",
-        type: "select",
-        options: ["GDDR6X", "GDDR6", "GDDR5"]
-      },
-      { 
-        name: "Connecteurs Alimentation", 
-        key: "powerConnectors",
-        type: "select",
-        options: ["1x 8-pin PCIe", "2x 8-pin PCIe", "1x 16-pin 12VHPWR (PCIe 5.0)", "Aucun (75W PCIe Slot)"]
-      },
-      { 
-        name: "Ports de sortie", 
-        key: "displayOutputs",
-        type: "text",
-        placeholder: "Ex: 3x DisplayPort 1.4, 1x HDMI 2.1"
-      }
-    ]
-  },
-
-  // 9. KEYBOARDS
-  keyboard: {
-    label: "⌨️ Claviers & Keyboards",
-    keywords: ["clavier", "keyboard", "keycap"],
-    fields: [
-      { 
-        name: "Type de clavier", 
-        key: "keyboardType",
-        type: "select",
-        options: ["Mécanique Custom", "Mécanique Standard", "Membrane Silencieuse", "Optique-Mécanique"]
-      },
-      { 
-        name: "Format / Layout", 
-        key: "layout",
-        type: "select",
-        options: ["100% Full-Size (avec pavé numérique)", "80% TKL (Tenkeyless)", "75% Compact", "65% Ultra-Compact", "60% Minimalist"]
-      },
-      { 
-        name: "Type de Switchs", 
-        key: "switches",
-        type: "select",
-        options: ["Switch Red (Lineaire / Silencieux)", "Switch Blue (Clicky / Tactile)", "Switch Brown (Tactile)", "Hot-Swappable (Interchangeables)"]
-      },
-      { 
-        name: "Connectivité", 
-        key: "connection",
-        type: "select",
-        options: ["Tri-mode (Bluetooth + 2.4GHz + Type-C)", "Filaire USB-C détachable", "Bluetooth & Filaire", "Sans fil 2.4GHz Dongle"]
-      },
-      { 
-        name: "Rétroéclairage", 
-        key: "rgb",
-        type: "select",
-        options: ["RGB 16.8M Couleurs", "Blanc LED", "Non rétroéclairé"]
-      }
-    ]
-  },
-
-  // 10. MICE & PADS
-  mouse: {
-    label: "🖱️ Souris & Tapis de Bureau",
-    keywords: ["souris", "mouse", "tapis", "deskpad"],
-    fields: [
-      { 
-        name: "Sensibilité Capteur (DPI)", 
-        key: "dpi",
-        type: "select",
-        options: ["3200 DPI", "6400 DPI", "12000 DPI", "16000 DPI", "26000+ DPI Custom"]
-      },
-      { 
-        name: "Connectivité", 
-        key: "connection",
-        type: "select",
-        options: ["Sans fil 2.4GHz + Bluetooth", "Filaire USB Tressé", "Rechargeable Type-C USB"]
-      },
-      { 
-        name: "Poids", 
-        key: "weight",
-        type: "text",
-        placeholder: "Ex: 60g Ultra-léger, 85g, 120g..."
-      },
-      { 
-        name: "Boutons programmables", 
-        key: "buttonsCount",
-        type: "select",
-        options: ["2 à 4 boutons", "6 boutons (Standard Gaming)", "8+ boutons (MMO/Productivité)"]
-      }
-    ]
-  },
-
-  // 11. HEADPHONES & AUDIO
-  headphone: {
-    label: "🎧 Casques Audio & Écouteurs",
-    keywords: ["casque", "écouteur", "ecouteur", "headphone", "audio", "airpods", "enceinte", "haut-parleur", "micro"],
-    fields: [
-      { 
-        name: "Type d'appareil", 
-        key: "audioType",
-        type: "select",
-        options: [
-          "Casque Circum-aural (Over-Ear)", 
-          "Écouteurs True Wireless (TWS)", 
-          "Casque Gamer avec Microphone", 
-          "Enceinte Portable Bluetooth",
-          "Microphone Studio USB/XLR"
-        ]
-      },
-      { 
-        name: "Réduction de Bruit (ANC)", 
-        key: "anc",
-        type: "select",
-        options: ["Oui - ANC Active Hybride", "Réduction Passive Isolation", "Non"]
+        options: ["Non étanche", "3ATM (30m)", "5ATM (50m)", "10ATM (100m)", "IP67", "IP68"]
       },
       { 
         name: "Autonomie Batterie", 
         key: "batteryLife",
         type: "text",
-        placeholder: "Ex: 30 Heures (Casque), 6h + 24h avec Boîtier (TWS)"
+        placeholder: "Ex: 18h (Apple Watch), 2 jours, 7 jours, 14 jours..."
       },
       { 
-        name: "Connexion", 
-        key: "connection",
+        name: "Connectivité & Capteurs", 
+        key: "connectivitySensors",
+        type: "text",
+        placeholder: "Ex: Bluetooth, WiFi, GPS intégré, 4G LTE, ECG, Capteur Cardiaque"
+      },
+      { 
+        name: "Mouvement", 
+        key: "movement",
         type: "select",
-        options: ["Bluetooth 5.3 / 5.2", "Jack 3.5mm + Bluetooth", "Dongle 2.4GHz (Gaming ultra-low latency)", "Filaire USB-C / USB-A"]
+        options: ["N/A (Smartwatch)", "Quartz (Pile)", "Mécanique Automatique", "Mécanique Manuel", "Solaire (Tough Solar)"]
       }
     ]
   },
 
-  // 12. SMARTPHONES
-  smartphone: {
-    label: "📱 Smartphones & Téléphones",
-    keywords: ["smartphone", "téléphone", "telephone", "iphone", "galaxy", "pixel", "xiaomi"],
+  // 6. AUDIO (Headphones & Earbuds)
+  audio: {
+    label: "🎧 Audio (Casques & Écouteurs)",
+    keywords: ["audio", "casque", "écouteur", "ecouteur", "headphone", "airpods", "earbuds", "enceinte", "haut-parleur", "micro"],
     fields: [
       { 
-        name: "Taille d'Écran", 
-        key: "screenSize",
+        name: "Type d'Audio", 
+        key: "audioType",
         type: "select",
-        options: ["6.1\" OLED/AMOLED", "6.5\" 120Hz", "6.7\" Super Retina", "6.8\" Dynamic AMOLED 2X"]
+        options: ["Casque Over-Ear (Circum-aural)", "Casque On-Ear (Supra-aural)", "Écouteurs Intra-auriculaires", "Earbuds True Wireless (TWS)", "Enceinte Portable Bluetooth", "Microphone Studio"]
+      },
+      { 
+        name: "Connectivité", 
+        key: "connection",
+        type: "select",
+        options: ["Bluetooth 5.3 / 5.2", "Filaire (Jack 3.5mm)", "USB-C Filaire", "Lightning Filaire", "Sans fil (Dongle 2.4GHz)"]
+      },
+      { 
+        name: "Réduction de Bruit (ANC)", 
+        key: "anc",
+        type: "select",
+        options: ["Oui - Active Noise Cancellation (ANC)", "Isolation Passive uniquement", "Non"]
+      },
+      { 
+        name: "Autonomie", 
+        key: "batteryLife",
+        type: "text",
+        placeholder: "Ex: 6h + 24h avec boîtier, 30 heures d'écoute..."
+      },
+      { 
+        name: "Résistance Eau", 
+        key: "waterproof",
+        type: "select",
+        options: ["Aucune", "IPX4 (Resistant aux éclaboussures / sueur)", "IPX5", "IPX7 (Étanche immersible)", "IP68"]
+      },
+      { 
+        name: "Marque", 
+        key: "brand",
+        type: "text",
+        placeholder: "Sony, Bose, JBL, Apple, Samsung, Sennheiser, Anker Soundcore..."
+      }
+    ]
+  },
+
+  // 7. SMARTPHONES
+  smartphone: {
+    label: "📱 Smartphones & Téléphones",
+    keywords: ["smartphone", "téléphone", "telephone", "iphone", "galaxy", "pixel", "xiaomi", "mobile", "phone"],
+    fields: [
+      { 
+        name: "Marque", 
+        key: "brand",
+        type: "select",
+        options: ["Apple (iPhone)", "Samsung", "Xiaomi / Redmi / Poco", "Huawei", "Oppo", "Tecno", "Infinix", "Itel", "Realme", "Google Pixel", "OnePlus", "Autre"]
+      },
+      { 
+        name: "Modèle", 
+        key: "model",
+        type: "text",
+        placeholder: "Ex: Galaxy S23 Ultra, iPhone 14 Pro, Redmi Note 13..."
       },
       { 
         name: "Stockage Interne", 
         key: "storage",
         type: "select",
-        options: ["64GB", "128GB", "256GB", "512GB", "1TB"]
+        options: ["32GB", "64GB", "128GB", "256GB", "512GB", "1TB"]
       },
       { 
-        name: "Mémoire RAM", 
+        name: "RAM", 
         key: "ram",
         type: "select",
-        options: ["4GB", "6GB", "8GB", "12GB", "16GB"]
+        options: ["2GB", "3GB", "4GB", "6GB", "8GB", "12GB", "16GB"]
       },
       { 
-        name: "Appareil Photo Principal", 
-        key: "camera",
+        name: "État Batterie", 
+        key: "batteryHealth",
         type: "text",
-        placeholder: "Ex: Triple capteur 50MP + 12MP + 10MP (8K Video)"
+        placeholder: "Ex: 100% Neuf, 85%, 92%..."
       },
       { 
-        name: "Batterie & Charge", 
-        key: "battery",
-        type: "text",
-        placeholder: "Ex: 5000 mAh (Charge rapide 45W)"
-      },
-      { 
-        name: "Système d'exploitation", 
-        key: "os",
+        name: "Double SIM", 
+        key: "dualSim",
         type: "select",
-        options: ["Android 14", "iOS 17", "Android 13"]
+        options: ["Oui (2x Nano-SIM)", "Oui (eSIM + Nano-SIM)", "Non (Mono-SIM)"]
+      },
+      { 
+        name: "5G Compatible", 
+        key: "is5G",
+        type: "select",
+        options: ["Oui (5G Ready)", "Non (4G / LTE)"]
       }
     ]
   },
 
-  // 13. MONITORS & SCREENS
+  // 8. MONITORS / SCREENS
   monitor: {
     label: "🖥️ Écrans & Moniteurs",
     keywords: ["écran", "ecran", "moniteur", "monitor", "display"],
     fields: [
       { 
-        name: "Taille d'Écran", 
+        name: "Taille Écran", 
         key: "screenSize",
         type: "select",
-        options: ["24\"", "27\"", "32\"", "34\" Ultrawide (21:9)", "49\" Super Ultrawide (32:9)"]
+        options: ["19\"", "21.5\"", "24\"", "27\"", "32\"", "34\" Ultrawide", "40\"+ Super Ultrawide"]
       },
       { 
         name: "Résolution", 
         key: "resolution",
         type: "select",
-        options: ["1080p Full HD (1920x1080)", "1440p Quad HD / 2K (2560x1440)", "4K Ultra HD (3840x2160)", "5K Retina"]
-      },
-      { 
-        name: "Taux de rafraîchissement", 
-        key: "refreshRate",
-        type: "select",
-        options: ["60 Hz (Bureautique)", "75 Hz", "144 Hz (Gaming)", "165 Hz", "240 Hz", "360 Hz"]
+        options: ["HD (1366x768)", "Full HD (1080p)", "2K / QHD (1440p)", "4K UHD (2160p)", "5K Retina", "8K UHD"]
       },
       { 
         name: "Type de Dalle", 
         key: "panelType",
         type: "select",
-        options: ["IPS (Excellentes couleurs)", "OLED (Noirs parfaits & 0.03ms)", "VA (Haut contraste)", "TN (Compétitif)"]
+        options: ["IPS (Couleurs & Angles de vision)", "TN (Temps de réponse rapide)", "VA (Haut contraste)", "OLED (Noirs absolus)", "Mini-LED"]
       },
       { 
-        name: "Temps de réponse", 
-        key: "responseTime",
+        name: "Taux de Rafraîchissement", 
+        key: "refreshRate",
         type: "select",
-        options: ["0.03 ms GTG", "1 ms GTG", "4 ms", "5 ms"]
+        options: ["60Hz", "75Hz", "120Hz", "144Hz", "165Hz", "240Hz+"]
+      },
+      { 
+        name: "Connectique", 
+        key: "connectivity",
+        type: "text",
+        placeholder: "Ex: 2x HDMI 2.0, 1x DisplayPort 1.4, USB-C (Power Delivery 65W), VGA"
+      },
+      { 
+        name: "Courbé", 
+        key: "isCurved",
+        type: "select",
+        options: ["Non (Écran Plat)", "Oui (Écran Courbé Curved)"]
       }
     ]
   },
 
-  // GENERIC FALLBACK
+  // 9. GAMING ACCESSORIES
+  gaming: {
+    label: "🎮 Gaming & Accessoires",
+    keywords: ["gaming", "manette", "joystick", "volant", "jeu", "console", "gamepad", "siège gamer"],
+    fields: [
+      { 
+        name: "Type d'Accessoire", 
+        key: "accessoryType",
+        type: "select",
+        options: [
+          "Manette / Gamepad", 
+          "Volant de Course + Pédalier", 
+          "Joystick / Flightstick", 
+          "Clavier Mécanique Gaming", 
+          "Souris Gaming", 
+          "Tapis de souris XXL", 
+          "Siège / Fauteuil Gamer",
+          "Casque Gaming VR / AR"
+        ]
+      },
+      { 
+        name: "Plateforme", 
+        key: "platform",
+        type: "select",
+        options: ["Multi-Plateforme (PC/PS5/Xbox/Switch)", "PC (Windows)", "PS5 / PS4", "Xbox Series X/S / Xbox One", "Nintendo Switch", "Mobile (Android/iOS)"]
+      },
+      { 
+        name: "Connectivité", 
+        key: "connection",
+        type: "select",
+        options: ["Filaire (USB)", "Sans fil (Bluetooth)", "Sans fil (Dongle 2.4GHz Ultra-fast)"]
+      },
+      { 
+        name: "Éclairage RGB", 
+        key: "rgbLighting",
+        type: "select",
+        options: ["Oui (RGB Personnalisable)", "Oui (Rétroéclairage simple)", "Non"]
+      },
+      { 
+        name: "Switches (Claviers)", 
+        key: "switches",
+        type: "select",
+        options: ["N/A", "Switch Red (Linéaire)", "Switch Blue (Clicky)", "Switch Brown (Tactile)", "Switch Silent (Silencieux)", "Switch Optical"]
+      },
+      { 
+        name: "DPI Max (Souris)", 
+        key: "maxDpi",
+        type: "text",
+        placeholder: "Ex: 16000 DPI, 25600 DPI Capteur Hero..."
+      }
+    ]
+  },
+
+  // 10. GENERIC / OTHER PRODUCTS
   generic: {
-    label: "⚙️ Spécifications Générales Tech",
+    label: "📦 Produit Général / Autre",
     keywords: ["general", "autres", "other"],
     fields: [
-      { name: "Modèle / Référence", key: "model", type: "text", placeholder: "Ex: PRO-2026-V2" },
-      { name: "Matériaux de fabrication", key: "material", type: "text", placeholder: "Ex: Aluminium brossé, Plastique ABS..." },
-      { name: "Couleur / Finition", key: "color", type: "text", placeholder: "Ex: Noir Mat, Gris Sidéral..." },
-      { name: "Garantie Constructeur", key: "warranty", type: "select", options: ["1 An Garantie", "2 Ans Garantie", "6 Mois", "Sans Garantie"] },
-      { name: "État du Produit", key: "condition", type: "select", options: ["Neuf", "Occasion", "Reconditionné"] }
+      { name: "Type de Produit", key: "productType", type: "text", placeholder: "Ex: Support écran, Sacoche ordinateur, Nettoyant..." },
+      { name: "Caractéristiques Principales", key: "keyFeatures", type: "text", placeholder: "Ex: Ultra-résistant, Ergonomique, Garantie 2 ans..." },
+      { name: "Marque", key: "brand", type: "text", placeholder: "Marque ou Fabricant" },
+      { name: "Compatibilité", key: "compatibility", type: "text", placeholder: "Ex: Tous ordinateurs 13 à 16 pouces" }
     ]
   }
 };

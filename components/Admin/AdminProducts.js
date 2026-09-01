@@ -93,11 +93,27 @@ function isProductInCat(product, targetCat, allCats) {
   return set.has(String(product.category).trim().toLowerCase());
 }
 
-function generateShortProductDescription({ name, category, brand, price, image }) {
+function generateShortProductDescription({ name, category, brand, price, image, specs = {} }) {
   const cleanName = name || 'Product';
-  const cleanBrand = brand && brand !== 'All' ? brand : 'SWEETOS';
+  const cleanBrand = brand && brand !== 'All' ? brand : (specs['Marque'] || 'SWEETOS');
   const cleanCat = category && category !== 'All' ? category : 'tech & workspace gear';
   
+  // Extract key spec fields if populated
+  const specList = [];
+  if (specs['Processeur']) specList.push(specs['Processeur']);
+  if (specs['Génération CPU'] && specs['Génération CPU'] !== 'N/A') specList.push(specs['Génération CPU']);
+  if (specs['RAM']) specList.push(`${specs['RAM']} RAM`);
+  if (specs['Capacité Stockage'] || specs['Stockage']) specList.push(`${specs['Capacité Stockage'] || ''} ${specs['Stockage'] || ''}`.trim());
+  if (specs['Taille Écran']) specList.push(`${specs['Taille Écran']} screen`);
+  if (specs['Résolution Écran']) specList.push(specs['Résolution Écran']);
+  if (specs['Carte Graphique']) specList.push(specs['Carte Graphique']);
+  if (specs['Puissance de Charge'] || specs['Puissance (Watt)']) specList.push(specs['Puissance de Charge'] || specs['Puissance (Watt)']);
+  if (specs['Type de RAM']) specList.push(specs['Type de RAM']);
+  if (specs['Système d\'exploitation']) specList.push(specs['Système d\'exploitation']);
+  if (specs['Autonomie Batterie'] || specs['Autonomie']) specList.push(specs['Autonomie Batterie'] || specs['Autonomie']);
+
+  const specsSummary = specList.length > 0 ? ` Featuring ${specList.slice(0, 5).join(', ')}.` : '';
+
   let imgHint = 'premium build quality';
   if (image) {
     const lowerImg = String(image).toLowerCase();
@@ -110,17 +126,17 @@ function generateShortProductDescription({ name, category, brand, price, image }
   }
 
   const templates = [
-    `Engineered by ${cleanBrand}, ${cleanName} delivers high-end reliability and refined aesthetics for your ${cleanCat.toLowerCase()} setup. Features ${imgHint} for everyday modern productivity.`,
-    `Discover ${cleanName} by ${cleanBrand}. Crafted for minimalist ${cleanCat.toLowerCase()} setups, featuring ${imgHint}, seamless functionality, and clean studio styling to elevate workspace performance.`,
-    `Upgrade your workspace with ${cleanName} from ${cleanBrand}. Built with high-grade components, ${imgHint}, and precision ergonomics, delivering unmatched comfort and sleek contemporary design.`
+    `Engineered by ${cleanBrand}, ${cleanName} delivers high-end reliability and refined aesthetics for your ${cleanCat.toLowerCase()} setup.${specsSummary} Includes ${imgHint} for everyday productivity.`,
+    `Discover ${cleanName} by ${cleanBrand}.${specsSummary} Crafted for minimalist ${cleanCat.toLowerCase()} setups, featuring ${imgHint}, seamless functionality, and clean studio styling.`,
+    `Upgrade your workspace with ${cleanName} from ${cleanBrand}.${specsSummary} Built with high-grade components, ${imgHint}, and precision ergonomics, delivering unmatched comfort and performance.`
   ];
 
   const index = (cleanName.length + (price ? parseInt(price) || 0 : 0)) % templates.length;
   let text = templates[index];
 
   const words = text.split(/\s+/);
-  if (words.length > 32) {
-    text = words.slice(0, 30).join(' ') + '.';
+  if (words.length > 38) {
+    text = words.slice(0, 36).join(' ') + '.';
   }
 
   return text;
@@ -1878,7 +1894,7 @@ export function attachAdminProductsListeners(context, shadow) {
     renderColorRows();
   }
 
-  // Auto-Generate 30-Word Description Button Listener
+  // Auto-Generate Description Button Listener with AI Specs Parsing
   const autoGenBtn = shadow.getElementById('auto-gen-desc-btn');
   if (autoGenBtn) {
     autoGenBtn.addEventListener('click', () => {
@@ -1888,6 +1904,15 @@ export function attachAdminProductsListeners(context, shadow) {
       const prodPrice = shadow.getElementById('prod-price')?.value || '';
       const imgInput = shadow.getElementById('prod-image-url-input')?.value || shadow.getElementById('prod-img-val')?.value || '';
 
+      // Collect dynamic specs currently filled in form
+      const specInputs = shadow.querySelectorAll('.dynamic-spec-input');
+      const currentSpecs = {};
+      specInputs.forEach(inp => {
+        const specName = inp.getAttribute('data-spec-name');
+        const specVal = inp.value ? inp.value.trim() : '';
+        if (specName && specVal) currentSpecs[specName] = specVal;
+      });
+
       if (!prodName) {
         window.dispatchEvent(new CustomEvent('toast:show', { detail: '⚠️ Please type a product name first to auto-generate a description.' }));
         const nameEl = shadow.getElementById('prod-name');
@@ -1896,7 +1921,7 @@ export function attachAdminProductsListeners(context, shadow) {
       }
 
       autoGenBtn.disabled = true;
-      autoGenBtn.innerHTML = `<span>⏳ Generating...</span>`;
+      autoGenBtn.innerHTML = `<span>⚡ AI Generating...</span>`;
 
       setTimeout(() => {
         const desc = generateShortProductDescription({
@@ -1904,7 +1929,8 @@ export function attachAdminProductsListeners(context, shadow) {
           category: prodCat,
           brand: prodBrand,
           price: prodPrice,
-          image: imgInput
+          image: imgInput,
+          specs: currentSpecs
         });
 
         const descTextarea = shadow.getElementById('prod-desc');
@@ -1920,8 +1946,8 @@ export function attachAdminProductsListeners(context, shadow) {
         }
 
         autoGenBtn.disabled = false;
-        autoGenBtn.innerHTML = `<span>✨ Auto-Generate (30 Words)</span>`;
-        window.dispatchEvent(new CustomEvent('toast:show', { detail: '✨ Auto-generated 30-word description!' }));
+        autoGenBtn.innerHTML = `<span>✨ Auto-Generate (AI Specs)</span>`;
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: '✨ Auto-generated description from technical specs!' }));
       }, 300);
     });
   }
