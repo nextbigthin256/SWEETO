@@ -1369,7 +1369,6 @@ class ProductList extends HTMLElement {
         <div class="home-section" id="for-you-section" style="margin-bottom: 40px;">
           <div class="section-header" style="margin-bottom: 24px;">
             <h3 class="section-title" style="font-size: 22px; font-weight: 850; color: var(--text-dark); margin:0;">For You</h3>
-            <p style="margin: 4px 0 0 0; font-size: 13px; color: var(--text-gray); font-weight: 500;">Feed infini de recommandations sur-mesure pour votre équipement</p>
           </div>
           <div class="home-grid-4" id="grid-for-you"></div>
           

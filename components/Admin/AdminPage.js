@@ -44,6 +44,7 @@ import { renderAdminReviews, attachAdminReviewsListeners } from './AdminReviews.
 import { renderAdminLoyalty, attachAdminLoyaltyListeners } from './AdminLoyalty.js';
 import { renderAdminTodaysDeals, attachAdminTodaysDealsListeners } from './AdminTodaysDeals.js';
 import { renderAdminMoreToLove, attachAdminMoreToLoveListeners } from './AdminMoreToLove.js';
+import { renderAdminShare, attachAdminShareListeners } from './AdminShare.js';
 
 window.showConfirm = function(message, title = 'Confirm Action') {
   return new Promise((resolve) => {
@@ -1190,6 +1191,8 @@ class AdminPage extends HTMLElement {
         return renderAdminReviews(this);
       case 'loyalty':
         return renderAdminLoyalty(this);
+      case 'share':
+        return renderAdminShare(this);
       default:
         return renderAdminDashboard(this);
     }
@@ -1312,6 +1315,9 @@ class AdminPage extends HTMLElement {
         break;
       case 'reviews':
         attachAdminReviewsListeners(this, shadow);
+        break;
+      case 'share':
+        attachAdminShareListeners(this, shadow);
         break;
     }
 

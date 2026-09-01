@@ -6,12 +6,15 @@ export function renderAdminHeader(context) {
   if (context.currentTab === 'sections') tabTitle = 'Homepage Sections';
   if (context.currentTab === 'notifications') tabTitle = 'Notification Center';
   if (context.currentTab === 'loyalty') tabTitle = 'Customer Loyalty & Verification Badges';
+  if (context.currentTab === 'share') tabTitle = 'Share Storefront & QR Codes';
   
   let subtitle = "Store Database Metrics & Operations Control Center";
   if (context.currentTab === 'dashboard') {
     subtitle = "Welcome back! Here's what's happening with your store today.";
   } else if (context.currentTab === 'loyalty') {
     subtitle = "Manage customer tiers, loyalty levels, and social media verification badges.";
+  } else if (context.currentTab === 'share') {
+    subtitle = "Download high-res QR codes, generate product stickers, and share your web app.";
   }
 
   // Load alerts from low stock, coupon stock, pending orders & system notices
