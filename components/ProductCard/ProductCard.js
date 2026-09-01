@@ -41,6 +41,10 @@ class ProductCard extends HTMLElement {
     if (!p) return;
 
     const isOutOfStock = p.stock === 0;
+    const origPrice = p.comparePrice || p.originalPrice || p.original_price || 0;
+    const hasDiscount = Boolean(origPrice > p.price);
+    const originalPriceVal = hasDiscount ? origPrice : 0;
+    const discountVal = hasDiscount ? Math.round(((originalPriceVal - p.price) / originalPriceVal) * 100) : 0;
 
     // Load genuine customer reviews for this product
     let realReviewsCount = 0;
@@ -105,11 +109,6 @@ class ProductCard extends HTMLElement {
         (p.homepageSections && p.homepageSections.includes('sec-best'))
       )
     );
-
-    const origPrice = p.comparePrice || p.originalPrice || p.original_price || 0;
-    const hasDiscount = Boolean(origPrice > p.price);
-    const originalPriceVal = hasDiscount ? origPrice : 0;
-    const discountVal = hasDiscount ? Math.round(((originalPriceVal - p.price) / originalPriceVal) * 100) : 0;
 
     const wishlistSaved = getStorageItem('SWEETOS_wishlist');
     let isWishlisted = false;
