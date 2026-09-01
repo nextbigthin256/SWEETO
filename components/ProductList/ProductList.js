@@ -157,6 +157,12 @@ class ProductList extends HTMLElement {
           this.currentPage = 'pdp';
           this.currentProductId = pId;
         }
+      } else if (route.includes('product=')) {
+        const pId = parseInt(route.split('product=')[1]);
+        if (!isNaN(pId)) {
+          this.currentPage = 'pdp';
+          this.currentProductId = pId;
+        }
       } else if (route.startsWith('coupons/')) {
         this.currentPage = 'coupons';
         this.currentCouponCode = route.split('/')[1];

@@ -288,12 +288,26 @@ class NotificationDrawer extends HTMLElement {
           ` : filteredNotifications.map(n => {
             const timestamp = n.createdAt || n.timestamp || Date.now();
             const timeAgoText = formatTimeAgo(timestamp);
+            let pId = n.productId || (n.data && n.data.productId);
+            if (!pId && n.id && String(n.id).startsWith('new-product-')) {
+              const parsedId = parseInt(String(n.id).replace('new-product-', ''));
+              if (!isNaN(parsedId)) pId = parsedId;
+            }
+            if (!pId && n.url) {
+              const match = String(n.url).match(/product[=/](\d+)/);
+              if (match) pId = parseInt(match[1]);
+            }
+            if (!pId && n.desc) {
+              const match = String(n.desc).match(/product[=/](\d+)/);
+              if (match) pId = parseInt(match[1]);
+            }
+
             return `
-              <div class="notif-item ${n.unread ? 'unread-flag' : ''}" data-id="${n.id}">
+              <div class="notif-item ${n.unread ? 'unread-flag' : ''}" data-id="${n.id}" style="cursor: pointer; position: relative;">
                 <div class="notif-icon-circle ${n.type}">
                   ${n.icon || '🔔'}
                 </div>
-                <div class="notif-info">
+                <div class="notif-info" style="flex: 1;">
                   <div class="notif-title-row">
                     <h4>${n.title}</h4>
                     <span class="notif-time" data-timestamp="${timestamp}">${timeAgoText}</span>
@@ -301,6 +315,12 @@ class NotificationDrawer extends HTMLElement {
                   <div class="notif-desc" style="font-size: 12.5px; color: var(--text-gray); line-height: 1.5; margin-top: 4px;">
                     ${n.desc}
                   </div>
+                  ${pId ? `
+                    <div style="margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 800; color: #2563eb; background: rgba(37,99,235,0.08); padding: 3px 8px; border-radius: 6px;">
+                      <span>🛍️ Voir le produit</span>
+                      <span>→</span>
+                    </div>
+                  ` : ''}
                 </div>
                 <button class="notif-delete-btn" data-id="${n.id}" title="Supprimer l'alerte">×</button>
               </div>
@@ -463,6 +483,26 @@ class NotificationDrawer extends HTMLElement {
         window.dispatchEvent(new CustomEvent('notifications:toggle', { detail: { open: false } }));
 
         // 3. Handle page routing / actions
+        let productId = target.productId || (target.data && target.data.productId);
+        if (!productId && target.id && String(target.id).startsWith('new-product-')) {
+          const parsedId = parseInt(String(target.id).replace('new-product-', ''));
+          if (!isNaN(parsedId)) productId = parsedId;
+        }
+        if (!productId && target.url) {
+          const match = String(target.url).match(/product[=/](\d+)/);
+          if (match) productId = parseInt(match[1]);
+        }
+        if (!productId && target.desc) {
+          const match = String(target.desc).match(/product[=/](\d+)/);
+          if (match) productId = parseInt(match[1]);
+        }
+
+        if (productId) {
+          window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'pdp', productId: productId } }));
+          window.location.hash = `/#/product/${productId}`;
+          return;
+        }
+
         if (target.type === 'promo') {
           if (target.uniqueKey && target.uniqueKey.startsWith('reminder-')) {
             window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'coupons' } }));
