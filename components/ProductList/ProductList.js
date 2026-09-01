@@ -9,6 +9,7 @@ import { CUSTOMER_LEVELS, VERIFIED_BADGES, renderVerificationBadge, renderLevelP
 import { getTodaysDealsConfig, isTodaysDealsActive, getTimeRemaining, awardMysteryBoxForDeliveredOrder, getTodaysDealsTheme, DEAL_BANNER_THEMES } from '../../utils/todaysDeals.js';
 import { getMoreToLoveConfig } from '../../utils/moreToLove.js';
 import { incrementPageView } from '../../utils/engagement.js';
+import { updateProductMetaTags, resetDefaultMetaTags } from '../../utils/metaTags.js';
 import '../Admin/AdminPage.js';
 
 function safeParseArray(raw) {
@@ -938,6 +939,7 @@ class ProductList extends HTMLElement {
       sessionStorage.setItem('SWEETOS_current_product_id', this.currentProductId);
     } else {
       sessionStorage.removeItem('SWEETOS_current_product_id');
+      resetDefaultMetaTags();
     }
     sessionStorage.setItem('SWEETOS_active_profile_tab', this.activeProfileTab);
     this.updateHashURL();
@@ -2224,8 +2226,9 @@ class ProductList extends HTMLElement {
       this.injectOrdersDashboardList();
       this.attachOrdersDashboardListeners();
 
-    } else if (this.currentPage === 'product-details') {
-      const p = this.products.find(item => item.id === this.currentProductId) || this.products[0];
+    } else if (this.currentPage === 'product-details' || this.currentPage === 'pdp') {
+      const p = this.products.find(item => item.id === Number(this.currentProductId)) || this.products[0];
+      updateProductMetaTags(p);
       
       const colorsMap = {
         Keyboards: [
