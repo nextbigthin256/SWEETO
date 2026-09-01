@@ -1,6 +1,6 @@
 import { formatPrice, getStorageItem, saveStorageItem } from '../../utils/storage.js';
 import { showConfirmModal, showPromptModal } from '../../utils/modal.js';
-import { deleteProductPermanentlyFromSupabase, deleteMultipleProductsPermanentlyFromSupabase } from '../../utils/supabase.js';
+import { deleteProductPermanentlyFromSupabase, deleteMultipleProductsPermanentlyFromSupabase, saveSingleProductToSupabase } from '../../utils/supabase.js';
 import { getCategorySchema } from '../../data/productFieldsConfig.js';
 import defaultSections from '../../data/sections.js';
 import { shareProduct } from '../../utils/share.js';
@@ -2108,6 +2108,11 @@ export function attachAdminProductsListeners(context, shadow) {
         }).catch(() => {});
 
         window.dispatchEvent(new CustomEvent('toast:show', { detail: `✨ New product "${name}" published! Push notification sent to customers. 🔔` }));
+      }
+
+      const currentProd = context.editingProduct || context.products[0];
+      if (currentProd) {
+        saveSingleProductToSupabase(currentProd);
       }
 
       context.saveDatabase('products');

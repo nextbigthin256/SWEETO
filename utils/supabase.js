@@ -79,6 +79,78 @@ export async function fetchProductsFromSupabase() {
   }
 }
 
+export async function saveSingleProductToSupabase(product) {
+  try {
+    if (!supabase || !product) return false;
+
+    // 1. Convert base64 image if needed
+    let finalImg = product.image;
+    if (finalImg && typeof finalImg === 'string' && finalImg.startsWith('data:')) {
+      const cloudUrl = await uploadBase64OrFileToSupabase(finalImg, `prod_${product.id || Date.now()}.png`);
+      if (cloudUrl) finalImg = cloudUrl;
+    }
+
+    const processed = { ...product, image: finalImg };
+
+    // 2. Sync to site_settings cloud JSON fallback (sweetos_cloud_products)
+    try {
+      const existingList = (await fetchSiteSettingFromSupabase('sweetos_cloud_products')) || [];
+      const listArray = Array.isArray(existingList) ? existingList : [];
+      const idx = listArray.findIndex(p => p && String(p.id) === String(product.id));
+      if (idx !== -1) {
+        listArray[idx] = processed;
+      } else {
+        listArray.unshift(processed);
+      }
+      await saveSiteSettingInSupabase('sweetos_cloud_products', listArray);
+    } catch (e) {
+      console.warn('[Supabase Cloud] Single product fallback save warning:', e);
+    }
+
+    // 3. Upsert into public.products table
+    const legId = typeof product.id === 'number' ? product.id : (parseInt(product.id) || Date.now());
+    const pName = product.name || 'Product';
+    const pSlug = product.slug || (pName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + legId);
+
+    const record = {
+      legacy_id: legId,
+      name: pName,
+      slug: pSlug,
+      description: product.description || '',
+      price: parseFloat(product.price) || 0,
+      original_price: product.originalPrice || product.comparePrice ? parseFloat(product.originalPrice || product.comparePrice) : null,
+      category_name: product.category || '',
+      subcategory_name: product.subcategory || '',
+      brand_name: product.brand || '',
+      image: finalImg || '',
+      gallery: product.gallery || [],
+      colors: product.colors || [],
+      specs: product.specs || {},
+      stock: product.stock ?? 10,
+      in_stock: product.inStock ?? (product.stock > 0),
+      is_bestseller: product.isBestseller || product.isBestSeller || false,
+      is_hot_deal: product.isHotDeal || false,
+      is_new: product.isNew ?? true,
+      rating: product.rating || 5.0,
+      reviews_count: product.reviews || 0
+    };
+
+    const { error } = await supabase.from('products').upsert(record, { onConflict: 'legacy_id' });
+    if (error) {
+      console.error(`[Supabase Cloud] Error saving product '${pName}' (id:${legId}) to Postgres:`, error.message, error);
+      window.dispatchEvent(new CustomEvent('toast:show', { detail: `⚠️ Warning: Cloud sync notice for product "${pName}": ${error.message}` }));
+      return false;
+    }
+
+    console.log(`[Supabase Cloud] Product '${pName}' saved to Supabase successfully!`);
+    window.dispatchEvent(new CustomEvent('toast:show', { detail: `☁️ Product "${pName}" saved to Supabase Cloud!` }));
+    return true;
+  } catch (err) {
+    console.error('[Supabase Cloud] saveSingleProductToSupabase error:', err);
+    return false;
+  }
+}
+
 export async function syncProductsToSupabase(productsList) {
   try {
     if (!supabase || !Array.isArray(productsList)) return false;
@@ -114,8 +186,8 @@ export async function syncProductsToSupabase(productsList) {
         specs: p.specs || {},
         stock: p.stock ?? 10,
         in_stock: p.inStock ?? (p.stock > 0),
-        is_bestseller: p.isBestseller ?? false,
-        is_hot_deal: p.isHotDeal ?? false,
+        is_bestseller: p.isBestseller || p.isBestSeller || false,
+        is_hot_deal: p.isHotDeal || false,
         is_new: p.isNew ?? true,
         rating: p.rating || 5.0,
         reviews_count: p.reviews || 0
@@ -123,7 +195,16 @@ export async function syncProductsToSupabase(productsList) {
     });
 
     const { error } = await supabase.from('products').upsert(records, { onConflict: 'legacy_id' });
-    if (!error) {
+    if (error) {
+      console.warn('[Supabase Cloud] Products batch upsert notice:', error.message, error);
+      // Fallback: upsert item by item so individual records complete
+      for (const rec of records) {
+        const { error: itemErr } = await supabase.from('products').upsert(rec, { onConflict: 'legacy_id' });
+        if (itemErr) {
+          console.error(`[Supabase Cloud] Single product upsert error for '${rec.name}':`, itemErr.message);
+        }
+      }
+    } else {
       console.log('[Supabase Cloud] Products synced across devices successfully!');
     }
     return true;
