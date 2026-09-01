@@ -18,6 +18,19 @@ function safeParseArray(raw) {
   return Array.isArray(p) ? p : [];
 }
 
+function getSecArray(p) {
+  if (!p || !p.homepageSections) return [];
+  let sec = p.homepageSections;
+  if (typeof sec === 'string') { try { sec = JSON.parse(sec); } catch(e) {} }
+  if (typeof sec === 'string') {
+    return sec.split(',').map(s => String(s).trim().toLowerCase());
+  }
+  if (Array.isArray(sec)) {
+    return sec.map(s => String(s).trim().toLowerCase());
+  }
+  return [];
+}
+
 class ProductList extends HTMLElement {
   constructor() {
     super();
@@ -889,15 +902,14 @@ class ProductList extends HTMLElement {
     } catch(err) {}
 
     // Reload products database to reflect Admin changes dynamically
-    const storedProds = sessionStorage.getItem('SWEETOS_products');
-    if (storedProds) {
-      try {
-        this.products = JSON.parse(storedProds);
-        const hasMigrated = this.initializeHomepageSectionsForProducts(this.products);
-        if (hasMigrated) {
-          sessionStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
-        }
-      } catch (e) {}
+    const storedProds = getStorageItem('SWEETOS_products');
+    const reloaded = safeParseArray(storedProds);
+    if (reloaded.length > 0) {
+      this.products = reloaded;
+      const hasMigrated = this.initializeHomepageSectionsForProducts(this.products);
+      if (hasMigrated) {
+        saveStorageItem('SWEETOS_products', this.products);
+      }
     }
 
     const isLoggedIn = sessionStorage.getItem('SWEETOS_logged_in_user') !== null;
@@ -2701,10 +2713,11 @@ class ProductList extends HTMLElement {
       // Check if any product has explicitly been assigned to this section
       const assignedProducts = this.products.filter(p => {
         if (!p) return false;
-        if (Array.isArray(p.homepageSections) && p.homepageSections.length > 0) {
-          return p.homepageSections.includes(s.id) || p.homepageSections.includes(s.type) || p.homepageSections.includes(s.name);
-        }
-        return false;
+        const sec = getSecArray(p);
+        const sId = String(s.id || '').toLowerCase();
+        const sType = String(s.type || '').toLowerCase();
+        const sName = String(s.name || '').toLowerCase();
+        return sec.some(val => val === sId || val === sType || val === sName);
       });
       const hasAssigned = assignedProducts.length > 0;
 
@@ -3697,8 +3710,9 @@ class ProductList extends HTMLElement {
     const deals = all.filter(p => {
       if (!p) return false;
       const b = String(p.badge || '').toUpperCase();
-      const sec = Array.isArray(p.homepageSections) ? p.homepageSections : [];
-      return sec.includes('sec-deals') || sec.includes('deals') ||
+      const sec = getSecArray(p);
+      const isAssigned = sec.some(s => s === 'sec-deals' || s === 'deals' || s === 'hot deals' || s.includes('deal'));
+      return isAssigned ||
              b.includes('DEAL') || b.includes('SALE') || b.includes('HOT') ||
              (p.comparePrice && parseFloat(p.comparePrice) > parseFloat(p.price)) ||
              (p.originalPrice && parseFloat(p.originalPrice) > parseFloat(p.price));
@@ -3708,8 +3722,9 @@ class ProductList extends HTMLElement {
     const newArrivals = all.filter(p => {
       if (!p) return false;
       const b = String(p.badge || '').toUpperCase();
-      const sec = Array.isArray(p.homepageSections) ? p.homepageSections : [];
-      return sec.includes('sec-new') || sec.includes('new-arrivals') ||
+      const sec = getSecArray(p);
+      const isAssigned = sec.some(s => s === 'sec-new' || s === 'new-arrivals' || s === 'new arrivals' || s.includes('new'));
+      return isAssigned ||
              p.isNew === true || b.includes('NEW') || b.includes('FRESH') || b.includes('ARRIV');
     });
 
@@ -3717,8 +3732,9 @@ class ProductList extends HTMLElement {
     const bestSellers = all.filter(p => {
       if (!p) return false;
       const b = String(p.badge || '').toUpperCase();
-      const sec = Array.isArray(p.homepageSections) ? p.homepageSections : [];
-      return sec.includes('sec-best') || sec.includes('best-sellers') ||
+      const sec = getSecArray(p);
+      const isAssigned = sec.some(s => s === 'sec-best' || s === 'best-sellers' || s === 'best sellers' || s.includes('best'));
+      return isAssigned ||
              p.isBestseller === true ||
              b.includes('BEST') || b.includes('TOP') || b.includes('POPULAR');
     });
