@@ -618,6 +618,14 @@ export function attachAdminSectionsListeners(context, shadow) {
 
         if (confirmed) {
           context.homepageSections = (context.homepageSections || []).filter(s => s.id !== id);
+          if (Array.isArray(context.products)) {
+            context.products.forEach(p => {
+              if (Array.isArray(p.homepageSections)) {
+                p.homepageSections = p.homepageSections.filter(secId => secId !== id && secId !== sec.name && secId !== sec.type);
+              }
+            });
+            context.saveDatabase('products');
+          }
           context.saveDatabase('sections');
           window.dispatchEvent(new CustomEvent('toast:show', { detail: `Deleted section "${sec.name}".` }));
           context.render();

@@ -717,14 +717,12 @@ class AdminPage extends HTMLElement {
         if (storedCoupons) try { this.coupons = JSON.parse(storedCoupons); } catch(e) {}
       }
 
+      const storedSections = getStorageItem('SWEETOS_homepage_sections');
       if (secs.status === 'fulfilled' && Array.isArray(secs.value) && secs.value.length > 0) {
         this.homepageSections = secs.value;
+      } else if (storedSections !== null) {
+        try { this.homepageSections = JSON.parse(storedSections); } catch(e) {}
       } else {
-        const storedSections = getStorageItem('SWEETOS_homepage_sections');
-        if (storedSections) try { this.homepageSections = JSON.parse(storedSections); } catch(e) {}
-      }
-
-      if (!Array.isArray(this.homepageSections) || this.homepageSections.length === 0) {
         this.homepageSections = [...defaultSections];
         saveStorageItem('SWEETOS_homepage_sections', this.homepageSections);
         syncSectionsToSupabase(this.homepageSections);

@@ -1103,12 +1103,12 @@ export function renderAdminProducts(context) {
                 <div class="sections-checkbox-grid" style="display:flex; flex-direction:column; gap:8px; background:#0c101b; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.08); max-height:140px; overflow-y:auto;">
                   ${(() => {
                     const secsStr = getStorageItem('SWEETOS_homepage_sections');
-                    let secs = [];
-                    if (secsStr) {
+                    let secs = null;
+                    if (secsStr !== null) {
                       try { secs = JSON.parse(secsStr); } catch(e) {}
                     }
-                    if (!Array.isArray(secs) || secs.length === 0) {
-                      secs = (context.homepageSections && context.homepageSections.length > 0) 
+                    if (!Array.isArray(secs)) {
+                      secs = (context.homepageSections && Array.isArray(context.homepageSections)) 
                         ? context.homepageSections 
                         : (defaultSections || []);
                     }
