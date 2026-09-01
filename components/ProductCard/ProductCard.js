@@ -107,6 +107,35 @@ class ProductCard extends HTMLElement {
       } catch (e) {}
     }
 
+    let realReviewsCount = 0;
+    let avgRating = 0;
+    try {
+      const allRevsStr = getStorageItem('SWEETOS_reviews_all') || getStorageItem('SWEETOS_reviews');
+      if (allRevsStr) {
+        const revs = JSON.parse(allRevsStr);
+        if (Array.isArray(revs)) {
+          const match = revs.filter(r => Number(r.productId) === Number(p.id));
+          if (match.length > 0) {
+            realReviewsCount = match.length;
+            avgRating = (match.reduce((sum, r) => sum + (Number(r.rating) || 5), 0) / match.length).toFixed(1);
+          }
+        }
+      }
+    } catch(e) {}
+
+    let ratingBadgeHtml = '';
+    if (realReviewsCount > 0) {
+      ratingBadgeHtml = `<span style="font-size:11px; font-weight:750; color:#f59e0b; background:rgba(245,158,11,0.1); padding:2px 7px; border-radius:10px;">⭐ ${avgRating} (${realReviewsCount})</span>`;
+    } else {
+      if (isOutOfStock) {
+        ratingBadgeHtml = `<span style="font-size:10.5px; font-weight:750; color:#ef4444; background:rgba(239,68,68,0.1); padding:2px 7px; border-radius:10px;">✕ Rupture</span>`;
+      } else if (hasDiscount) {
+        ratingBadgeHtml = `<span style="font-size:10.5px; font-weight:750; color:#f97316; background:rgba(249,115,22,0.1); padding:2px 7px; border-radius:10px;">🔥 Offre Flash</span>`;
+      } else {
+        ratingBadgeHtml = `<span style="font-size:10.5px; font-weight:750; color:#10b981; background:rgba(16,185,129,0.1); padding:2px 7px; border-radius:10px;">✅ En Stock</span>`;
+      }
+    }
+
     this.shadowRoot.innerHTML = `
       <div class="card glass-panel">
         <div class="image-wrapper">
@@ -141,7 +170,10 @@ class ProductCard extends HTMLElement {
         </div>
         
         <div class="card-content">
-          <div class="category-name">${p.category || 'Workspace'}</div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <div class="category-name" style="margin:0;">${p.category || 'Workspace'}</div>
+            ${ratingBadgeHtml}
+          </div>
           
           <h2 class="product-title" id="title-click">${p.name}</h2>
           

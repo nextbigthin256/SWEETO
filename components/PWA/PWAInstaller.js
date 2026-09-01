@@ -286,17 +286,31 @@ class PWAInstaller extends HTMLElement {
       return;
     }
 
-    // Android, Windows, Mac, ChromeOS install prompt handler
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault();
-      this.deferredPrompt = e;
-      if (banner) banner.style.display = 'flex';
-    });
+    // Import engagement check
+    import('../../utils/engagement.js').then(({ isUserEngaged }) => {
+      const tryShowBanner = () => {
+        if (sessionStorage.getItem('SWEETOS_pwa_dismissed')) return;
+        if (!isUserEngaged()) return;
+        if (this.deferredPrompt || (this.isIOS && !this.isStandalone)) {
+          if (banner) banner.style.display = 'flex';
+        }
+      };
 
-    // Show banner on iOS Safari if not installed
-    if (this.isIOS && !this.isStandalone) {
-      if (banner) banner.style.display = 'flex';
-    }
+      // Android, Windows, Mac, ChromeOS install prompt handler
+      window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        this.deferredPrompt = e;
+        tryShowBanner();
+      });
+
+      // Show banner on iOS Safari if engaged
+      if (this.isIOS && !this.isStandalone) {
+        tryShowBanner();
+      }
+
+      window.addEventListener('user:engaged', tryShowBanner);
+      window.addEventListener('cart:add', tryShowBanner);
+    }).catch(() => {});
 
     if (installBtn) {
       installBtn.addEventListener('click', async () => {

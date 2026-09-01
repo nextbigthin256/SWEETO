@@ -1,5 +1,5 @@
 // Service Worker for SWEETOS - Web Push Notifications & Offline Support
-const CACHE_NAME = 'sweetos-v2';
+const CACHE_NAME = 'sweetos-v3';
 const OFFLINE_URL = '/index.html';
 
 // Install - Cache essential static assets

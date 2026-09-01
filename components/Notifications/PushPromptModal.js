@@ -1,5 +1,5 @@
-// components/Notifications/PushPromptModal.js - Auto-Prompt & Recurring 1-Min Notification Modal
 import { subscribeToWebPush, getPushSubscription } from '../../utils/pushNotifications.js';
+import { isUserEngaged } from '../../utils/engagement.js';
 
 class PushPromptModal extends HTMLElement {
   constructor() {
@@ -242,29 +242,28 @@ class PushPromptModal extends HTMLElement {
   async initAutoPushCycle() {
     if (!('Notification' in window)) return;
 
-    // If user already granted permission and is subscribed, exit loop!
     if (Notification.permission === 'granted') {
       const sub = await getPushSubscription();
       if (sub) return;
     }
 
-    // 1. Immediate browser native prompt on site entry (1.5 seconds after load)
-    setTimeout(async () => {
-      if (Notification.permission === 'default' && !this.initialPromptDone) {
-        this.initialPromptDone = true;
-        try {
-          const perm = await Notification.requestPermission();
-          if (perm === 'granted') {
-            await subscribeToWebPush();
-            window.dispatchEvent(new CustomEvent('toast:show', { detail: '🔔 Notifications enabled successfully!' }));
-            return; // Subscribed! Stop recurring prompt.
-          }
-        } catch(e) {}
-      }
+    // Only prompt if user is ALREADY engaged (browsed >= 3 pages or added item to cart)
+    if (isUserEngaged()) {
+      this.triggerEngagedPrompt();
+    }
+  }
 
-      // 2. If not granted, schedule first beautiful modal popout after 45 seconds
-      this.scheduleModalPopout(45000);
-    }, 1500);
+  async triggerEngagedPrompt() {
+    if (this.initialPromptDone || sessionStorage.getItem('SWEETOS_push_dismissed')) return;
+    if (Notification.permission === 'granted') {
+      const sub = await getPushSubscription();
+      if (sub) return;
+    }
+    
+    this.initialPromptDone = true;
+    setTimeout(() => {
+      this.showModal();
+    }, 1200);
   }
 
   scheduleModalPopout(delayMs = 60000) {
@@ -302,6 +301,13 @@ class PushPromptModal extends HTMLElement {
     const acceptBtn = shadow.getElementById('acceptPushBtn');
     const declineBtn = shadow.getElementById('declinePushBtn');
     const backdrop = shadow.getElementById('pushBackdrop');
+
+    // Listen for user engagement (cart addition or 3+ page views)
+    this._engagedHandler = () => {
+      this.triggerEngagedPrompt();
+    };
+    window.addEventListener('user:engaged', this._engagedHandler);
+    window.addEventListener('cart:add', this._engagedHandler);
 
     if (acceptBtn) {
       acceptBtn.addEventListener('click', async () => {

@@ -29,9 +29,7 @@ class Footer extends HTMLElement {
   }
 
   updateVisibility() {
-    const hash = window.location.hash || '#/';
-    const isHome = hash === '' || hash === '#' || hash === '#/' || hash === '#/home';
-    this.style.display = isHome ? 'none' : 'block';
+    this.style.display = 'block';
   }
 
   render() {
@@ -49,23 +47,23 @@ class Footer extends HTMLElement {
               </svg>
               <span class="logo-text">${sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS'}</span>
             </a>
-            <p class="brand-desc">${sessionStorage.getItem('SWEETOS_store_desc') || 'High-precision minimalist desk accessories curated for developers, designers, and creators.'}</p>
+            <p class="brand-desc">${sessionStorage.getItem('SWEETOS_store_desc') || 'Boutique officielle d\'équipements tech, accessoires de bureau et composants haut de gamme.'}</p>
           </div>
           
           <div class="footer-links">
             <div class="link-group">
-              <h4>Collection</h4>
-              <a href="#" data-category="Keyboards">Keyboards</a>
-              <a href="#" data-category="Audio">Audio</a>
-              <a href="#" data-category="Lighting">Lighting</a>
-              <a href="#" data-category="Desks">Desks</a>
+              <h4>Navigation & Univers</h4>
+              <a href="#/catalog" data-page="catalog">🎮 Tout le Catalogue</a>
+              <a href="#/todays-deals" data-page="todays-deals">🔥 Ventes Flash</a>
+              <a href="#/coupons" data-page="coupons">🎟️ Offres & Coupons</a>
             </div>
             
             <div class="link-group footer-support-links">
-              <h4>Support</h4>
-              <a href="#/contact" data-page="contact">Contact Us</a>
-              <a href="#/refund" data-page="refund">Shipping & Refund FAQ</a>
-              <a href="#/terms" data-page="terms">Terms & Conditions</a>
+              <h4>Confiance & Service Client</h4>
+              <a href="#/contact" data-page="contact">💬 Service Client / Contact</a>
+              <a href="#/refund" data-page="refund">🔄 Politique de Retour & Remboursement</a>
+              <a href="#/terms" data-page="terms">📜 Conditions Générales de Vente (CGV)</a>
+              <a href="#/orders" data-page="orders">📦 Suivi de Commande & Livraison</a>
             </div>
           </div>
           

@@ -8,6 +8,7 @@ import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, ge
 import { CUSTOMER_LEVELS, VERIFIED_BADGES, renderVerificationBadge, renderLevelPill, getCustomerLevel, getCustomerBadge, getBadgeRewardCoupon, getCustomerAvatarStyle, renderLevelChevronV, scratchBadgeReward, isBadgeRewardScratched } from '../../utils/badges.js';
 import { getTodaysDealsConfig, isTodaysDealsActive, getTimeRemaining, awardMysteryBoxForDeliveredOrder, getTodaysDealsTheme, DEAL_BANNER_THEMES } from '../../utils/todaysDeals.js';
 import { getMoreToLoveConfig } from '../../utils/moreToLove.js';
+import { incrementPageView } from '../../utils/engagement.js';
 import '../Admin/AdminPage.js';
 
 function safeParseArray(raw) {
@@ -885,6 +886,7 @@ class ProductList extends HTMLElement {
 
   renderPageContent() {
     window.scrollTo(0, 0);
+    try { incrementPageView(); } catch(e) {}
     
     // Log user activity
     let pageLabel = this.currentPage;
@@ -2355,11 +2357,23 @@ class ProductList extends HTMLElement {
               <div class="buybox" id="pdpBuybox">
                 <div class="eyebrow">${p.brand || 'SWEETO'} · ${p.category}</div>
                 <h1 class="pname">${p.name}</h1>
-                <div class="rate-row">
-                  <span class="stars">${this.getPdpStarsSvg(averageRating, 15)}</span>
-                  <b>${averageRating}</b>
-                  <a href="#pdpReviewsSection" id="pdpReviewJumpLink">${totalReviewsCount} reviews</a>
-                </div>
+                ${totalReviewsCount > 0 ? `
+                  <div class="rate-row">
+                    <span class="stars">${this.getPdpStarsSvg(averageRating, 15)}</span>
+                    <b>${averageRating}</b>
+                    <a href="#pdpReviewsSection" id="pdpReviewJumpLink">${totalReviewsCount} avis clients</a>
+                  </div>
+                ` : `
+                  <div class="rate-row" style="margin: 8px 0 14px 0;">
+                    <span style="display:inline-flex; align-items:center; gap:6px; font-size:12px; font-weight:750; color:#10b981; background:rgba(16,185,129,0.08); padding:4px 12px; border-radius:20px; border:1px solid rgba(16,185,129,0.2);">
+                      <span>✅ En Stock</span>
+                      <span>•</span>
+                      <span>⚡ Expédition 24h</span>
+                      <span>•</span>
+                      <span>🛡️ Garantie Authentique</span>
+                    </span>
+                  </div>
+                `}
                 <div class="price-row">
                   <span class="price" id="pdpFinalPriceDisplay">${formatPrice(totalPrice)}</span>
                   ${savingsVal > 0 ? `
