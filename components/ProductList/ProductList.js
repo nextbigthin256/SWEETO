@@ -3706,6 +3706,9 @@ class ProductList extends HTMLElement {
     const all = this.products || [];
     if (all.length === 0) return { deals: [], newArrivals: [], bestSellers: [] };
 
+    const maxId = Math.max(...all.map(p => p.id || 0));
+    const recentThresholdId = Math.max(1, maxId - 12);
+
     // 1. Hot Deals: explicit section assigned, sale badge, or discount price
     const deals = all.filter(p => {
       if (!p) return false;
@@ -3713,29 +3716,29 @@ class ProductList extends HTMLElement {
       const sec = getSecArray(p);
       const isAssigned = sec.some(s => s === 'sec-deals' || s === 'deals' || s === 'hot deals' || s.includes('deal'));
       return isAssigned ||
-             b.includes('DEAL') || b.includes('SALE') || b.includes('HOT') ||
+             b.includes('DEAL') || b.includes('SALE') || b.includes('HOT') || b.includes('OFF') ||
              (p.comparePrice && parseFloat(p.comparePrice) > parseFloat(p.price)) ||
              (p.originalPrice && parseFloat(p.originalPrice) > parseFloat(p.price));
     });
 
-    // 2. New Arrivals: explicit section assigned or NEW badge
+    // 2. New Arrivals: explicit section assigned, NEW badge, or recently created product
     const newArrivals = all.filter(p => {
       if (!p) return false;
       const b = String(p.badge || '').toUpperCase();
       const sec = getSecArray(p);
       const isAssigned = sec.some(s => s === 'sec-new' || s === 'new-arrivals' || s === 'new arrivals' || s.includes('new'));
-      return isAssigned ||
-             p.isNew === true || b.includes('NEW') || b.includes('FRESH') || b.includes('ARRIV');
+      const isRecent = Boolean(p.id && p.id >= recentThresholdId);
+      return isAssigned || isRecent || p.isNew === true || b.includes('NEW') || b.includes('FRESH') || b.includes('ARRIV');
     });
 
-    // 3. Best Sellers: explicit section assigned, isBestseller flag, or BEST/POPULAR badge
+    // 3. Best Sellers: explicit section assigned, isBestseller flag, rating >= 4.5, or BEST/POPULAR badge
     const bestSellers = all.filter(p => {
       if (!p) return false;
       const b = String(p.badge || '').toUpperCase();
       const sec = getSecArray(p);
       const isAssigned = sec.some(s => s === 'sec-best' || s === 'best-sellers' || s === 'best sellers' || s.includes('best'));
       return isAssigned ||
-             p.isBestseller === true ||
+             p.isBestseller === true || (p.rating && parseFloat(p.rating) >= 4.5) ||
              b.includes('BEST') || b.includes('TOP') || b.includes('POPULAR');
     });
 
