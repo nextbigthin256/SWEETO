@@ -2,7 +2,6 @@ import { formatPrice, getStorageItem } from '../../utils/storage.js';
 import { loadStyles } from '../../utils/cssLoader.js';
 import { productCardCSS } from './ProductCard.styles.js';
 import { getInitialLanguage, getText } from '../../utils/language.js';
-import { shareProduct } from '../../utils/share.js';
 
 class ProductCard extends HTMLElement {
   constructor() {
@@ -157,9 +156,6 @@ class ProductCard extends HTMLElement {
             <button class="action-btn-mini" id="quick-view-btn" title="${lang === 'fr' ? 'Aperçu rapide' : 'Quick view'}">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
             </button>
-            <button class="action-btn-mini" id="share-card-btn" title="${lang === 'fr' ? 'Partager' : 'Share'}">
-              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-            </button>
           </div>
         </div>
         
@@ -215,16 +211,6 @@ class ProductCard extends HTMLElement {
       });
     }
 
-    const shareCardBtn = shadow.getElementById('share-card-btn');
-    if (shareCardBtn) {
-      shareCardBtn.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        if (p) {
-          await shareProduct(p);
-        }
-      });
-    }
-
     const updateCardWishlistState = (wishlist) => {
       const isCurrentlyWishlisted = wishlist.some(item => item.id === p.id);
       if (wishBtn) {
@@ -254,7 +240,7 @@ class ProductCard extends HTMLElement {
     if (titleClick) titleClick.addEventListener('click', triggerViewDetails);
     if (cardEl) {
       cardEl.addEventListener('click', (e) => {
-        if (e.target.closest('#add-to-cart-btn') || e.target.closest('#quick-view-btn') || e.target.closest('#wishlist-add-btn') || e.target.closest('#share-card-btn')) {
+        if (e.target.closest('#add-to-cart-btn') || e.target.closest('#quick-view-btn') || e.target.closest('#wishlist-add-btn')) {
           return;
         }
         triggerViewDetails(e);

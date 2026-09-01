@@ -2,14 +2,6 @@
   "version": 2,
   "rewrites": [
     {
-      "source": "/share",
-      "destination": "/api/share"
-    },
-    {
-      "source": "/product-image",
-      "destination": "/api/product-image"
-    },
-    {
       "source": "/((?!api/|sw\\.js|manifest\\.json|.*\\.(js|css|json|svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot)).*)",
       "destination": "/index.html"
     }
