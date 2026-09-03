@@ -1,4 +1,5 @@
 // components/Admin/AdminShare.js - Storefront Share & High-Res QR Code Generator
+import { shareProduct } from '../../utils/share.js';
 
 export function renderAdminShare(context) {
   const storeUrl = window.location.origin + window.location.pathname;
@@ -425,13 +426,11 @@ export function attachAdminShareListeners(context, shadow) {
   // Share Product on WhatsApp
   const prodWaBtn = shadow.getElementById('shareProdWaBtn');
   if (prodWaBtn && prodSelect) {
-    prodWaBtn.addEventListener('click', () => {
+    prodWaBtn.addEventListener('click', async () => {
       const pId = parseInt(prodSelect.value);
       const selectedProd = productsList.find(p => p.id === pId) || productsList[0];
       if (selectedProd) {
-        const prodUrl = `${storeUrl}#/?product=${selectedProd.id}`;
-        const msg = `🔥 Check out "${selectedProd.name}" on SWEETOS!\nPrice: ${selectedProd.price ? selectedProd.price + ' FCFA' : ''}\nLink: ${prodUrl}`;
-        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+        await shareProduct(selectedProd);
       }
     });
   }

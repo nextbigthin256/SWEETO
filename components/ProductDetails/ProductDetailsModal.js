@@ -1,4 +1,5 @@
 import { formatPrice } from '../../utils/storage.js';
+import { shareProduct } from '../../utils/share.js';
 
 class ProductDetailsModal extends HTMLElement {
   constructor() {
@@ -103,6 +104,15 @@ class ProductDetailsModal extends HTMLElement {
                     <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
                   </svg>
                 </button>
+                <button class="share-details-btn" id="details-share-btn" style="background: rgba(0, 82, 204, 0.05); color: #0052cc; border: 1.5px solid rgba(0, 82, 204, 0.15); width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" title="Share Product">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; flex-shrink: 0;">
+                    <circle cx="18" cy="5" r="3"></circle>
+                    <circle cx="6" cy="12" r="3"></circle>
+                    <circle cx="18" cy="19" r="3"></circle>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                    <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                  </svg>
+                </button>
               </div>
             </div>
           </div>
@@ -141,6 +151,16 @@ class ProductDetailsModal extends HTMLElement {
         window.dispatchEvent(new CustomEvent('cart:add', { detail: this.product }));
         this.isOpen = false;
         this.updateState();
+      });
+    }
+
+    // Product details share btn
+    const shareBtn = shadow.getElementById('details-share-btn');
+    if (shareBtn) {
+      shareBtn.addEventListener('click', async () => {
+        if (this.product) {
+          await shareProduct(this.product);
+        }
       });
     }
 

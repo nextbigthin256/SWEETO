@@ -428,6 +428,121 @@ const server = http.createServer((req, res) => {
     return;
   }
 
+  // 2h. API: GET /api/product-image or /product-image (Binary image endpoint)
+  if (req.method === 'GET' && (reqUrl.pathname === '/api/product-image' || reqUrl.pathname === '/product-image')) {
+    try {
+      const productId = parseInt(reqUrl.searchParams.get('id') || reqUrl.searchParams.get('product') || reqUrl.searchParams.get('p') || '1');
+      const productsPath = path.join(__dirname, 'data', 'products.js');
+      fs.readFile(productsPath, 'utf8', (err, content) => {
+        let rawProduct = null;
+        if (!err && content) {
+          const startIdx = content.indexOf('[');
+          const endIdx = content.lastIndexOf(']');
+          if (startIdx !== -1 && endIdx !== -1) {
+            try {
+              const list = JSON.parse(content.substring(startIdx, endIdx + 1));
+              rawProduct = list.find(p => p.id === productId) || list[0];
+            } catch (e) {}
+          }
+        }
+
+        if (rawProduct && rawProduct.image && typeof rawProduct.image === 'string' && rawProduct.image.startsWith('data:image/')) {
+          const parts = rawProduct.image.split(',');
+          const meta = parts[0];
+          const base64Data = parts[1];
+          let mimeType = 'image/jpeg';
+          if (meta.includes('image/png')) mimeType = 'image/png';
+          else if (meta.includes('image/webp')) mimeType = 'image/webp';
+
+          const imgBuffer = Buffer.from(base64Data, 'base64');
+          res.writeHead(200, {
+            'Content-Type': mimeType,
+            'Content-Length': imgBuffer.length,
+            'Cache-Control': 'public, max-age=86400'
+          });
+          res.end(imgBuffer);
+          return;
+        }
+
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Image Not Found');
+      });
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end('Server Error');
+    }
+    return;
+  }
+
+  // 2i. API: GET /api/share or /share (Dynamic Open Graph Preview)
+  if (req.method === 'GET' && (reqUrl.pathname === '/api/share' || reqUrl.pathname === '/share')) {
+    try {
+      const productId = parseInt(reqUrl.searchParams.get('product') || reqUrl.searchParams.get('id') || reqUrl.searchParams.get('p') || '1');
+      const productsPath = path.join(__dirname, 'data', 'products.js');
+      fs.readFile(productsPath, 'utf8', (err, content) => {
+        let rawProduct = null;
+        if (!err && content) {
+          const startIdx = content.indexOf('[');
+          const endIdx = content.lastIndexOf(']');
+          if (startIdx !== -1 && endIdx !== -1) {
+            try {
+              const list = JSON.parse(content.substring(startIdx, endIdx + 1));
+              rawProduct = list.find(p => p.id === productId) || list[0];
+            } catch (e) {}
+          }
+        }
+
+        if (!rawProduct) {
+          rawProduct = { id: productId, name: 'SWEETOS Product', price: 0, image: '/assets/sweetos_logo.svg' };
+        }
+
+        const host = req.headers.host || 'localhost:8080';
+        const protocol = req.headers['x-forwarded-proto'] || 'http';
+        const baseUrl = `${protocol}://${host}`;
+
+        const imageUrl = `${baseUrl}/api/product-image?id=${rawProduct.id}`;
+        const priceText = rawProduct.price ? `${rawProduct.price.toLocaleString('fr-FR')} FCFA` : '';
+        const targetUrl = `${baseUrl}/#/?product=${rawProduct.id}`;
+        const shareUrl = `${baseUrl}/api/share?product=${rawProduct.id}`;
+        const desc = `${rawProduct.name}. ${priceText}. High-tech & workspace gear available on SWEETOS.`;
+        const userAgent = (req.headers['user-agent'] || '').toLowerCase();
+        const isBot = /bot|facebookexternalhit|whatsapp|twitterbot|telegrambot|slackbot|discordbot|linkedinbot|embedly|quora link preview|showyouhave|outbrain|pinterest/i.test(userAgent);
+
+        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+        res.end(`<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>${rawProduct.name} - ${priceText} | SWEETOS</title>
+  <meta name="description" content="${desc}">
+  <meta property="og:type" content="product">
+  <meta property="og:site_name" content="SWEETOS">
+  <meta property="og:title" content="${rawProduct.name} - ${priceText} | SWEETOS">
+  <meta property="og:description" content="${desc}">
+  <meta property="og:image" content="${imageUrl}">
+  <meta property="og:image:secure_url" content="${imageUrl}">
+  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:url" content="${shareUrl}">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="${rawProduct.name} - ${priceText} | SWEETOS">
+  <meta name="twitter:description" content="${desc}">
+  <meta name="twitter:image" content="${imageUrl}">
+  ${!isBot ? `<script>window.location.replace("${targetUrl}");</script><meta http-equiv="refresh" content="0;url=${targetUrl}">` : ''}
+</head>
+<body>
+  <p>Redirection vers <a href="${targetUrl}">${rawProduct.name}</a>...</p>
+</body>
+</html>`);
+      });
+    } catch (e) {
+      res.writeHead(500, { 'Content-Type': 'text/plain' });
+      res.end('Server Error');
+    }
+    return;
+  }
+
   // 3. Static File Server with SPA Fallback
   let filePath = path.join(__dirname, req.url === '/' ? 'index.html' : req.url.split('?')[0]);
   

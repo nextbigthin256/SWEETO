@@ -2,6 +2,7 @@ import { formatPrice, getStorageItem } from '../../utils/storage.js';
 import { loadStyles } from '../../utils/cssLoader.js';
 import { productCardCSS } from './ProductCard.styles.js';
 import { getInitialLanguage, getText } from '../../utils/language.js';
+import { shareProduct } from '../../utils/share.js';
 
 class ProductCard extends HTMLElement {
   constructor() {
@@ -132,7 +133,7 @@ class ProductCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <div class="card glass-panel">
         <div class="image-wrapper">
-          <img src="${p.image || ''}" alt="${p.name}" class="card-image" loading="lazy" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'300\' viewBox=\'0 0 300 300\'><rect width=\'100%\' height=\'100%\' fill=\'%231e293b\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%2394a3b8\' font-family=\'sans-serif\' font-size=\'14\'>📦 Image Unavailable</text></svg>';">
+          <img src="${p.image}" alt="${p.name}" class="card-image" loading="lazy">
           
           ${isOutOfStock ? `
             <span class="category-badge out-of-stock">
@@ -155,6 +156,9 @@ class ProductCard extends HTMLElement {
           <div class="overlay-side-actions">
             <button class="action-btn-mini" id="quick-view-btn" title="${lang === 'fr' ? 'Aperçu rapide' : 'Quick view'}">
               <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+            </button>
+            <button class="action-btn-mini" id="share-card-btn" title="${lang === 'fr' ? 'Partager' : 'Share'}">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
             </button>
           </div>
         </div>
@@ -211,6 +215,16 @@ class ProductCard extends HTMLElement {
       });
     }
 
+    const shareCardBtn = shadow.getElementById('share-card-btn');
+    if (shareCardBtn) {
+      shareCardBtn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (p) {
+          await shareProduct(p);
+        }
+      });
+    }
+
     const updateCardWishlistState = (wishlist) => {
       const isCurrentlyWishlisted = wishlist.some(item => item.id === p.id);
       if (wishBtn) {
@@ -240,7 +254,7 @@ class ProductCard extends HTMLElement {
     if (titleClick) titleClick.addEventListener('click', triggerViewDetails);
     if (cardEl) {
       cardEl.addEventListener('click', (e) => {
-        if (e.target.closest('#add-to-cart-btn') || e.target.closest('#quick-view-btn') || e.target.closest('#wishlist-add-btn')) {
+        if (e.target.closest('#add-to-cart-btn') || e.target.closest('#quick-view-btn') || e.target.closest('#wishlist-add-btn') || e.target.closest('#share-card-btn')) {
           return;
         }
         triggerViewDetails(e);

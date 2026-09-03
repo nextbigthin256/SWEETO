@@ -84,16 +84,13 @@ class Header extends HTMLElement {
     let userOrders = [];
     try {
       const allOrders = getAllOrdersFromStorage();
-      if (Array.isArray(allOrders)) {
-        userOrders = allOrders.filter(o => {
-          if (!o) return false;
-          const oEmail = (o.customerEmail || o.email || o.userEmail || '').toLowerCase().trim();
-          return oEmail === currentEmail && (o.status || '').toLowerCase() !== 'deleted';
-        });
-      }
+      userOrders = allOrders.filter(o => {
+        const oEmail = (o.customerEmail || o.email || o.userEmail || '').toLowerCase().trim();
+        return oEmail === currentEmail && (o.status || '').toLowerCase() !== 'deleted';
+      });
     } catch(e) {}
 
-    const totalSpent = Array.isArray(userOrders) ? userOrders.filter(o => o && (o.status || '').toLowerCase() !== 'cancelled').reduce((sum, o) => sum + (parseFloat(o?.total) || 0), 0) : 0;
+    const totalSpent = userOrders.filter(o => (o.status || '').toLowerCase() !== 'cancelled').reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
 
     const calculatedLevelObj = getCustomerLevel(totalSpent);
     const effectiveLevel = (hasAdminLevelOverride && profile?.level) ? profile.level : calculatedLevelObj.id;
@@ -103,7 +100,7 @@ class Header extends HTMLElement {
     const profileSaved = sessionStorage.getItem('SWEETOS_user_profile');
     const badgeHtml = renderVerificationBadge(effectiveBadge, 14);
 
-    const avatarData = getCustomerAvatarStyle(profile || { totalSpent, level: effectiveLevel }, 36);
+    const avatarData = getCustomerAvatarStyle(profile, effectiveLevel);
     const initials = (fullName || 'U').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
     const avatarStyle = avatarData.style;
 

@@ -69,7 +69,6 @@ export async function fetchProductsFromSupabase() {
 
     const formatted = Array.from(productMap.values());
     if (formatted.length > 0) {
-      saveStorageItem('SWEETOS_products', formatted);
       sessionStorage.setItem('SWEETOS_products', JSON.stringify(formatted));
       return formatted;
     }
@@ -77,80 +76,6 @@ export async function fetchProductsFromSupabase() {
   } catch (err) {
     console.error('[Supabase] fetchProducts error:', err);
     return null;
-  }
-}
-
-export async function saveSingleProductToSupabase(product) {
-  try {
-    if (!supabase || !product) return false;
-
-    // 1. Convert base64 image if needed
-    let finalImg = product.image;
-    if (finalImg && typeof finalImg === 'string' && finalImg.startsWith('data:')) {
-      const cloudUrl = await uploadBase64OrFileToSupabase(finalImg, `prod_${product.id || Date.now()}.png`);
-      if (cloudUrl && cloudUrl.startsWith('http')) {
-        finalImg = cloudUrl;
-      } else {
-        // Fallback for un-uploaded base64 string to keep payload small
-        finalImg = './assets/keyboard.jpg';
-      }
-    }
-
-    const processed = { ...product, image: finalImg };
-
-    // 2. Sync to site_settings cloud JSON fallback (sweetos_cloud_products)
-    try {
-      const existingList = (await fetchSiteSettingFromSupabase('sweetos_cloud_products')) || [];
-      const listArray = Array.isArray(existingList) ? existingList : [];
-      const idx = listArray.findIndex(p => p && String(p.id) === String(product.id));
-      if (idx !== -1) {
-        listArray[idx] = processed;
-      } else {
-        listArray.unshift(processed);
-      }
-      await saveSiteSettingInSupabase('sweetos_cloud_products', listArray);
-    } catch (e) {
-      console.warn('[Supabase Cloud] Single product fallback save warning:', e);
-    }
-
-    // 3. Upsert into public.products table
-    const legId = typeof product.id === 'number' ? product.id : (parseInt(product.id) || Date.now());
-    const pName = product.name || 'Product';
-    const cleanSlugBase = (pName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'prod');
-    const pSlug = `${cleanSlugBase}-${legId}`;
-
-    const record = {
-      legacy_id: legId,
-      name: pName,
-      slug: pSlug,
-      description: product.description || '',
-      price: parseFloat(product.price) || 0,
-      original_price: product.originalPrice || product.comparePrice ? parseFloat(product.originalPrice || product.comparePrice) : null,
-      category_name: product.category || '',
-      subcategory_name: product.subcategory || '',
-      brand_name: product.brand || '',
-      image: finalImg || '',
-      gallery: product.gallery || [],
-      colors: product.colors || [],
-      specs: product.specs || {},
-      stock: product.stock ?? 10,
-      in_stock: product.inStock ?? (product.stock > 0),
-      is_bestseller: product.isBestseller || product.isBestSeller || false,
-      is_hot_deal: product.isHotDeal || false,
-      is_new: product.isNew ?? true,
-      rating: product.rating || 5.0,
-      reviews_count: product.reviews || 0
-    };
-
-    const { error } = await supabase.from('products').upsert(record, { onConflict: 'legacy_id' });
-    if (error) {
-      console.error('[Supabase Cloud] saveSingleProductToSupabase error:', error.message);
-      return false;
-    }
-    return true;
-  } catch (err) {
-    console.error('[Supabase Cloud] saveSingleProductToSupabase error:', err);
-    return false;
   }
 }
 
@@ -162,22 +87,17 @@ export async function syncProductsToSupabase(productsList) {
       let finalImg = p.image;
       if (finalImg && typeof finalImg === 'string' && finalImg.startsWith('data:')) {
         const cloudUrl = await uploadBase64OrFileToSupabase(finalImg, `prod_${p.id || Date.now()}.png`);
-        if (cloudUrl && cloudUrl.startsWith('http')) {
-          finalImg = cloudUrl;
-        } else {
-          finalImg = './assets/keyboard.jpg';
-        }
+        if (cloudUrl) finalImg = cloudUrl;
       }
       return { ...p, image: finalImg };
     }));
 
     await saveSiteSettingInSupabase('sweetos_cloud_products', processedProducts);
 
-    const records = processedProducts.map((p, idx) => {
-      const legId = typeof p.id === 'number' ? p.id : (parseInt(p.id) || (Date.now() + idx));
+    const records = processedProducts.map(p => {
+      const legId = typeof p.id === 'number' ? p.id : (parseInt(p.id) || Date.now());
       const pName = p.name || 'Product';
-      const cleanSlugBase = (pName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'prod');
-      const pSlug = `${cleanSlugBase}-${legId}`;
+      const pSlug = p.slug || (pName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + legId);
       return {
         legacy_id: legId,
         name: pName,
@@ -194,8 +114,8 @@ export async function syncProductsToSupabase(productsList) {
         specs: p.specs || {},
         stock: p.stock ?? 10,
         in_stock: p.inStock ?? (p.stock > 0),
-        is_bestseller: p.isBestseller || p.isBestSeller || false,
-        is_hot_deal: p.isHotDeal || false,
+        is_bestseller: p.isBestseller ?? false,
+        is_hot_deal: p.isHotDeal ?? false,
         is_new: p.isNew ?? true,
         rating: p.rating || 5.0,
         reviews_count: p.reviews || 0
@@ -203,22 +123,9 @@ export async function syncProductsToSupabase(productsList) {
     });
 
     const { error } = await supabase.from('products').upsert(records, { onConflict: 'legacy_id' });
-    if (error) {
-      console.warn('[Supabase Cloud] Products batch upsert notice:', error.message, error);
-      // Fallback: upsert item by item so individual records complete
-      for (const rec of records) {
-        const { error: itemErr } = await supabase.from('products').upsert(rec, { onConflict: 'legacy_id' });
-        if (itemErr) {
-          console.error(`[Supabase Cloud] Single product upsert error for '${rec.name}':`, itemErr.message);
-        }
-      }
-    } else {
+    if (!error) {
       console.log('[Supabase Cloud] Products synced across devices successfully!');
     }
-
-    saveStorageItem('SWEETOS_products', processedProducts);
-    sessionStorage.setItem('SWEETOS_products', JSON.stringify(processedProducts));
-    window.dispatchEvent(new CustomEvent('products:updated', { detail: processedProducts }));
     return true;
   } catch (err) {
     console.error('[Supabase Cloud] syncProducts error:', err);
@@ -414,7 +321,6 @@ export async function fetchCategoriesFromSupabase() {
 
     const cats = Array.from(catMap.values());
     if (cats.length > 0) {
-      saveStorageItem('SWEETOS_categories', cats);
       sessionStorage.setItem('SWEETOS_categories', JSON.stringify(cats));
       return cats;
     }
@@ -477,7 +383,6 @@ export async function fetchBrandsFromSupabase() {
 
     const brands = Array.from(brandMap.values());
     if (brands.length > 0) {
-      saveStorageItem('SWEETOS_brands', brands);
       sessionStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
       return brands;
     }
@@ -895,7 +800,6 @@ export function subscribeToGlobalRealtimeSync() {
                 const prev = sessionStorage.getItem('SWEETOS_products');
                 const curr = JSON.stringify(updated);
                 if (prev !== curr) {
-                  saveStorageItem('SWEETOS_products', updated);
                   sessionStorage.setItem('SWEETOS_products', curr);
                   window.dispatchEvent(new CustomEvent('products:updated', { detail: updated }));
                 }
@@ -908,7 +812,6 @@ export function subscribeToGlobalRealtimeSync() {
                 const prev = sessionStorage.getItem('SWEETOS_categories');
                 const curr = JSON.stringify(updated);
                 if (prev !== curr) {
-                  saveStorageItem('SWEETOS_categories', updated);
                   sessionStorage.setItem('SWEETOS_categories', curr);
                   window.dispatchEvent(new CustomEvent('categories:updated', { detail: updated }));
                 }
@@ -921,7 +824,6 @@ export function subscribeToGlobalRealtimeSync() {
                 const prev = sessionStorage.getItem('SWEETOS_brands');
                 const curr = JSON.stringify(updated);
                 if (prev !== curr) {
-                  saveStorageItem('SWEETOS_brands', updated);
                   sessionStorage.setItem('SWEETOS_brands', curr);
                   window.dispatchEvent(new CustomEvent('brands:updated', { detail: updated }));
                 }
@@ -934,7 +836,6 @@ export function subscribeToGlobalRealtimeSync() {
                 const prev = sessionStorage.getItem('SWEETOS_all_orders');
                 const curr = JSON.stringify(updated);
                 if (prev !== curr) {
-                  saveAllOrdersToStorage(updated);
                   sessionStorage.setItem('SWEETOS_all_orders', curr);
                   window.dispatchEvent(new CustomEvent('orders:updated', { detail: updated }));
                 }
@@ -1612,23 +1513,10 @@ export async function uploadBase64OrFileToSupabase(input, fileName = null) {
 // 11. SITE SETTINGS & ENTITY CLOUD PERSISTENCE
 // ==========================================
 
-export async function testSupabaseConnection() {
-  try {
-    if (!supabase) return { ok: false, error: 'Supabase client not initialized' };
-    const { data, error } = await supabase.from('site_settings').select('key').limit(1);
-    console.log('[Supabase] Connection test:', { data, error });
-    return { ok: !error, error: error ? error.message : null, data };
-  } catch(e) {
-    console.error('[Supabase] Connection test failed:', e);
-    return { ok: false, error: e.message };
-  }
-}
-
 export async function saveSiteSettingInSupabase(key, value) {
   try {
     if (!supabase || !key) return false;
     const strVal = typeof value === 'string' ? value : JSON.stringify(value);
-    console.log('[Supabase] Attempting to save:', { key, dataPreview: strVal.substring(0, 100) });
     const { error } = await supabase
       .from('site_settings')
       .upsert({ key, value: strVal, updated_at: new Date().toISOString() }, { onConflict: 'key' });
@@ -1636,8 +1524,6 @@ export async function saveSiteSettingInSupabase(key, value) {
     if (!error) {
       console.log(`[Supabase Cloud] site_setting '${key}' updated successfully.`);
       return true;
-    } else {
-      console.error(`[Supabase Cloud] saveSiteSetting error for '${key}':`, error);
     }
   } catch (err) {
     console.error(`[Supabase Cloud] saveSiteSetting error for '${key}':`, err);
