@@ -3063,17 +3063,14 @@ class ProductList extends HTMLElement {
 
   initializeHomepageSectionsForProducts(productsArray) {
     let migrated = false;
+    if (!Array.isArray(productsArray)) return migrated;
     productsArray.forEach(p => {
-      if (!p.homepageSections) {
-        p.homepageSections = [];
-        const hotDealsIds = [5, 14, 28, 40];
-        const bestSellersIds = [1, 13, 26, 39];
-        if (hotDealsIds.includes(p.id)) p.homepageSections.push('sec-deals');
-        if (bestSellersIds.includes(p.id)) p.homepageSections.push('sec-best');
-        if (p.id >= 47 && p.id <= 50) p.homepageSections.push('sec-new');
-        if (p.name.toLowerCase().startsWith('apple')) p.homepageSections.push('sec-1');
-        if (p.category === 'Keyboards') p.homepageSections.push('sec-2');
-        if (p.category === 'Audio') p.homepageSections.push('sec-3');
+      if (!p) return;
+      if (!p.homepageSections || !Array.isArray(p.homepageSections) || p.homepageSections.length === 0) {
+        p.homepageSections = ['sec-new', 'sec-best'];
+        if (p.comparePrice && parseFloat(p.comparePrice) > parseFloat(p.price)) {
+          p.homepageSections.push('sec-deals');
+        }
         migrated = true;
       }
     });
