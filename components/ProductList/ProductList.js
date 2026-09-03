@@ -8600,6 +8600,20 @@ class ProductList extends HTMLElement {
 customElements.define('product-list', ProductList);
 export default ProductList;
 
+// Expose for testing
+if (typeof window !== 'undefined') {
+  window.refreshProducts = async () => {
+    const pl = document.querySelector('product-list');
+    if (pl) {
+      console.log('🔄 [Window] Refreshing products from Supabase...');
+      await pl.loadFromSupabase();
+      console.log('✅ [Window] Products refreshed!');
+    } else {
+      console.warn('⚠️ [Window] product-list not found');
+    }
+  };
+}
+
 // Global styled receipt generator for storefront
 function printOrderReceipt(order) {
   const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
