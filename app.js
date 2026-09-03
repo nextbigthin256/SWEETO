@@ -28,6 +28,30 @@ import './components/Footer/Footer.js';
 import './components/PWA/PWAInstaller.js';
 import './components/Notifications/PushPromptModal.js';
 
+// Expose global refreshProducts for testing
+window.refreshProducts = async () => {
+  console.log('🔄 [Window] Refreshing products from Supabase...');
+  try {
+    const { fetchProductsFromSupabase } = await import('./utils/supabase.js');
+    const products = await fetchProductsFromSupabase();
+    const pl = document.querySelector('product-list');
+    if (pl) {
+      if (typeof pl.loadFromSupabase === 'function') {
+        await pl.loadFromSupabase();
+      } else if (products && products.length > 0) {
+        pl.products = products;
+        pl.renderPageContent();
+      }
+      console.log('✅ [Window] Products refreshed! Count:', pl.products ? pl.products.length : (products ? products.length : 0));
+    } else {
+      console.log('✅ [Window] Supabase products fetched:', products ? products.length : 0);
+    }
+    return products;
+  } catch (e) {
+    console.error('❌ [Window] refreshProducts error:', e);
+  }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
   // Initialize Supabase Live Backend Sync & Storage Sync Engine
   initSupabaseSync();

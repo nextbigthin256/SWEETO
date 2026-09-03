@@ -29,7 +29,26 @@ function getSecArray(p) {
   if (Array.isArray(sec)) {
     return sec.map(s => String(s).trim().toLowerCase());
   }
-  return [];
+if (typeof window !== 'undefined') {
+  window.refreshProducts = async () => {
+    const pl = document.querySelector('product-list');
+    if (pl) {
+      console.log('🔄 [Window] Refreshing products from Supabase...');
+      if (typeof pl.loadFromSupabase === 'function') {
+        await pl.loadFromSupabase();
+      } else {
+        const { fetchProductsFromSupabase } = await import('../../utils/supabase.js');
+        const products = await fetchProductsFromSupabase();
+        if (products) {
+          pl.products = products;
+          pl.renderPageContent();
+        }
+      }
+      console.log('✅ [Window] Products refreshed!');
+    } else {
+      console.warn('⚠️ [Window] product-list element not found in DOM yet');
+    }
+  };
 }
 
 class ProductList extends HTMLElement {
