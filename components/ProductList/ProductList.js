@@ -613,14 +613,52 @@ class ProductList extends HTMLElement {
     } catch(e) {}
   }
 
+  getCategories() {
+    let cats = safeParseArray(getStorageItem('SWEETOS_categories'));
+    if (!Array.isArray(cats) || cats.length === 0) {
+      const prodCatSet = new Set((this.products || []).map(p => p.category).filter(c => c && c !== 'undefined' && c !== 'null'));
+      
+      const themeConfig = {
+        'computer & it': { icon: '💻', tag: 'Laptops & IT', desc: 'Computers and workstation accessories' },
+        'keyboards': { icon: '⌨️', tag: 'Pro Typing & Custom', desc: 'Mechanical switches & wireless boards' },
+        'audio': { icon: '🎧', tag: 'Son Haute Fidélité', desc: 'Studio headphones, earbuds & DACs' },
+        'lighting': { icon: '💡', tag: 'Ambiance Studio RGB', desc: 'Screen lamps & lightbars' },
+        'desks': { icon: '🪵', tag: 'Organisation & Bois Noble', desc: 'Oak monitor stands & desk mats' }
+      };
+
+      const catList = Array.from(prodCatSet);
+      ['computer & it', 'Keyboards', 'Audio', 'Lighting', 'Desks'].forEach(dCat => {
+        if (!catList.some(c => c.toLowerCase() === dCat.toLowerCase())) {
+          catList.push(dCat);
+        }
+      });
+
+      cats = catList.map((catName, idx) => {
+        const key = catName.toLowerCase().trim();
+        const conf = themeConfig[key] || { icon: '📁', tag: 'Tech Collection', desc: `Explore premium ${catName}` };
+        return {
+          id: idx + 1,
+          name: catName,
+          slug: catName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          icon: conf.icon,
+          tag: conf.tag,
+          description: conf.desc,
+          featured: true,
+          parent: null,
+          count: (this.products || []).filter(p => this.isProductInCategory(p, catName)).length
+        };
+      });
+
+      saveStorageItem('SWEETOS_categories', cats);
+    }
+    return cats;
+  }
+
   // --- Category & Subcategory Hierarchy Methods ---
   getCategoryAndSubcategoryNames(targetCatName) {
     if (!targetCatName || targetCatName === 'All') return null; // null means matches all
     
-    let categories = [];
-    try {
-      categories = JSON.parse(getStorageItem('SWEETOS_categories') || '[]');
-    } catch(e) {}
+    let categories = this.getCategories();
     
     const targetLower = String(targetCatName).trim().toLowerCase();
     
@@ -1054,7 +1092,7 @@ class ProductList extends HTMLElement {
 
               <div class="home-category-row custom-scroll" id="home-category-row">
                 ${(() => {
-                  const storedCats = JSON.parse(getStorageItem('SWEETOS_categories') || '[]');
+                  const storedCats = this.getCategories();
                   const themeMap = {
                     "Keyboards": {
                       bg: "linear-gradient(145deg, #0b1528 0%, #1e3a8a 100%)",
@@ -1430,7 +1468,7 @@ class ProductList extends HTMLElement {
       const isSearchActive = Boolean(this.currentQuery && this.currentQuery.trim() !== '');
 
       // Hierarchical dynamic breadcrumbs
-      const allCatsList = JSON.parse(getStorageItem('SWEETOS_categories') || '[]');
+      const allCatsList = this.getCategories();
       const activeCatObj = allCatsList.find(c => c && (
         String(c.name || '').trim().toLowerCase() === String(this.currentCategory).trim().toLowerCase() ||
         String(c.id) === String(this.currentCategory)
@@ -3185,7 +3223,7 @@ class ProductList extends HTMLElement {
     const banner = this.shadowRoot.getElementById('category-hero-banner-container');
     if (!banner) return;
 
-    const allCats = JSON.parse(getStorageItem('SWEETOS_categories') || '[]');
+    const allCats = this.getCategories();
     const isAll = !this.currentCategory || this.currentCategory === 'All';
 
     // Matching products for this category (including subcategories)
@@ -3342,7 +3380,7 @@ class ProductList extends HTMLElement {
     const container = this.shadowRoot.getElementById('category-smart-pills-row');
     if (!container) return;
 
-    const allCats = JSON.parse(getStorageItem('SWEETOS_categories') || '[]');
+    const allCats = this.getCategories();
     const isAll = !this.currentCategory || this.currentCategory === 'All';
 
     // Find current category object
@@ -3494,7 +3532,7 @@ class ProductList extends HTMLElement {
 
     if (isAllView) {
       // Group by top-level parent categories
-      const storedCats = JSON.parse(getStorageItem('SWEETOS_categories') || '[]');
+      const storedCats = this.getCategories();
       const parentCats = storedCats.filter(c => c && !c.parent);
       const catList = parentCats.length > 0 ? parentCats : storedCats;
 
