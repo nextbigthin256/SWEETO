@@ -69,6 +69,7 @@ export async function fetchProductsFromSupabase() {
 
     const formatted = Array.from(productMap.values());
     if (formatted.length > 0) {
+      saveStorageItem('SWEETOS_products', formatted);
       sessionStorage.setItem('SWEETOS_products', JSON.stringify(formatted));
       return formatted;
     }
@@ -207,6 +208,10 @@ export async function syncProductsToSupabase(productsList) {
     } else {
       console.log('[Supabase Cloud] Products synced across devices successfully!');
     }
+
+    saveStorageItem('SWEETOS_products', processedProducts);
+    sessionStorage.setItem('SWEETOS_products', JSON.stringify(processedProducts));
+    window.dispatchEvent(new CustomEvent('products:updated', { detail: processedProducts }));
     return true;
   } catch (err) {
     console.error('[Supabase Cloud] syncProducts error:', err);
@@ -402,6 +407,7 @@ export async function fetchCategoriesFromSupabase() {
 
     const cats = Array.from(catMap.values());
     if (cats.length > 0) {
+      saveStorageItem('SWEETOS_categories', cats);
       sessionStorage.setItem('SWEETOS_categories', JSON.stringify(cats));
       return cats;
     }
@@ -464,6 +470,7 @@ export async function fetchBrandsFromSupabase() {
 
     const brands = Array.from(brandMap.values());
     if (brands.length > 0) {
+      saveStorageItem('SWEETOS_brands', brands);
       sessionStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
       return brands;
     }
@@ -881,6 +888,7 @@ export function subscribeToGlobalRealtimeSync() {
                 const prev = sessionStorage.getItem('SWEETOS_products');
                 const curr = JSON.stringify(updated);
                 if (prev !== curr) {
+                  saveStorageItem('SWEETOS_products', updated);
                   sessionStorage.setItem('SWEETOS_products', curr);
                   window.dispatchEvent(new CustomEvent('products:updated', { detail: updated }));
                 }
@@ -893,6 +901,7 @@ export function subscribeToGlobalRealtimeSync() {
                 const prev = sessionStorage.getItem('SWEETOS_categories');
                 const curr = JSON.stringify(updated);
                 if (prev !== curr) {
+                  saveStorageItem('SWEETOS_categories', updated);
                   sessionStorage.setItem('SWEETOS_categories', curr);
                   window.dispatchEvent(new CustomEvent('categories:updated', { detail: updated }));
                 }
@@ -905,6 +914,7 @@ export function subscribeToGlobalRealtimeSync() {
                 const prev = sessionStorage.getItem('SWEETOS_brands');
                 const curr = JSON.stringify(updated);
                 if (prev !== curr) {
+                  saveStorageItem('SWEETOS_brands', updated);
                   sessionStorage.setItem('SWEETOS_brands', curr);
                   window.dispatchEvent(new CustomEvent('brands:updated', { detail: updated }));
                 }
@@ -917,6 +927,7 @@ export function subscribeToGlobalRealtimeSync() {
                 const prev = sessionStorage.getItem('SWEETOS_all_orders');
                 const curr = JSON.stringify(updated);
                 if (prev !== curr) {
+                  saveAllOrdersToStorage(updated);
                   sessionStorage.setItem('SWEETOS_all_orders', curr);
                   window.dispatchEvent(new CustomEvent('orders:updated', { detail: updated }));
                 }

@@ -226,16 +226,19 @@ class ProductList extends HTMLElement {
           fetchBrandsFromSupabase()
         ]);
         let needsReRender = false;
-        if (cloudProds.status === 'fulfilled' && Array.isArray(cloudProds.value)) {
+        if (cloudProds.status === 'fulfilled' && Array.isArray(cloudProds.value) && cloudProds.value.length > 0) {
           this.products = cloudProds.value;
+          saveStorageItem('SWEETOS_products', this.products);
           sessionStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
           needsReRender = true;
         }
-        if (cloudCats.status === 'fulfilled' && Array.isArray(cloudCats.value)) {
+        if (cloudCats.status === 'fulfilled' && Array.isArray(cloudCats.value) && cloudCats.value.length > 0) {
+          saveStorageItem('SWEETOS_categories', cloudCats.value);
           sessionStorage.setItem('SWEETOS_categories', JSON.stringify(cloudCats.value));
           needsReRender = true;
         }
-        if (cloudBrands.status === 'fulfilled' && Array.isArray(cloudBrands.value)) {
+        if (cloudBrands.status === 'fulfilled' && Array.isArray(cloudBrands.value) && cloudBrands.value.length > 0) {
+          saveStorageItem('SWEETOS_brands', cloudBrands.value);
           sessionStorage.setItem('SWEETOS_brands', JSON.stringify(cloudBrands.value));
           needsReRender = true;
         }
@@ -307,12 +310,23 @@ class ProductList extends HTMLElement {
     this._productsUpdatedHandler = (e) => {
       try {
         const prevJson = JSON.stringify(this.products || []);
-        const stored = getStorageItem('SWEETOS_products');
-        if (stored) {
-          this.products = JSON.parse(stored);
-        } else if (e.detail && Array.isArray(e.detail)) {
-          this.products = e.detail;
+        let updatedProducts = null;
+
+        if (e && e.detail && Array.isArray(e.detail) && e.detail.length > 0) {
+          updatedProducts = e.detail;
+        } else {
+          const stored = getStorageItem('SWEETOS_products');
+          if (stored) {
+            updatedProducts = typeof stored === 'string' ? JSON.parse(stored) : stored;
+          }
         }
+
+        if (Array.isArray(updatedProducts) && updatedProducts.length > 0) {
+          this.products = updatedProducts;
+          saveStorageItem('SWEETOS_products', updatedProducts);
+          sessionStorage.setItem('SWEETOS_products', JSON.stringify(updatedProducts));
+        }
+
         const newJson = JSON.stringify(this.products || []);
         if (prevJson !== newJson) {
           this.renderPageContent();
