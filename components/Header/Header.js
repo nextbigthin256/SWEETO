@@ -84,13 +84,16 @@ class Header extends HTMLElement {
     let userOrders = [];
     try {
       const allOrders = getAllOrdersFromStorage();
-      userOrders = allOrders.filter(o => {
-        const oEmail = (o.customerEmail || o.email || o.userEmail || '').toLowerCase().trim();
-        return oEmail === currentEmail && (o.status || '').toLowerCase() !== 'deleted';
-      });
+      if (Array.isArray(allOrders)) {
+        userOrders = allOrders.filter(o => {
+          if (!o) return false;
+          const oEmail = (o.customerEmail || o.email || o.userEmail || '').toLowerCase().trim();
+          return oEmail === currentEmail && (o.status || '').toLowerCase() !== 'deleted';
+        });
+      }
     } catch(e) {}
 
-    const totalSpent = userOrders.filter(o => (o.status || '').toLowerCase() !== 'cancelled').reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+    const totalSpent = Array.isArray(userOrders) ? userOrders.filter(o => o && (o.status || '').toLowerCase() !== 'cancelled').reduce((sum, o) => sum + (parseFloat(o?.total) || 0), 0) : 0;
 
     const calculatedLevelObj = getCustomerLevel(totalSpent);
     const effectiveLevel = (hasAdminLevelOverride && profile?.level) ? profile.level : calculatedLevelObj.id;

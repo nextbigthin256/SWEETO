@@ -112,13 +112,14 @@ export function getCustomerLevelGradient(levelKeyOrObject) {
 }
 
 export function getCustomerAvatarStyle(profile, size = 88) {
-  const safeProfile = (profile && typeof profile === 'object') ? profile : {};
-  const totalSpent = (safeProfile.orders && Array.isArray(safeProfile.orders)) 
-    ? safeProfile.orders.filter(o => o && o.status !== 'Cancelled').reduce((sum, o) => sum + (parseFloat(o.total || o.total_amount || o.price) || 0), 0) 
+  const safeProfile = (profile && typeof profile === 'object' && !Array.isArray(profile)) ? profile : {};
+  const orders = Array.isArray(safeProfile.orders) ? safeProfile.orders : [];
+  const totalSpent = orders.length > 0 
+    ? orders.filter(o => o && o.status !== 'Cancelled').reduce((sum, o) => sum + (parseFloat(o?.total || o?.total_amount || o?.price) || 0), 0) 
     : (parseFloat(safeProfile.totalSpent || safeProfile.total_spent) || 0);
 
   const level = getCustomerLevel(totalSpent, safeProfile.level);
-  const color = level.color || '#64748b';
+  const color = level?.color || '#64748b';
   const gradient = getCustomerLevelGradient(level);
   const numericSize = typeof size === 'number' ? size : (parseInt(size) || 88);
   const borderSize = numericSize > 60 ? '3.5px' : (numericSize > 30 ? '2px' : '1.5px');
