@@ -84,6 +84,15 @@ export function saveStorageItem(key, val) {
 }
 
 export function getStorageItem(key) {
+  // For products, always try Supabase first
+  if (key === 'SWEETOS_products') {
+    // Return cached version, but Supabase will override
+    try {
+      return localStorage.getItem(key);
+    } catch(e) {}
+    return null;
+  }
+  
   try {
     const localVal = localStorage.getItem(key);
     if (localVal !== null) return localVal;
@@ -91,6 +100,24 @@ export function getStorageItem(key) {
   try {
     return sessionStorage.getItem(key);
   } catch(e) {}
+  return null;
+}
+
+// ===== NEW: Force reload from Supabase =====
+export async function forceReloadProducts() {
+  console.log('🔄 [Storage] Force reloading products from Supabase...');
+  try {
+    const { fetchProductsFromSupabase } = await import('./supabase.js');
+    const products = await fetchProductsFromSupabase();
+    if (products && products.length > 0) {
+      saveStorageItem('SWEETOS_products', products);
+      sessionStorage.setItem('SWEETOS_products', JSON.stringify(products));
+      console.log('✅ [Storage] Products reloaded:', products.length);
+      return products;
+    }
+  } catch (e) {
+    console.error('❌ [Storage] Failed to reload products:', e);
+  }
   return null;
 }
 

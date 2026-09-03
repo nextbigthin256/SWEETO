@@ -1,4 +1,3 @@
-import products from '../../data/products.js';
 import defaultSections from '../../data/sections.js';
 import { showEditAddressModal } from '../Modals/EditAddressModal.js';
 import { showCancelOrderModal } from '../Modals/CancelOrderModal.js';
@@ -38,8 +37,8 @@ class ProductList extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     
-    // Initialize products database from storage to enable Admin Panel synchronization
-    let loadedProducts = null;
+    // Initialize products database from storage (will load from Supabase)
+    let loadedProducts = [];
     try {
       const storedProds = getStorageItem('SWEETOS_products');
       const parsed = safeParseArray(storedProds);
@@ -48,13 +47,11 @@ class ProductList extends HTMLElement {
       }
     } catch (e) {}
 
-    if (!loadedProducts || loadedProducts.length === 0) {
-      loadedProducts = products;
-      this.initializeHomepageSectionsForProducts(loadedProducts);
-      saveStorageItem('SWEETOS_products', loadedProducts);
-    }
-
     this.products = loadedProducts;
+    this.isLoading = !loadedProducts || loadedProducts.length === 0;
+
+    // Load from Supabase immediately
+    this.loadFromSupabase();
 
     // Auto-sanitize all product categories and names
     if (Array.isArray(this.products)) {
@@ -214,46 +211,151 @@ class ProductList extends HTMLElement {
     }
   }
 
-  connectedCallback() {
-    this.parseHashRoute();
-
-    // Fetch from Supabase Cloud on startup
-    import('../../utils/supabase.js').then(async ({ fetchProductsFromSupabase, fetchCategoriesFromSupabase, fetchBrandsFromSupabase }) => {
+  // ===== NEW: Load from Supabase =====
+  async loadFromSupabase() {
+    try {
+      console.log('☁️ [ProductList] Loading from Supabase...');
+      
+      // Import Supabase functions
+      const { 
+        fetchProductsFromSupabase, 
+        fetchCategoriesFromSupabase, 
+        fetchBrandsFromSupabase,
+        subscribeToGlobalRealtimeSync 
+      } = await import('../../utils/supabase.js');
+      
+      // Fetch all data in parallel
+      const [products, categories, brands] = await Promise.all([
+        fetchProductsFromSupabase(),
+        fetchCategoriesFromSupabase(),
+        fetchBrandsFromSupabase()
+      ]);
+      
+      // ===== SET PRODUCTS =====
+      if (products && products.length > 0) {
+        this.products = products;
+        console.log('✅ [ProductList] Loaded from Supabase:', this.products.length);
+        
+        // Cache in storage
+        saveStorageItem('SWEETOS_products', this.products);
+        sessionStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
+      } else {
+        console.log('📭 [ProductList] No products in Supabase');
+        this.products = [];
+        // Try fallback to localStorage
+        const cached = getStorageItem('SWEETOS_products');
+        if (cached) {
+          try {
+            this.products = typeof cached === 'string' ? JSON.parse(cached) : cached;
+            console.log('📦 [ProductList] Fallback to cached products:', this.products.length);
+          } catch(e) {}
+        }
+      }
+      
+      // ===== SET CATEGORIES =====
+      if (categories && categories.length > 0) {
+        this.categories = categories;
+        saveStorageItem('SWEETOS_categories', categories);
+        sessionStorage.setItem('SWEETOS_categories', JSON.stringify(categories));
+        console.log('✅ [ProductList] Categories loaded:', this.categories.length);
+      }
+      
+      // ===== SET BRANDS =====
+      if (brands && brands.length > 0) {
+        this.brands = brands;
+        saveStorageItem('SWEETOS_brands', brands);
+        sessionStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
+        console.log('✅ [ProductList] Brands loaded:', this.brands.length);
+      }
+      
+      this.isLoading = false;
+      
+      // ===== RENDER =====
+      this.render();
+      this.renderPageContent();
+      this.setupEventListeners();
+      
+      // ===== SETUP REALTIME =====
       try {
-        const [cloudProds, cloudCats, cloudBrands] = await Promise.allSettled([
-          fetchProductsFromSupabase(),
-          fetchCategoriesFromSupabase(),
-          fetchBrandsFromSupabase()
-        ]);
-        let needsReRender = false;
-        if (cloudProds.status === 'fulfilled' && Array.isArray(cloudProds.value) && cloudProds.value.length > 0) {
-          this.products = cloudProds.value;
-          saveStorageItem('SWEETOS_products', this.products);
-          sessionStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
-          needsReRender = true;
-        }
-        if (cloudCats.status === 'fulfilled' && Array.isArray(cloudCats.value) && cloudCats.value.length > 0) {
-          saveStorageItem('SWEETOS_categories', cloudCats.value);
-          sessionStorage.setItem('SWEETOS_categories', JSON.stringify(cloudCats.value));
-          needsReRender = true;
-        }
-        if (cloudBrands.status === 'fulfilled' && Array.isArray(cloudBrands.value) && cloudBrands.value.length > 0) {
-          saveStorageItem('SWEETOS_brands', cloudBrands.value);
-          sessionStorage.setItem('SWEETOS_brands', JSON.stringify(cloudBrands.value));
-          needsReRender = true;
-        }
-        if (needsReRender) {
-          this.renderPageContent();
+        if (typeof subscribeToGlobalRealtimeSync === 'function') {
+          subscribeToGlobalRealtimeSync();
         }
       } catch(e) {}
-    }).catch(() => {});
+      this.setupRealtimeSubscription();
+      
+    } catch (error) {
+      console.error('❌ [ProductList] Supabase load error:', error);
+      this.isLoading = false;
+      
+      // Emergency fallback: try localStorage
+      const cached = getStorageItem('SWEETOS_products');
+      if (cached) {
+        try {
+          this.products = typeof cached === 'string' ? JSON.parse(cached) : cached;
+          console.log('🔄 [ProductList] Emergency fallback to localStorage:', this.products.length);
+          this.render();
+          this.renderPageContent();
+          this.setupEventListeners();
+        } catch(e) {}
+      }
+    }
+  }
 
-    // Check if product ID is passed in URL query params (e.g. from share button)
+  async loadProductsFromSupabase() {
+    return await this.loadFromSupabase();
+  }
+
+  // ===== NEW: Realtime Subscription =====
+  setupRealtimeSubscription() {
+    import('../../utils/supabase.js').then(({ supabase }) => {
+      if (!supabase) return;
+      
+      // Clean up existing channel
+      if (this._supabaseChannel) {
+        try { this._supabaseChannel.unsubscribe(); } catch(e) {}
+      }
+
+      // Subscribe to products changes
+      const channel = supabase
+        .channel('products_changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'products'
+          },
+          async (payload) => {
+            console.log('🔄 [Supabase] Products changed:', payload);
+            // Reload products when changes occur
+            await this.loadFromSupabase();
+            // Re-render
+            this.renderPageContent();
+          }
+        )
+        .subscribe((status) => {
+          console.log('📡 [Supabase] Realtime subscription status:', status);
+        });
+      
+      // Store channel for cleanup
+      this._supabaseChannel = channel;
+    }).catch(() => {});
+  }
+
+  async connectedCallback() {
+    this.parseHashRoute();
+
+    // Check if we already have products loaded
+    if (!this.products || this.products.length === 0) {
+      await this.loadFromSupabase();
+    }
+
+    // Check if product ID is passed in URL query params
     const urlParams = new URLSearchParams(window.location.search);
     const sharedProductId = urlParams.get('product');
     if (sharedProductId) {
       const pId = parseInt(sharedProductId);
-      const product = this.products.find(p => p.id === pId);
+      const product = this.products ? this.products.find(p => p.id === pId) : null;
       if (product) {
         this.currentPage = 'pdp';
         this.currentProductId = pId;
@@ -278,6 +380,20 @@ class ProductList extends HTMLElement {
         }
       }));
     });
+
+    // Listen for product updates from Supabase (realtime)
+    this.setupRealtimeSubscription();
+
+    window.refreshProducts = async () => {
+      const { forceReloadProducts } = await import('../../utils/storage.js');
+      const products = await forceReloadProducts();
+      if (products) {
+        this.products = products;
+        this.renderPageContent();
+        console.log('✅ Products refreshed from Supabase:', products.length);
+      }
+    };
+
     // Listen to cross-tab updates to sync products, categories, and brands reactively
     this._storageListener = (e) => {
       if (e.key === 'SWEETOS_products') {
@@ -420,6 +536,10 @@ class ProductList extends HTMLElement {
     if (this._productsUpdatedHandler) {
       window.removeEventListener('products:updated', this._productsUpdatedHandler);
       window.removeEventListener('supabase:ready', this._productsUpdatedHandler);
+    }
+    if (this._supabaseChannel) {
+      this._supabaseChannel.unsubscribe();
+      this._supabaseChannel = null;
     }
   }
 
@@ -939,6 +1059,35 @@ class ProductList extends HTMLElement {
   }
 
   renderPageContent() {
+    // ===== CHECK IF PRODUCTS ARE LOADED =====
+    if (!this.products || this.products.length === 0) {
+      // Show loading state
+      const contentArea = this.shadowRoot ? this.shadowRoot.getElementById('page-content') : null;
+      if (contentArea) {
+        contentArea.innerHTML = `
+          <div style="display:flex; align-items:center; justify-content:center; padding:80px 20px; flex-direction:column; gap:16px;">
+            <div style="width:40px; height:40px; border:3px solid #f0f0f0; border-top:3px solid #0052cc; border-radius:50%; animation:spin 0.8s linear infinite;"></div>
+            <p style="color:#64748b;">Loading products from Supabase...</p>
+            <style>
+              @keyframes spin {
+                to { transform: rotate(360deg); }
+              }
+            </style>
+          </div>
+        `;
+      }
+      
+      // Try to load from Supabase
+      if (!this.isLoading) {
+        this.loadFromSupabase();
+      }
+      return;
+    }
+
+    // ===== LOG PRODUCT COUNT =====
+    console.log('📊 [renderPageContent] Products:', this.products.length);
+    console.log('📦 First product:', this.products[0]?.name);
+
     window.scrollTo(0, 0);
     try { incrementPageView(); } catch(e) {}
     
