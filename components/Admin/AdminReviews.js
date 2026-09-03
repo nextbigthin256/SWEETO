@@ -333,7 +333,7 @@ export function renderAdminReviews(context) {
                 </td>
               </tr>
             ` : filtered.map(r => {
-              const prod = rawProducts.find(p => p.id === r.productId) || { name: 'Storefront Experience', image: './assets/keyboard_1786712380801.jpg' };
+              const prod = rawProducts.find(p => p.id === r.productId) || { name: 'Storefront Experience', image: './assets/keyboard.jpg' };
               const isSelected = selectedReviewIds.has(r.id);
               const isApproved = r.status === 'approved' || !r.status;
 
@@ -346,7 +346,7 @@ export function renderAdminReviews(context) {
                   <!-- Product -->
                   <td style="padding:14px 16px;">
                     <div style="display:flex; align-items:center; gap:10px;">
-                      <img src="${prod.image || './assets/keyboard_1786712380801.jpg'}" alt="${prod.name}" style="width:38px; height:38px; border-radius:8px; object-fit:cover; border:1px solid #e2e8f0; flex-shrink:0;">
+                      <img src="${prod.image || './assets/keyboard.jpg'}" alt="${prod.name}" style="width:38px; height:38px; border-radius:8px; object-fit:cover; border:1px solid #e2e8f0; flex-shrink:0;">
                       <strong style="font-size:13px; color:#0f172a; max-width:180px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
                         ${prod.name}
                       </strong>

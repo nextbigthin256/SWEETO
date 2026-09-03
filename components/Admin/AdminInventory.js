@@ -455,7 +455,7 @@ export function renderAdminInventory(context) {
                     </td>
                     <td style="padding:14px 16px;">
                       <div style="display:flex; align-items:center; gap:12px;">
-                        <img src="${p.image || './assets/keyboard_1786712380801.jpg'}" alt="${p.name}" style="width:40px; height:40px; border-radius:8px; object-fit:cover; border:1px solid #e2e8f0; flex-shrink:0;">
+                        <img src="${p.image || './assets/keyboard.jpg'}" alt="${p.name}" style="width:40px; height:40px; border-radius:8px; object-fit:cover; border:1px solid #e2e8f0; flex-shrink:0;">
                         <div style="display:flex; flex-direction:column;">
                           <strong style="font-size:13.5px; color:#0f172a;">${p.name}</strong>
                           <span style="font-size:11px; color:#64748b;">
@@ -555,7 +555,7 @@ export function renderAdminInventory(context) {
         <div class="modal-body-modern" style="padding:16px 4px;">
           ${context.stockProduct ? `
             <div style="display:flex; align-items:center; gap:12px; margin-bottom:16px; background:#0c101b; padding:12px; border-radius:10px; border:1px solid rgba(255,255,255,0.08);">
-              <img src="${context.stockProduct.image || './assets/keyboard_1786712380801.jpg'}" style="width:40px; height:40px; border-radius:8px; object-fit:cover;">
+              <img src="${context.stockProduct.image || './assets/keyboard.jpg'}" style="width:40px; height:40px; border-radius:8px; object-fit:cover;">
               <div>
                 <strong style="color:white; font-size:13.5px; display:block;">${context.stockProduct.name}</strong>
                 <code style="color:#60a5fa; font-size:11.5px;">${context.stockProduct.sku || `SKU-${context.stockProduct.id}`}</code>

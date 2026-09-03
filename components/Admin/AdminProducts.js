@@ -692,7 +692,7 @@ export function renderAdminProducts(context) {
                   <!-- Product Info -->
                   <td style="padding:14px 16px;">
                     <div style="display:flex; align-items:center; gap:12px;">
-                      <img src="${p.image || './assets/keyboard_1786712380801.jpg'}" alt="${p.name}" style="width:44px; height:44px; border-radius:10px; object-fit:cover; border:1px solid #e2e8f0; flex-shrink:0;">
+                      <img src="${p.image || './assets/keyboard.jpg'}" alt="${p.name}" style="width:44px; height:44px; border-radius:10px; object-fit:cover; border:1px solid #e2e8f0; flex-shrink:0;">
                       <div style="display:flex; flex-direction:column; max-width:260px;">
                         <a href="#" class="edit-prod-title-link" data-product-id="${p.id}" style="font-size:13.5px; font-weight:800; color:#0f172a; text-decoration:none;">
                           ${p.name}
@@ -1978,7 +1978,7 @@ export function attachAdminProductsListeners(context, shadow) {
       const description = shadow.getElementById('prod-desc').value.trim();
       const badge = shadow.getElementById('prod-badge').value.trim();
       const status = statusVal.value || 'Active';
-      const imageUrl = imgUrlVal.value || './assets/keyboard_1786712380801.jpg';
+      const imageUrl = imgUrlVal.value || './assets/keyboard.jpg';
       const hasVariants = shadow.getElementById('variants-toggle').checked;
       const checkedSections = Array.from(shadow.querySelectorAll('.product-section-checkbox:checked')).map(cb => cb.value);
       
