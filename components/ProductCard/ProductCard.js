@@ -132,7 +132,7 @@ class ProductCard extends HTMLElement {
     this.shadowRoot.innerHTML = `
       <div class="card glass-panel">
         <div class="image-wrapper">
-          <img src="${p.image}" alt="${p.name}" class="card-image" loading="lazy">
+          <img src="${p.image || ''}" alt="${p.name}" class="card-image" loading="lazy" onerror="this.onerror=null; this.src='data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' width=\'300\' height=\'300\' viewBox=\'0 0 300 300\'><rect width=\'100%\' height=\'100%\' fill=\'%231e293b\'/><text x=\'50%\' y=\'50%\' dominant-baseline=\'middle\' text-anchor=\'middle\' fill=\'%2394a3b8\' font-family=\'sans-serif\' font-size=\'14\'>📦 Image Unavailable</text></svg>';">
           
           ${isOutOfStock ? `
             <span class="category-badge out-of-stock">

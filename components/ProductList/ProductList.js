@@ -943,10 +943,28 @@ class ProductList extends HTMLElement {
       }, 50);
     }
 
+    // Force products fallback recovery if products array is empty or corrupted
+    if (!this.products || !Array.isArray(this.products) || this.products.length === 0) {
+      try {
+        const stored = safeParseArray(getStorageItem('SWEETOS_products'));
+        if (stored && stored.length > 0) {
+          this.products = stored;
+        }
+      } catch (e) {}
+
+      if (!this.products || this.products.length === 0) {
+        this.products = products;
+        saveStorageItem('SWEETOS_products', this.products);
+      }
+    }
+
+    // Ensure all products have homepageSections array initialized
+    this.initializeHomepageSectionsForProducts(this.products);
+
     // Persist current navigation state
     sessionStorage.setItem('SWEETOS_current_page', this.currentPage);
-    sessionStorage.setItem('SWEETOS_current_category', this.currentCategory);
-    sessionStorage.setItem('SWEETOS_current_query', this.currentQuery);
+    sessionStorage.setItem('SWEETOS_current_category', this.currentCategory || 'All');
+    sessionStorage.setItem('SWEETOS_current_query', this.currentQuery || '');
     sessionStorage.setItem('SWEETOS_current_brand', this.currentBrand || '');
     sessionStorage.setItem('SWEETOS_current_brand_filter', this.currentBrandFilter || 'All');
     if (this.currentProductId !== null) {
