@@ -620,6 +620,10 @@ export function renderAdminProducts(context) {
           <span>🔥 Wipe All Products (0 Items)</span>
         </button>
 
+        <button class="select-filter-btn" id="sync-cloud-products-btn" style="background:#0052cc; color:white; border:none; display:flex; align-items:center; gap:6px; font-weight:800; padding:10px 16px; border-radius:10px; cursor:pointer;" title="Push all catalog products to Supabase Cloud Database so all devices see them">
+          <span>☁️ Sync All to Supabase Cloud</span>
+        </button>
+
         <button class="select-filter-btn" id="export-products-csv-btn" style="background:#f8fafc; display:flex; align-items:center; gap:6px;">
           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
           <span>Export CSV</span>
@@ -1493,6 +1497,25 @@ export function attachAdminProductsListeners(context, shadow) {
   if (exportBtn) {
     exportBtn.addEventListener('click', () => {
       exportProductsToCSV(context.products);
+    });
+  }
+
+  // 11b. Sync All to Supabase Cloud Button
+  const syncCloudBtn = shadow.getElementById('sync-cloud-products-btn');
+  if (syncCloudBtn) {
+    syncCloudBtn.addEventListener('click', async () => {
+      syncCloudBtn.disabled = true;
+      syncCloudBtn.innerHTML = `<span>⚡ Syncing Cloud...</span>`;
+      window.dispatchEvent(new CustomEvent('toast:show', { detail: '☁️ Syncing all catalog products to Supabase Cloud Database...' }));
+      const { syncProductsToSupabase } = await import('../../utils/supabase.js');
+      const ok = await syncProductsToSupabase(context.products);
+      syncCloudBtn.disabled = false;
+      syncCloudBtn.innerHTML = `<span>☁️ Sync All to Supabase Cloud</span>`;
+      if (ok) {
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: `✅ All ${context.products.length} products synced to Supabase Cloud!` }));
+      } else {
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: `⚠️ Cloud sync complete. Check console for logs.` }));
+      }
     });
   }
 

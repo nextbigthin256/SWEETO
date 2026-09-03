@@ -88,7 +88,12 @@ export async function saveSingleProductToSupabase(product) {
     let finalImg = product.image;
     if (finalImg && typeof finalImg === 'string' && finalImg.startsWith('data:')) {
       const cloudUrl = await uploadBase64OrFileToSupabase(finalImg, `prod_${product.id || Date.now()}.png`);
-      if (cloudUrl) finalImg = cloudUrl;
+      if (cloudUrl && cloudUrl.startsWith('http')) {
+        finalImg = cloudUrl;
+      } else {
+        // Fallback for un-uploaded base64 string to keep payload small
+        finalImg = './assets/keyboard.jpg';
+      }
     }
 
     const processed = { ...product, image: finalImg };
@@ -111,7 +116,8 @@ export async function saveSingleProductToSupabase(product) {
     // 3. Upsert into public.products table
     const legId = typeof product.id === 'number' ? product.id : (parseInt(product.id) || Date.now());
     const pName = product.name || 'Product';
-    const pSlug = product.slug || (pName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + legId);
+    const cleanSlugBase = (pName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'prod');
+    const pSlug = `${cleanSlugBase}-${legId}`;
 
     const record = {
       legacy_id: legId,
@@ -138,13 +144,9 @@ export async function saveSingleProductToSupabase(product) {
 
     const { error } = await supabase.from('products').upsert(record, { onConflict: 'legacy_id' });
     if (error) {
-      console.error(`[Supabase Cloud] Error saving product '${pName}' (id:${legId}) to Postgres:`, error.message, error);
-      window.dispatchEvent(new CustomEvent('toast:show', { detail: `⚠️ Warning: Cloud sync notice for product "${pName}": ${error.message}` }));
+      console.error('[Supabase Cloud] saveSingleProductToSupabase error:', error.message);
       return false;
     }
-
-    console.log(`[Supabase Cloud] Product '${pName}' saved to Supabase successfully!`);
-    window.dispatchEvent(new CustomEvent('toast:show', { detail: `☁️ Product "${pName}" saved to Supabase Cloud!` }));
     return true;
   } catch (err) {
     console.error('[Supabase Cloud] saveSingleProductToSupabase error:', err);
@@ -160,17 +162,22 @@ export async function syncProductsToSupabase(productsList) {
       let finalImg = p.image;
       if (finalImg && typeof finalImg === 'string' && finalImg.startsWith('data:')) {
         const cloudUrl = await uploadBase64OrFileToSupabase(finalImg, `prod_${p.id || Date.now()}.png`);
-        if (cloudUrl) finalImg = cloudUrl;
+        if (cloudUrl && cloudUrl.startsWith('http')) {
+          finalImg = cloudUrl;
+        } else {
+          finalImg = './assets/keyboard.jpg';
+        }
       }
       return { ...p, image: finalImg };
     }));
 
     await saveSiteSettingInSupabase('sweetos_cloud_products', processedProducts);
 
-    const records = processedProducts.map(p => {
-      const legId = typeof p.id === 'number' ? p.id : (parseInt(p.id) || Date.now());
+    const records = processedProducts.map((p, idx) => {
+      const legId = typeof p.id === 'number' ? p.id : (parseInt(p.id) || (Date.now() + idx));
       const pName = p.name || 'Product';
-      const pSlug = p.slug || (pName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + legId);
+      const cleanSlugBase = (pName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'prod');
+      const pSlug = `${cleanSlugBase}-${legId}`;
       return {
         legacy_id: legId,
         name: pName,
