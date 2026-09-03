@@ -1612,10 +1612,23 @@ export async function uploadBase64OrFileToSupabase(input, fileName = null) {
 // 11. SITE SETTINGS & ENTITY CLOUD PERSISTENCE
 // ==========================================
 
+export async function testSupabaseConnection() {
+  try {
+    if (!supabase) return { ok: false, error: 'Supabase client not initialized' };
+    const { data, error } = await supabase.from('site_settings').select('key').limit(1);
+    console.log('[Supabase] Connection test:', { data, error });
+    return { ok: !error, error: error ? error.message : null, data };
+  } catch(e) {
+    console.error('[Supabase] Connection test failed:', e);
+    return { ok: false, error: e.message };
+  }
+}
+
 export async function saveSiteSettingInSupabase(key, value) {
   try {
     if (!supabase || !key) return false;
     const strVal = typeof value === 'string' ? value : JSON.stringify(value);
+    console.log('[Supabase] Attempting to save:', { key, dataPreview: strVal.substring(0, 100) });
     const { error } = await supabase
       .from('site_settings')
       .upsert({ key, value: strVal, updated_at: new Date().toISOString() }, { onConflict: 'key' });
@@ -1623,6 +1636,8 @@ export async function saveSiteSettingInSupabase(key, value) {
     if (!error) {
       console.log(`[Supabase Cloud] site_setting '${key}' updated successfully.`);
       return true;
+    } else {
+      console.error(`[Supabase Cloud] saveSiteSetting error for '${key}':`, error);
     }
   } catch (err) {
     console.error(`[Supabase Cloud] saveSiteSetting error for '${key}':`, err);

@@ -947,3 +947,70 @@ export async function initStorageSync() {
   await retryPendingSupabaseSyncs();
   console.log('[Storage] Initialization complete');
 }
+
+export function getSyncStatus(email) {
+  if (!email) {
+    const userJson = getStorageItem('SWEETOS_logged_in_user');
+    if (userJson) {
+      try {
+        const u = typeof userJson === 'string' ? JSON.parse(userJson) : userJson;
+        email = u.email;
+      } catch(e) {}
+    }
+  }
+  if (!email) return [];
+  
+  const safeKey = email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+  const types = ['cart', 'notifications', 'scratchcards', 'coupons', 'orders', 'profile'];
+  
+  return types.map(type => ({
+    type,
+    status: sessionStorage.getItem(`SUPABASE_SYNC_${type}_${safeKey}`) || 'unknown',
+    key: `SUPABASE_SYNC_${type}_${safeKey}`
+  }));
+}
+
+export async function forceSyncToSupabase() {
+  const userJson = getStorageItem('SWEETOS_logged_in_user');
+  if (!userJson) {
+    console.warn('[Supabase Sync] No active user logged in for forceSync');
+    return { error: 'No user logged in' };
+  }
+  
+  try {
+    const user = typeof userJson === 'string' ? JSON.parse(userJson) : userJson;
+    if (!user || !user.email) return { error: 'Invalid user session' };
+    
+    console.log('[Supabase Sync] Force syncing all data for:', user.email);
+    const safeKey = user.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+    
+    const cart = getCartFromStorage();
+    if (cart) saveCartToStorage(cart);
+    
+    const notifs = getNotificationsFromStorage(user.email);
+    if (notifs) saveNotificationsToStorage(notifs, user.email);
+    
+    const scratchKey = `SWEETOS_user_scratchcards_${safeKey}`;
+    const scratchData = getStorageItem(scratchKey);
+    if (scratchData) {
+      const parsed = typeof scratchData === 'string' ? JSON.parse(scratchData) : scratchData;
+      saveScratchcardsToStorage(parsed, user.email);
+    }
+    
+    await retryPendingSupabaseSyncs();
+    return { success: true, email: user.email, status: getSyncStatus(user.email) };
+  } catch (e) {
+    console.error('[Supabase Sync] Force sync failed:', e);
+    return { error: e.message };
+  }
+}
+
+// Expose diagnostic helpers on window
+if (typeof window !== 'undefined') {
+  window.testSupabaseConnection = async () => {
+    const { testSupabaseConnection } = await import('./supabase.js');
+    return await testSupabaseConnection();
+  };
+  window.forceSyncToSupabase = forceSyncToSupabase;
+  window.getSyncStatus = getSyncStatus;
+}
