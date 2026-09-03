@@ -687,6 +687,7 @@ class ProductList extends HTMLElement {
     // 3. Fallback partial/substring match
     if (prodCatLower && (prodCatLower.includes(targetLower) || targetLower.includes(prodCatLower))) return true;
     if (prodSubCatLower && (prodSubCatLower.includes(targetLower) || targetLower.includes(prodSubCatLower))) return true;
+    if (product.name && String(product.name).toLowerCase().includes(targetLower)) return true;
 
     return false;
   }
@@ -2908,9 +2909,10 @@ class ProductList extends HTMLElement {
     if (gridForYou) {
       gridForYou.innerHTML = '';
       if (this.products && this.products.length > 0) {
-        const batchSize = Math.min(12, this.products.length);
+        const sortedProducts = [...this.products].reverse();
+        const batchSize = Math.min(12, sortedProducts.length);
         for (let i = 0; i < batchSize; i++) {
-          const p = this.products[i % this.products.length];
+          const p = sortedProducts[i % sortedProducts.length];
           if (p) {
             const card = document.createElement('product-card');
             card.product = p;
@@ -3089,9 +3091,14 @@ class ProductList extends HTMLElement {
         if (p.comparePrice && parseFloat(p.comparePrice) > parseFloat(p.price)) {
           p.homepageSections.push('sec-deals');
         }
+        p.isNew = true;
+        p.isNewArrival = true;
         migrated = true;
       }
     });
+    if (migrated) {
+      saveStorageItem('SWEETOS_products', productsArray);
+    }
     return migrated;
   }
 
@@ -3806,11 +3813,11 @@ class ProductList extends HTMLElement {
     const all = this.products || [];
     if (all.length === 0) return { deals: [], newArrivals: [], bestSellers: [] };
 
-    const maxId = Math.max(...all.map(p => p.id || 0));
-    const recentThresholdId = Math.max(1, maxId - 12);
+    // Reverse list so newest uploaded products are evaluated first
+    const sortedAll = [...all].reverse();
 
     // 1. Hot Deals: explicit section assigned, sale badge, or discount price
-    const deals = all.filter(p => {
+    let deals = all.filter(p => {
       if (!p) return false;
       const b = String(p.badge || '').toUpperCase();
       const sec = getSecArray(p);
@@ -3820,27 +3827,37 @@ class ProductList extends HTMLElement {
              (p.comparePrice && parseFloat(p.comparePrice) > parseFloat(p.price)) ||
              (p.originalPrice && parseFloat(p.originalPrice) > parseFloat(p.price));
     });
+    if (deals.length < 4) {
+      deals = [...new Set([...deals, ...sortedAll])].slice(0, 12);
+    }
 
-    // 2. New Arrivals: explicit section assigned, NEW badge, or recently created product
-    const newArrivals = all.filter(p => {
+    // 2. New Arrivals: prioritize newly created/uploaded products
+    let newArrivals = all.filter(p => {
       if (!p) return false;
       const b = String(p.badge || '').toUpperCase();
       const sec = getSecArray(p);
       const isAssigned = sec.some(s => s === 'sec-new' || s === 'new-arrivals' || s === 'new arrivals' || s.includes('new'));
-      const isRecent = Boolean(p.id && p.id >= recentThresholdId);
-      return isAssigned || isRecent || p.isNew === true || b.includes('NEW') || b.includes('FRESH') || b.includes('ARRIV');
+      return isAssigned || p.isNew === true || p.isNewArrival === true || b.includes('NEW') || b.includes('FRESH') || b.includes('ARRIV') || (p.id && p.id >= 1);
     });
+    if (newArrivals.length === 0) {
+      newArrivals = sortedAll;
+    } else {
+      newArrivals = [...new Set([...sortedAll, ...newArrivals])];
+    }
 
     // 3. Best Sellers: explicit section assigned, isBestseller flag, rating >= 4.5, or BEST/POPULAR badge
-    const bestSellers = all.filter(p => {
+    let bestSellers = all.filter(p => {
       if (!p) return false;
       const b = String(p.badge || '').toUpperCase();
       const sec = getSecArray(p);
       const isAssigned = sec.some(s => s === 'sec-best' || s === 'best-sellers' || s === 'best sellers' || s.includes('best'));
       return isAssigned ||
-             p.isBestseller === true || (p.rating && parseFloat(p.rating) >= 4.5) ||
+             p.isBestseller === true || p.isBestSeller === true || (p.rating && parseFloat(p.rating) >= 4.5) ||
              b.includes('BEST') || b.includes('TOP') || b.includes('POPULAR');
     });
+    if (bestSellers.length < 4) {
+      bestSellers = [...new Set([...bestSellers, ...all])].slice(0, 12);
+    }
 
     return { deals, newArrivals, bestSellers };
   }

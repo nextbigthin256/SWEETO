@@ -2057,7 +2057,9 @@ export function attachAdminProductsListeners(context, shadow) {
           image: imageUrl,
           hasVariants: hasVariants && finalColors.length > 0,
           colors: finalColors,
-          homepageSections: checkedSections,
+          homepageSections: (checkedSections && checkedSections.length > 0) ? checkedSections : ['sec-new', 'sec-best'],
+          isNew: true,
+          isNewArrival: true,
           specs: finalSpecs,
           rating: 5.0,
           reviews: 0
