@@ -1,5 +1,5 @@
 // Service Worker for SWEETOS - Web Push Notifications & Offline Support
-const CACHE_NAME = 'sweetos-v4';
+const CACHE_NAME = 'sweetos-v5';
 const OFFLINE_URL = '/index.html';
 
 // Install - Cache essential static assets
@@ -10,7 +10,6 @@ self.addEventListener('install', (event) => {
         '/',
         '/index.html',
         '/index.css',
-        '/app.js',
         '/assets/sweetos_logo.svg'
       ]).catch(() => {});
     })
@@ -34,9 +33,19 @@ self.addEventListener('activate', (event) => {
   return self.clients.claim();
 });
 
-// Fetch - Serve from cache or network fallback
+// Fetch - Network-first for JavaScript and API requests to ensure fresh code
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
+  const url = new URL(event.request.url);
+
+  // Network-first for JS modules, HTML, and Supabase cloud requests
+  if (url.pathname.endsWith('.js') || url.pathname.endsWith('.html') || url.hostname.includes('supabase.co')) {
+    event.respondWith(
+      fetch(event.request).catch(() => caches.match(event.request))
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
