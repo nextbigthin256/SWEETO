@@ -72,10 +72,6 @@ export async function fetchProductsFromSupabase() {
 
     if (querySuccess) {
       const formatted = Array.from(productMap.values());
-      try {
-        localStorage.setItem('SWEETOS_products', JSON.stringify(formatted));
-        sessionStorage.setItem('SWEETOS_products', JSON.stringify(formatted));
-      } catch(e) {}
       return formatted;
     }
     return null;
@@ -99,10 +95,6 @@ export async function syncProductsToSupabase(productsList) {
     }));
 
     await saveSiteSettingInSupabase('sweetos_cloud_products', processedProducts);
-    try {
-      localStorage.setItem('SWEETOS_products', JSON.stringify(processedProducts));
-      sessionStorage.setItem('SWEETOS_products', JSON.stringify(processedProducts));
-    } catch(e) {}
 
     if (processedProducts.length === 0) {
       // Hard purge all products from database table when array is empty
@@ -175,8 +167,8 @@ export async function deleteProductPermanentlyFromSupabase(productOrId) {
         });
         await saveSiteSettingInSupabase('sweetos_cloud_products', filtered);
         try {
-          localStorage.setItem('SWEETOS_products', JSON.stringify(filtered));
-          sessionStorage.setItem('SWEETOS_products', JSON.stringify(filtered));
+          localStorage.removeItem('SWEETOS_products');
+          sessionStorage.removeItem('SWEETOS_products');
         } catch(e) {}
       }
     } catch(e) {}
@@ -224,8 +216,8 @@ export async function deleteMultipleProductsPermanentlyFromSupabase(productIds =
         const filtered = fallback.filter(p => p && p.id && !idSet.has(String(p.id)));
         await saveSiteSettingInSupabase('sweetos_cloud_products', filtered);
         try {
-          localStorage.setItem('SWEETOS_products', JSON.stringify(filtered));
-          sessionStorage.setItem('SWEETOS_products', JSON.stringify(filtered));
+          localStorage.removeItem('SWEETOS_products');
+          sessionStorage.removeItem('SWEETOS_products');
         } catch(e) {}
       }
     } catch(e) {}

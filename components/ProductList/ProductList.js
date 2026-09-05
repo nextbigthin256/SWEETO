@@ -29,6 +29,9 @@ function getSecArray(p) {
   if (Array.isArray(sec)) {
     return sec.map(s => String(s).trim().toLowerCase());
   }
+  return [];
+}
+
 if (typeof window !== 'undefined') {
   window.refreshProducts = async () => {
     const pl = document.querySelector('product-list');
@@ -254,10 +257,6 @@ class ProductList extends HTMLElement {
       if (products !== null && Array.isArray(products)) {
         this.products = products;
         console.log('✅ [ProductList] Loaded from Supabase:', this.products.length);
-        
-        // Cache in storage
-        saveStorageItem('SWEETOS_products', this.products);
-        sessionStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
       } else {
         console.log('📭 [ProductList] Supabase products fetch null (network/offline)');
         this.products = [];

@@ -5,6 +5,11 @@
 let _supabaseSaving = false;
 
 export function saveStorageItem(key, val) {
+  if (key === 'SWEETOS_products') {
+    try { localStorage.removeItem(key); } catch(e) {}
+    try { sessionStorage.removeItem(key); } catch(e) {}
+    return;
+  }
   if (val === null || val === undefined) {
     try { localStorage.removeItem(key); } catch(e) {}
     try { sessionStorage.removeItem(key); } catch(e) {}
@@ -84,12 +89,8 @@ export function saveStorageItem(key, val) {
 }
 
 export function getStorageItem(key) {
-  // For products, always try Supabase first
+  // For products, never use local storage cache - always force live fetch
   if (key === 'SWEETOS_products') {
-    // Return cached version, but Supabase will override
-    try {
-      return localStorage.getItem(key);
-    } catch(e) {}
     return null;
   }
   
