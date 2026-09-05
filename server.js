@@ -82,20 +82,9 @@ const server = http.createServer((req, res) => {
     });
     req.on('end', () => {
       try {
-        const productsList = JSON.parse(body);
-        const filePath = path.join(__dirname, 'data', 'products.js');
-        const fileContent = `const products = ${JSON.stringify(productsList, null, 2)};\n\nexport default products;\n`;
-        
-        fs.writeFile(filePath, fileContent, 'utf8', (err) => {
-          if (err) {
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Failed to write products to disk' }));
-          } else {
-            broadcastAlert('products', 'Product catalog updated.');
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true }));
-          }
-        });
+        broadcastAlert('products', 'Product catalog updated.');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: true }));
       } catch (e) {
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ error: 'Invalid JSON body' }));
@@ -104,13 +93,13 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  // 2. API: GET /api/products (Load products directly from disk)
+  // 2. API: GET /api/products (Load products directly from disk or return empty list)
   if (req.method === 'GET' && req.url === '/api/products') {
     const filePath = path.join(__dirname, 'data', 'products.js');
     fs.readFile(filePath, 'utf8', (err, content) => {
       if (err) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Failed to read products file' }));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify([]));
         return;
       }
       
@@ -121,8 +110,8 @@ const server = http.createServer((req, res) => {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(jsonStr);
       } else {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Invalid products structure on server' }));
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify([]));
       }
     });
     return;

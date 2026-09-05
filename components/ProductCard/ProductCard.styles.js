@@ -126,7 +126,7 @@ export const productCardCSS = `
   left: 8px;
   display: flex;
   gap: 6px;
-  opacity: 1;
+  opacity: 0;
   transition: opacity 0.25s ease;
   z-index: 4;
 }

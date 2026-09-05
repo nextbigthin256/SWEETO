@@ -15,6 +15,7 @@ export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 export async function fetchProductsFromSupabase() {
   try {
     const productMap = new Map();
+    let querySuccess = false;
 
     // 1. Fetch from products Postgres table
     try {
@@ -24,47 +25,33 @@ export async function fetchProductsFromSupabase() {
         .order('created_at', { ascending: true });
 
       if (!error && Array.isArray(data)) {
+        querySuccess = true;
         data.forEach(p => {
           const id = p.legacy_id || p.id;
           if (id) {
-            const formatted = {
+            productMap.set(String(id), {
               id: id,
               uuid: p.id,
               name: p.name,
               slug: p.slug,
-              description: p.description || '',
+              description: p.description,
               price: parseFloat(p.price) || 0,
               originalPrice: p.original_price ? parseFloat(p.original_price) : null,
-              original_price: p.original_price ? parseFloat(p.original_price) : null,
-              comparePrice: p.original_price ? parseFloat(p.original_price) : null,
               category: p.category_name || '',
-              category_name: p.category_name || '',
               subcategory: p.subcategory_name || '',
-              subcategory_name: p.subcategory_name || '',
               brand: p.brand_name || '',
-              brand_name: p.brand_name || '',
               image: p.image,
               gallery: p.gallery || [],
               colors: p.colors || [],
               specs: p.specs || {},
               stock: p.stock ?? 10,
               inStock: p.in_stock ?? true,
-              in_stock: p.in_stock ?? true,
               isBestseller: p.is_bestseller ?? false,
-              is_bestseller: p.is_bestseller ?? false,
               isHotDeal: p.is_hot_deal ?? false,
-              is_hot_deal: p.is_hot_deal ?? false,
-              isNew: p.is_new ?? true,
-              is_new: p.is_new ?? true,
-              isNewArrival: p.is_new ?? true,
+              isNew: p.is_new ?? false,
               rating: p.rating ? parseFloat(p.rating) : 5.0,
-              reviews: p.reviews_count ?? 0,
-              reviewsCount: p.reviews_count ?? 0,
-              reviews_count: p.reviews_count ?? 0,
-              homepageSections: p.homepage_sections || ['sec-new', 'sec-best'],
-              homepage_sections: p.homepage_sections || ['sec-new', 'sec-best']
-            };
-            productMap.set(String(id), formatted);
+              reviews: p.reviews_count ?? 0
+            });
           }
         });
       }
@@ -73,35 +60,22 @@ export async function fetchProductsFromSupabase() {
     // 2. Merge from site_settings cloud fallback (sweetos_cloud_products)
     try {
       const cloudFallback = await fetchSiteSettingFromSupabase('sweetos_cloud_products');
-      if (Array.isArray(cloudFallback) && cloudFallback.length > 0) {
+      if (Array.isArray(cloudFallback)) {
+        querySuccess = true;
         cloudFallback.forEach(p => {
           if (p && p.id && !productMap.has(String(p.id))) {
-            const formatted = {
-              ...p,
-              inStock: p.inStock ?? p.in_stock ?? true,
-              in_stock: p.in_stock ?? p.inStock ?? true,
-              isBestseller: p.isBestseller ?? p.is_bestseller ?? false,
-              is_bestseller: p.is_bestseller ?? p.isBestseller ?? false,
-              isHotDeal: p.isHotDeal ?? p.is_hot_deal ?? false,
-              is_hot_deal: p.is_hot_deal ?? p.isHotDeal ?? false,
-              isNew: p.isNew ?? p.is_new ?? true,
-              is_new: p.is_new ?? p.isNew ?? true,
-              reviews: p.reviews ?? p.reviews_count ?? 0,
-              reviews_count: p.reviews_count ?? p.reviews ?? 0,
-              originalPrice: p.originalPrice ?? p.original_price ?? null,
-              original_price: p.original_price ?? p.originalPrice ?? null,
-              category: p.category || p.category_name || '',
-              category_name: p.category_name || p.category || ''
-            };
-            productMap.set(String(p.id), formatted);
+            productMap.set(String(p.id), p);
           }
         });
       }
     } catch(e) {}
 
-    const formatted = Array.from(productMap.values());
-    if (formatted.length > 0) {
-      sessionStorage.setItem('SWEETOS_products', JSON.stringify(formatted));
+    if (querySuccess) {
+      const formatted = Array.from(productMap.values());
+      try {
+        localStorage.setItem('SWEETOS_products', JSON.stringify(formatted));
+        sessionStorage.setItem('SWEETOS_products', JSON.stringify(formatted));
+      } catch(e) {}
       return formatted;
     }
     return null;
@@ -125,6 +99,17 @@ export async function syncProductsToSupabase(productsList) {
     }));
 
     await saveSiteSettingInSupabase('sweetos_cloud_products', processedProducts);
+    try {
+      localStorage.setItem('SWEETOS_products', JSON.stringify(processedProducts));
+      sessionStorage.setItem('SWEETOS_products', JSON.stringify(processedProducts));
+    } catch(e) {}
+
+    if (processedProducts.length === 0) {
+      // Hard purge all products from database table when array is empty
+      await supabase.from('products').delete().neq('name', '___NON_EXISTENT___');
+      console.log('[Supabase Cloud] All products purged from database table.');
+      return true;
+    }
 
     const records = processedProducts.map(p => {
       const legId = typeof p.id === 'number' ? p.id : (parseInt(p.id) || Date.now());
@@ -155,6 +140,13 @@ export async function syncProductsToSupabase(productsList) {
     });
 
     const { error } = await supabase.from('products').upsert(records, { onConflict: 'legacy_id' });
+
+    // Purge any products from DB table that were deleted in frontend
+    const keepLegacyIds = records.map(r => r.legacy_id).filter(Boolean);
+    if (keepLegacyIds.length > 0) {
+      await supabase.from('products').delete().not('legacy_id', 'in', `(${keepLegacyIds.join(',')})`);
+    }
+
     if (!error) {
       console.log('[Supabase Cloud] Products synced across devices successfully!');
     }
@@ -169,7 +161,7 @@ export async function deleteProductPermanentlyFromSupabase(productOrId) {
   try {
     if (!supabase) return false;
 
-    // 1. Clean from site_settings fallback
+    // 1. Clean from site_settings fallback and browser storage
     try {
       const fallback = await fetchSiteSettingFromSupabase('sweetos_cloud_products');
       if (Array.isArray(fallback)) {
@@ -182,7 +174,10 @@ export async function deleteProductPermanentlyFromSupabase(productOrId) {
           return true;
         });
         await saveSiteSettingInSupabase('sweetos_cloud_products', filtered);
-        sessionStorage.setItem('SWEETOS_products', JSON.stringify(filtered));
+        try {
+          localStorage.setItem('SWEETOS_products', JSON.stringify(filtered));
+          sessionStorage.setItem('SWEETOS_products', JSON.stringify(filtered));
+        } catch(e) {}
       }
     } catch(e) {}
 
@@ -228,7 +223,10 @@ export async function deleteMultipleProductsPermanentlyFromSupabase(productIds =
         const idSet = new Set(productIds.map(String));
         const filtered = fallback.filter(p => p && p.id && !idSet.has(String(p.id)));
         await saveSiteSettingInSupabase('sweetos_cloud_products', filtered);
-        sessionStorage.setItem('SWEETOS_products', JSON.stringify(filtered));
+        try {
+          localStorage.setItem('SWEETOS_products', JSON.stringify(filtered));
+          sessionStorage.setItem('SWEETOS_products', JSON.stringify(filtered));
+        } catch(e) {}
       }
     } catch(e) {}
 

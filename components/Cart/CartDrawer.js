@@ -1,4 +1,3 @@
-import products from '../../data/products.js';
 import { getCartStorageKey, getScratchcardsStorageKey, formatPrice, getStorageItem, saveStorageItem } from '../../utils/storage.js';
 import { getBadgeRewardCoupon } from '../../utils/badges.js';
 
@@ -7,7 +6,6 @@ class CartDrawer extends HTMLElement {
     super();
     this.attachShadow({ mode: 'open' });
     this.cart = [];
-    this.products = products;
   }
 
   connectedCallback() {

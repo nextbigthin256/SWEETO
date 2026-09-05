@@ -289,40 +289,17 @@ ALTER TABLE public.wishlists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
 
 -- Allow full CRUD for storefront and admin management
-DROP POLICY IF EXISTS "Full Site Settings Access" ON public.site_settings;
 CREATE POLICY "Full Site Settings Access" ON public.site_settings FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Full Products Access" ON public.products;
 CREATE POLICY "Full Products Access" ON public.products FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Full Categories Access" ON public.categories;
 CREATE POLICY "Full Categories Access" ON public.categories FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Full Brands Access" ON public.brands;
 CREATE POLICY "Full Brands Access" ON public.brands FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Full Settings Access" ON public.store_settings;
 CREATE POLICY "Full Settings Access" ON public.store_settings FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Full Orders Access" ON public.orders;
 CREATE POLICY "Full Orders Access" ON public.orders FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Full Order Items Access" ON public.order_items;
 CREATE POLICY "Full Order Items Access" ON public.order_items FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Full Reviews Access" ON public.reviews;
 CREATE POLICY "Full Reviews Access" ON public.reviews FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Full Coupons Access" ON public.coupons;
 CREATE POLICY "Full Coupons Access" ON public.coupons FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Full Wishlists Access" ON public.wishlists;
 CREATE POLICY "Full Wishlists Access" ON public.wishlists FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Full Notifications Access" ON public.notifications;
 CREATE POLICY "Full Notifications Access" ON public.notifications FOR ALL USING (true) WITH CHECK (true);
-
-DROP POLICY IF EXISTS "Full Profiles Access" ON public.profiles;
 CREATE POLICY "Full Profiles Access" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
 
 -- ====================================================================

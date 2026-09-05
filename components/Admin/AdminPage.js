@@ -21,7 +21,6 @@ import {
 
 import { bootstrapFromSupabase } from '../../utils/supabaseBootstrap.js';
 
-import products from '../../data/products.js';
 import categories from '../../data/categories.js';
 import brands from '../../data/brands.js';
 import orders from '../../data/orders.js';
@@ -654,8 +653,9 @@ class AdminPage extends HTMLElement {
         fetchSectionsFromSupabase()
       ]);
 
-      if (prods.status === 'fulfilled' && Array.isArray(prods.value) && prods.value.length > 0) {
+      if (prods.status === 'fulfilled' && Array.isArray(prods.value) && prods.value !== null) {
         this.products = prods.value;
+        saveStorageItem('SWEETOS_products', this.products);
       } else {
         const storedProds = getStorageItem('SWEETOS_products');
         if (storedProds) try { this.products = JSON.parse(storedProds); } catch(e) {}

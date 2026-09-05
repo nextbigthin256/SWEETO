@@ -1,4 +1,3 @@
-import products from '../../data/products.js';
 import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getNotificationsFromStorage, formatPrice, getAllOrdersFromStorage, getStorageItem, saveStorageItem } from '../../utils/storage.js';
 import { loadStyles } from '../../utils/cssLoader.js';
 import { headerCSS } from './Header.styles.js';
@@ -24,13 +23,13 @@ class Header extends HTMLElement {
 
   getProductsList() {
     try {
-      const stored = sessionStorage.getItem('SWEETOS_products');
+      const stored = sessionStorage.getItem('SWEETOS_products') || localStorage.getItem('SWEETOS_products');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch(e) {}
-    return products;
+    return [];
   }
 
   updateUserPill() {

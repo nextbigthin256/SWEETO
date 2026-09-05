@@ -1,4 +1,3 @@
-import products from '../../data/products.js';
 import { formatPrice } from '../../utils/storage.js';
 
 class Hero extends HTMLElement {
@@ -15,13 +14,13 @@ class Hero extends HTMLElement {
 
   getProductsList() {
     try {
-      const stored = sessionStorage.getItem('SWEETOS_products');
+      const stored = sessionStorage.getItem('SWEETOS_products') || localStorage.getItem('SWEETOS_products');
       if (stored) {
         const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed)) return parsed;
       }
     } catch(e) {}
-    return products;
+    return [];
   }
 
   initSlides() {

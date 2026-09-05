@@ -9,7 +9,6 @@ if (window.location.pathname !== '/' && window.location.pathname !== '/index.htm
 import { getCartStorageKey, getStorageItem, saveStorageItem, initStorageSync } from './utils/storage.js';
 import { initSupabaseSync } from './utils/supabase.js';
 import './utils/modal.js';
-import products from './data/products.js';
 
 // Import all Web Components to auto-register them
 import './components/Sidebar/Sidebar.js';

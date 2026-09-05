@@ -1,6 +1,4 @@
 import defaultSections from '../../data/sections.js';
-import defaultProducts from '../../data/products.js';
-import defaultCategories from '../../data/categories.js';
 import { showEditAddressModal } from '../Modals/EditAddressModal.js';
 import { showCancelOrderModal } from '../Modals/CancelOrderModal.js';
 import { getAuthPageHTML, attachAuthListeners } from '../Auth/AuthPage.js';
@@ -31,7 +29,6 @@ function getSecArray(p) {
   if (Array.isArray(sec)) {
     return sec.map(s => String(s).trim().toLowerCase());
   }
-}
 if (typeof window !== 'undefined') {
   window.refreshProducts = async () => {
     const pl = document.querySelector('product-list');
@@ -64,21 +61,13 @@ class ProductList extends HTMLElement {
     try {
       const storedProds = getStorageItem('SWEETOS_products');
       const parsed = safeParseArray(storedProds);
-      // Auto-heal: If cached localstorage has fewer items than full bundled catalog (13 items), upgrade to full catalog
-      if (parsed.length >= (defaultProducts ? defaultProducts.length : 13)) {
+      if (parsed.length > 0) {
         loadedProducts = parsed;
-      } else {
-        loadedProducts = defaultProducts || [];
-        if (loadedProducts.length > 0) {
-          saveStorageItem('SWEETOS_products', loadedProducts);
-        }
       }
-    } catch (e) {
-      loadedProducts = defaultProducts || [];
-    }
+    } catch (e) {}
 
     this.products = loadedProducts;
-    this.isLoading = !loadedProducts || loadedProducts.length === 0;th === 0;
+    this.isLoading = !loadedProducts || loadedProducts.length === 0;
 
     // Load from Supabase immediately
     this.loadFromSupabase();
@@ -262,18 +251,17 @@ class ProductList extends HTMLElement {
       ]);
       
       // ===== SET PRODUCTS =====
-      if (products && products.length > 0) {
+      if (products !== null && Array.isArray(products)) {
         this.products = products;
-        this.initializeHomepageSectionsForProducts(this.products);
         console.log('✅ [ProductList] Loaded from Supabase:', this.products.length);
         
         // Cache in storage
         saveStorageItem('SWEETOS_products', this.products);
         sessionStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
       } else {
-        console.log('📭 [ProductList] No products in Supabase');
+        console.log('📭 [ProductList] Supabase products fetch null (network/offline)');
         this.products = [];
-        // Try fallback to localStorage
+        // Try fallback to localStorage only on network failure
         const cached = getStorageItem('SWEETOS_products');
         if (cached) {
           try {
@@ -376,8 +364,10 @@ class ProductList extends HTMLElement {
   async connectedCallback() {
     this.parseHashRoute();
 
-    // Always load fresh products from Supabase Cloud
-    await this.loadFromSupabase();
+    // Check if we already have products loaded
+    if (!this.products || this.products.length === 0) {
+      await this.loadFromSupabase();
+    }
 
     // Check if product ID is passed in URL query params
     const urlParams = new URLSearchParams(window.location.search);
@@ -764,24 +754,43 @@ class ProductList extends HTMLElement {
 
   getCategories() {
     let cats = safeParseArray(getStorageItem('SWEETOS_categories'));
-    
-    // Auto-heal: Check if stored categories contain active real catalog categories (LAPTOPS, computer & it, HEADPHONE, Accessories, CHAGER)
-    const hasLaptops = Array.isArray(cats) && cats.some(c => c && c.name && String(c.name).toUpperCase() === 'LAPTOPS');
-    
-    if (!hasLaptops || !Array.isArray(cats) || cats.length === 0) {
-      cats = defaultCategories || [];
+    if (!Array.isArray(cats) || cats.length === 0) {
+      const prodCatSet = new Set((this.products || []).map(p => p.category).filter(c => c && c !== 'undefined' && c !== 'null'));
+      
+      const themeConfig = {
+        'computer & it': { icon: '💻', tag: 'Laptops & IT', desc: 'Computers and workstation accessories' },
+        'keyboards': { icon: '⌨️', tag: 'Pro Typing & Custom', desc: 'Mechanical switches & wireless boards' },
+        'audio': { icon: '🎧', tag: 'Son Haute Fidélité', desc: 'Studio headphones, earbuds & DACs' },
+        'lighting': { icon: '💡', tag: 'Ambiance Studio RGB', desc: 'Screen lamps & lightbars' },
+        'desks': { icon: '🪵', tag: 'Organisation & Bois Noble', desc: 'Oak monitor stands & desk mats' }
+      };
+
+      const catList = Array.from(prodCatSet);
+      ['computer & it', 'Keyboards', 'Audio', 'Lighting', 'Desks'].forEach(dCat => {
+        if (!catList.some(c => c.toLowerCase() === dCat.toLowerCase())) {
+          catList.push(dCat);
+        }
+      });
+
+      cats = catList.map((catName, idx) => {
+        const key = catName.toLowerCase().trim();
+        const conf = themeConfig[key] || { icon: '📁', tag: 'Tech Collection', desc: `Explore premium ${catName}` };
+        return {
+          id: idx + 1,
+          name: catName,
+          slug: catName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+          icon: conf.icon,
+          tag: conf.tag,
+          description: conf.desc,
+          featured: true,
+          parent: null,
+          count: (this.products || []).filter(p => this.isProductInCategory(p, catName)).length
+        };
+      });
+
       saveStorageItem('SWEETOS_categories', cats);
     }
-
-    // Always dynamically update count property based on current active products
-    return cats.map(c => {
-      const catName = c.name || c.id || '';
-      const matchingCount = (this.products || []).filter(p => this.isProductInCategory(p, catName)).length;
-      return {
-        ...c,
-        count: matchingCount
-      };
-    });
+    return cats;
   }
 
   // --- Category & Subcategory Hierarchy Methods ---
@@ -1122,13 +1131,11 @@ class ProductList extends HTMLElement {
       this.logCustomerActivity(pageLabel);
     } catch(err) {}
 
-    // Reload products database to reflect Admin changes dynamically if local storage has more items or in-memory list is empty
+    // Reload products database to reflect Admin changes dynamically
     const storedProds = getStorageItem('SWEETOS_products');
     const reloaded = safeParseArray(storedProds);
     if (reloaded.length > 0) {
-      if (!this.products || this.products.length === 0 || reloaded.length > this.products.length) {
-        this.products = reloaded;
-      }
+      this.products = reloaded;
       const hasMigrated = this.initializeHomepageSectionsForProducts(this.products);
       if (hasMigrated) {
         saveStorageItem('SWEETOS_products', this.products);
@@ -3197,26 +3204,6 @@ class ProductList extends HTMLElement {
         }
       });
     });
-
-    // Auto-slide all product carousels (New Arrivals, Hot Deals, Best Sellers) continuously like the Hero Banner
-    if (this._rowsAutoSlideInterval) {
-      clearInterval(this._rowsAutoSlideInterval);
-    }
-    const slidableRows = shadow.querySelectorAll('.slidable-product-row');
-    if (slidableRows.length > 0) {
-      this._rowsAutoSlideInterval = setInterval(() => {
-        slidableRows.forEach(row => {
-          if (row && row.scrollWidth > row.clientWidth) {
-            const maxScroll = row.scrollWidth - row.clientWidth;
-            if (row.scrollLeft >= maxScroll - 10) {
-              row.scrollTo({ left: 0, behavior: 'smooth' });
-            } else {
-              row.scrollBy({ left: 280, behavior: 'smooth' });
-            }
-          }
-        });
-      }, 3500);
-    }
 
     // Today's Deals Hero Dynamic Background Slider
     if (this._dealsSliderInterval) {
