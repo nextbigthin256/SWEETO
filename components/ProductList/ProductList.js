@@ -258,16 +258,8 @@ class ProductList extends HTMLElement {
         this.products = products;
         console.log('✅ [ProductList] Loaded from Supabase:', this.products.length);
       } else {
-        console.log('📭 [ProductList] Supabase products fetch null (network/offline)');
+        console.log('📭 [ProductList] Supabase products fetch returned null (offline/network)');
         this.products = [];
-        // Try fallback to localStorage only on network failure
-        const cached = getStorageItem('SWEETOS_products');
-        if (cached) {
-          try {
-            this.products = typeof cached === 'string' ? JSON.parse(cached) : cached;
-            console.log('📦 [ProductList] Fallback to cached products:', this.products.length);
-          } catch(e) {}
-        }
       }
       
       // ===== SET CATEGORIES =====
@@ -304,18 +296,9 @@ class ProductList extends HTMLElement {
     } catch (error) {
       console.error('❌ [ProductList] Supabase load error:', error);
       this.isLoading = false;
-      
-      // Emergency fallback: try localStorage
-      const cached = getStorageItem('SWEETOS_products');
-      if (cached) {
-        try {
-          this.products = typeof cached === 'string' ? JSON.parse(cached) : cached;
-          console.log('🔄 [ProductList] Emergency fallback to localStorage:', this.products.length);
-          this.render();
-          this.renderPageContent();
-          this.setupEventListeners();
-        } catch(e) {}
-      }
+      this.products = [];
+      this.render();
+      this.renderPageContent();
     }
   }
 
@@ -1149,19 +1132,8 @@ class ProductList extends HTMLElement {
       }, 50);
     }
 
-    // Force products fallback recovery if products array is empty or corrupted
-    if (!this.products || !Array.isArray(this.products) || this.products.length === 0) {
-      try {
-        const stored = safeParseArray(getStorageItem('SWEETOS_products'));
-        if (stored && stored.length > 0) {
-          this.products = stored;
-        }
-      } catch (e) {}
-
-      if (!this.products || this.products.length === 0) {
-        this.products = products;
-        saveStorageItem('SWEETOS_products', this.products);
-      }
+    if (!Array.isArray(this.products)) {
+      this.products = [];
     }
 
     // Ensure all products have homepageSections array initialized

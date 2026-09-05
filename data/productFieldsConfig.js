@@ -531,6 +531,33 @@ export const productCategorySchemas = {
     ]
   },
 
+  // 11. TABLETS
+  tablet: {
+    label: "📱 Tablettes (iPad, Galaxy Tab, etc.)",
+    keywords: ["tablette", "tablet", "ipad", "galaxy tab", "matepad"],
+    fields: [
+      { name: "Marque", key: "brand", type: "select", options: ["Apple (iPad)", "Samsung", "Lenovo", "Huawei", "Xiaomi", "Autre"] },
+      { name: "Modèle", key: "model", type: "text", placeholder: "Ex: iPad Air 5, Galaxy Tab S9..." },
+      { name: "Stockage", key: "storage", type: "select", options: ["32GB", "64GB", "128GB", "256GB", "512GB", "1TB"] },
+      { name: "Taille Écran", key: "screenSize", type: "select", options: ["8\"", "9.7\"", "10.2\"", "10.9\"", "11\"", "12.9\"", "14.6\""] },
+      { name: "Connectivité", key: "connectivity", type: "select", options: ["WiFi Uniquement", "WiFi + 4G/5G"] },
+      { name: "Accessoires Inclus", key: "accessories", type: "text", placeholder: "Ex: Chargeur, Clavier détachable, Apple Pencil..." }
+    ]
+  },
+
+  // 12. NETWORKING
+  networking: {
+    label: "🌐 Réseaux & Connectivité",
+    keywords: ["routeur", "switch", "wifi", "réseau", "carte réseau", "modem", "point d'accès"],
+    fields: [
+      { name: "Type", key: "deviceType", type: "select", options: ["Routeur WiFi", "Switch Ethernet", "Carte Réseau USB", "Modem", "Point d'accès (AP)", "Antenne / Adaptateur"] },
+      { name: "Marque", key: "brand", type: "select", options: ["TP-Link", "D-Link", "Netgear", "Asus", "Ubiquiti", "MikroTik", "Linksys", "Autre"] },
+      { name: "Vitesse Max", key: "maxSpeed", type: "select", options: ["100 Mbps", "1 Gbps", "2.5 Gbps", "10 Gbps"] },
+      { name: "WiFi Standard", key: "wifiStandard", type: "select", options: ["WiFi 5 (802.11ac)", "WiFi 6 (802.11ax)", "WiFi 6E", "WiFi 7"] },
+      { name: "Ports / Connectique", key: "ports", type: "text", placeholder: "Ex: 4x Gigabit LAN, 1x WAN, 1x USB 3.0" }
+    ]
+  },
+
   // 10. GENERIC / OTHER PRODUCTS
   generic: {
     label: "📦 Produit Général / Autre",
@@ -561,6 +588,14 @@ export function getCategorySchema(categoryName) {
     return productCategorySchemas[catLower];
   }
 
+  // Try matching against known category labels
+  for (const key of Object.keys(productCategorySchemas)) {
+    const schema = productCategorySchemas[key];
+    if (schema.label && schema.label.toLowerCase().includes(catLower)) {
+      return schema;
+    }
+  }
+
   // Search by keywords match
   for (const key of Object.keys(productCategorySchemas)) {
     const schema = productCategorySchemas[key];
@@ -570,4 +605,53 @@ export function getCategorySchema(categoryName) {
   }
 
   return productCategorySchemas.generic;
+}
+
+/**
+ * Get available series for a laptop brand
+ * @param {string} brand - Laptop brand name
+ * @returns {Array<string>} List of series for the brand
+ */
+export function getBrandSeries(brand) {
+  if (!brand) return [];
+  const normalizedBrand = Object.keys(laptopBrandSeriesMap).find(
+    b => b.toLowerCase() === brand.toLowerCase()
+  );
+  return normalizedBrand ? laptopBrandSeriesMap[normalizedBrand] : [];
+}
+
+/**
+ * Get all unique field types used across schemas
+ * @returns {Array<string>} Array of field types
+ */
+export function getAllFieldTypes() {
+  const types = new Set();
+  for (const key of Object.keys(productCategorySchemas)) {
+    const schema = productCategorySchemas[key];
+    if (schema.fields) {
+      schema.fields.forEach(field => {
+        if (field.type) types.add(field.type);
+      });
+    }
+  }
+  return Array.from(types);
+}
+
+/**
+ * Get all brand options across all schemas
+ * @returns {Array<string>} Array of brand names
+ */
+export function getAllBrands() {
+  const brands = new Set();
+  for (const key of Object.keys(productCategorySchemas)) {
+    const schema = productCategorySchemas[key];
+    if (schema.fields) {
+      schema.fields.forEach(field => {
+        if (field.key === 'brand' && Array.isArray(field.options)) {
+          field.options.forEach(opt => brands.add(opt));
+        }
+      });
+    }
+  }
+  return Array.from(brands);
 }

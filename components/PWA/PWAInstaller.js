@@ -5,7 +5,9 @@ class PWAInstaller extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     this.deferredPrompt = null;
     this.isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
-    this.isStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+    this.isStandalone = window.matchMedia('(display-mode: standalone)').matches || 
+                        window.navigator.standalone === true ||
+                        window.matchMedia('(display-mode: fullscreen)').matches;
   }
 
   connectedCallback() {
@@ -283,34 +285,43 @@ class PWAInstaller extends HTMLElement {
 
     // Check if dismissed in current session
     if (sessionStorage.getItem('SWEETOS_pwa_dismissed')) {
+      if (banner) banner.style.display = 'none';
       return;
     }
 
-    // Import engagement check
-    import('../../utils/engagement.js').then(({ isUserEngaged }) => {
-      const tryShowBanner = () => {
-        if (sessionStorage.getItem('SWEETOS_pwa_dismissed')) return;
-        if (!isUserEngaged()) return;
-        if (this.deferredPrompt || (this.isIOS && !this.isStandalone)) {
+    try {
+      import('../../utils/engagement.js').then(({ isUserEngaged }) => {
+        const tryShowBanner = () => {
+          if (sessionStorage.getItem('SWEETOS_pwa_dismissed')) return;
+          if (typeof isUserEngaged === 'function' && !isUserEngaged()) return;
+          if (this.deferredPrompt || (this.isIOS && !this.isStandalone)) {
+            if (banner) banner.style.display = 'flex';
+          }
+        };
+
+        // Android, Windows, Mac, ChromeOS install prompt handler
+        window.addEventListener('beforeinstallprompt', (e) => {
+          e.preventDefault();
+          this.deferredPrompt = e;
+          tryShowBanner();
+        });
+
+        // Show banner on iOS Safari if engaged
+        if (this.isIOS && !this.isStandalone) {
+          tryShowBanner();
+        }
+
+        window.addEventListener('user:engaged', tryShowBanner);
+        window.addEventListener('cart:add', tryShowBanner);
+      }).catch((err) => {
+        console.warn('PWA: Could not load engagement module:', err);
+        if (this.isIOS && !this.isStandalone) {
           if (banner) banner.style.display = 'flex';
         }
-      };
-
-      // Android, Windows, Mac, ChromeOS install prompt handler
-      window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        this.deferredPrompt = e;
-        tryShowBanner();
       });
-
-      // Show banner on iOS Safari if engaged
-      if (this.isIOS && !this.isStandalone) {
-        tryShowBanner();
-      }
-
-      window.addEventListener('user:engaged', tryShowBanner);
-      window.addEventListener('cart:add', tryShowBanner);
-    }).catch(() => {});
+    } catch (e) {
+      console.warn('PWA: Setup error:', e);
+    }
 
     if (installBtn) {
       installBtn.addEventListener('click', async () => {
@@ -320,11 +331,25 @@ class PWAInstaller extends HTMLElement {
           console.log(`PWA install outcome: ${outcome}`);
           this.deferredPrompt = null;
           if (banner) banner.style.display = 'none';
+          sessionStorage.setItem('SWEETOS_pwa_dismissed', 'true');
         } else if (this.isIOS) {
           if (iosModal) iosModal.classList.add('active');
         } else {
-          // Fallback guidance
-          window.dispatchEvent(new CustomEvent('toast:show', { detail: '📲 To install, use your browser menu (⋮) and click "Install App" or "Add to Home Screen".' }));
+          const shareData = {
+            title: 'Install SWEETOS App',
+            text: 'Add SWEETOS to your home screen for the best experience!',
+            url: window.location.href
+          };
+          
+          if (window.navigator && window.navigator.share) {
+            try {
+              await navigator.share(shareData);
+            } catch (e) {}
+          } else {
+            window.dispatchEvent(new CustomEvent('toast:show', { 
+              detail: '📲 To install, use your browser menu (⋮) and click "Install App" or "Add to Home Screen".' 
+            }));
+          }
         }
       });
     }
@@ -347,6 +372,7 @@ class PWAInstaller extends HTMLElement {
     // Hide banner once app is successfully installed
     window.addEventListener('appinstalled', () => {
       if (banner) banner.style.display = 'none';
+      sessionStorage.setItem('SWEETOS_pwa_dismissed', 'true');
       window.dispatchEvent(new CustomEvent('toast:show', { detail: '🎉 SWEETOS App installed successfully!' }));
     });
   }
