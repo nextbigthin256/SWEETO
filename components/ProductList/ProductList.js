@@ -1131,11 +1131,13 @@ class ProductList extends HTMLElement {
       this.logCustomerActivity(pageLabel);
     } catch(err) {}
 
-    // Reload products database to reflect Admin changes dynamically
+    // Reload products database to reflect Admin changes dynamically if local storage has more items or in-memory list is empty
     const storedProds = getStorageItem('SWEETOS_products');
     const reloaded = safeParseArray(storedProds);
     if (reloaded.length > 0) {
-      this.products = reloaded;
+      if (!this.products || this.products.length === 0 || reloaded.length > this.products.length) {
+        this.products = reloaded;
+      }
       const hasMigrated = this.initializeHomepageSectionsForProducts(this.products);
       if (hasMigrated) {
         saveStorageItem('SWEETOS_products', this.products);
