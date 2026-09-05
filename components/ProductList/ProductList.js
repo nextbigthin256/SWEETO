@@ -365,10 +365,8 @@ class ProductList extends HTMLElement {
   async connectedCallback() {
     this.parseHashRoute();
 
-    // Check if we already have products loaded
-    if (!this.products || this.products.length === 0) {
-      await this.loadFromSupabase();
-    }
+    // Always load fresh products from Supabase Cloud
+    await this.loadFromSupabase();
 
     // Check if product ID is passed in URL query params
     const urlParams = new URLSearchParams(window.location.search);
