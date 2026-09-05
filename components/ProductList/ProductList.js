@@ -1,4 +1,6 @@
 import defaultSections from '../../data/sections.js';
+import defaultProducts from '../../data/products.js';
+import defaultCategories from '../../data/categories.js';
 import { showEditAddressModal } from '../Modals/EditAddressModal.js';
 import { showCancelOrderModal } from '../Modals/CancelOrderModal.js';
 import { getAuthPageHTML, attachAuthListeners } from '../Auth/AuthPage.js';
@@ -29,6 +31,7 @@ function getSecArray(p) {
   if (Array.isArray(sec)) {
     return sec.map(s => String(s).trim().toLowerCase());
   }
+}
 if (typeof window !== 'undefined') {
   window.refreshProducts = async () => {
     const pl = document.querySelector('product-list');
@@ -61,13 +64,21 @@ class ProductList extends HTMLElement {
     try {
       const storedProds = getStorageItem('SWEETOS_products');
       const parsed = safeParseArray(storedProds);
-      if (parsed.length > 0) {
+      // Auto-heal: If cached localstorage has fewer items than full bundled catalog (13 items), upgrade to full catalog
+      if (parsed.length >= (defaultProducts ? defaultProducts.length : 13)) {
         loadedProducts = parsed;
+      } else {
+        loadedProducts = defaultProducts || [];
+        if (loadedProducts.length > 0) {
+          saveStorageItem('SWEETOS_products', loadedProducts);
+        }
       }
-    } catch (e) {}
+    } catch (e) {
+      loadedProducts = defaultProducts || [];
+    }
 
     this.products = loadedProducts;
-    this.isLoading = !loadedProducts || loadedProducts.length === 0;
+    this.isLoading = !loadedProducts || loadedProducts.length === 0;th === 0;
 
     // Load from Supabase immediately
     this.loadFromSupabase();
@@ -243,15 +254,19 @@ class ProductList extends HTMLElement {
         subscribeToGlobalRealtimeSync 
       } = await import('../../utils/supabase.js');
       
-      // Fetch all data in parallel
-      const [products, categories, brands] = await Promise.all([
+      // Fetch all data in parallel safely using Promise.allSettled to prevent single-request failures
+      const [productsRes, categoriesRes, brandsRes] = await Promise.allSettled([
         fetchProductsFromSupabase(),
         fetchCategoriesFromSupabase(),
         fetchBrandsFromSupabase()
       ]);
+
+      const products = productsRes.status === 'fulfilled' ? productsRes.value : null;
+      const categories = categoriesRes.status === 'fulfilled' ? categoriesRes.value : null;
+      const brands = brandsRes.status === 'fulfilled' ? brandsRes.value : null;
       
       // ===== SET PRODUCTS =====
-      if (products && products.length > 0) {
+      if (products && Array.isArray(products) && products.length > 0) {
         this.products = products;
         this.initializeHomepageSectionsForProducts(this.products);
         console.log('✅ [ProductList] Loaded from Supabase:', this.products.length);
@@ -260,15 +275,10 @@ class ProductList extends HTMLElement {
         saveStorageItem('SWEETOS_products', this.products);
         sessionStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
       } else {
-        console.log('📭 [ProductList] No products in Supabase');
-        this.products = [];
-        // Try fallback to localStorage
-        const cached = getStorageItem('SWEETOS_products');
-        if (cached) {
-          try {
-            this.products = typeof cached === 'string' ? JSON.parse(cached) : cached;
-            console.log('📦 [ProductList] Fallback to cached products:', this.products.length);
-          } catch(e) {}
+        console.log('📭 [ProductList] No products returned from Supabase, preserving current catalog');
+        if (!this.products || this.products.length === 0) {
+          this.products = defaultProducts || [];
+          saveStorageItem('SWEETOS_products', this.products);
         }
       }
       
@@ -753,43 +763,24 @@ class ProductList extends HTMLElement {
 
   getCategories() {
     let cats = safeParseArray(getStorageItem('SWEETOS_categories'));
-    if (!Array.isArray(cats) || cats.length === 0) {
-      const prodCatSet = new Set((this.products || []).map(p => p.category).filter(c => c && c !== 'undefined' && c !== 'null'));
-      
-      const themeConfig = {
-        'computer & it': { icon: '💻', tag: 'Laptops & IT', desc: 'Computers and workstation accessories' },
-        'keyboards': { icon: '⌨️', tag: 'Pro Typing & Custom', desc: 'Mechanical switches & wireless boards' },
-        'audio': { icon: '🎧', tag: 'Son Haute Fidélité', desc: 'Studio headphones, earbuds & DACs' },
-        'lighting': { icon: '💡', tag: 'Ambiance Studio RGB', desc: 'Screen lamps & lightbars' },
-        'desks': { icon: '🪵', tag: 'Organisation & Bois Noble', desc: 'Oak monitor stands & desk mats' }
-      };
-
-      const catList = Array.from(prodCatSet);
-      ['computer & it', 'Keyboards', 'Audio', 'Lighting', 'Desks'].forEach(dCat => {
-        if (!catList.some(c => c.toLowerCase() === dCat.toLowerCase())) {
-          catList.push(dCat);
-        }
-      });
-
-      cats = catList.map((catName, idx) => {
-        const key = catName.toLowerCase().trim();
-        const conf = themeConfig[key] || { icon: '📁', tag: 'Tech Collection', desc: `Explore premium ${catName}` };
-        return {
-          id: idx + 1,
-          name: catName,
-          slug: catName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-          icon: conf.icon,
-          tag: conf.tag,
-          description: conf.desc,
-          featured: true,
-          parent: null,
-          count: (this.products || []).filter(p => this.isProductInCategory(p, catName)).length
-        };
-      });
-
+    
+    // Auto-heal: Check if stored categories contain active real catalog categories (LAPTOPS, computer & it, HEADPHONE, Accessories, CHAGER)
+    const hasLaptops = Array.isArray(cats) && cats.some(c => c && c.name && String(c.name).toUpperCase() === 'LAPTOPS');
+    
+    if (!hasLaptops || !Array.isArray(cats) || cats.length === 0) {
+      cats = defaultCategories || [];
       saveStorageItem('SWEETOS_categories', cats);
     }
-    return cats;
+
+    // Always dynamically update count property based on current active products
+    return cats.map(c => {
+      const catName = c.name || c.id || '';
+      const matchingCount = (this.products || []).filter(p => this.isProductInCategory(p, catName)).length;
+      return {
+        ...c,
+        count: matchingCount
+      };
+    });
   }
 
   // --- Category & Subcategory Hierarchy Methods ---
@@ -1205,7 +1196,8 @@ class ProductList extends HTMLElement {
       const defaultSecs = defaultSections;
 
       let needsSave = false;
-      if (sectionsList.length === 0) {
+      const hasOutdatedCat = sectionsList.some(s => s && (s.category === 'Apple' || s.category === 'Keyboards' || s.category === 'Audio'));
+      if (sectionsList.length === 0 || hasOutdatedCat) {
         sectionsList = [...defaultSecs];
         needsSave = true;
       } else {
@@ -2948,8 +2940,10 @@ class ProductList extends HTMLElement {
 
   injectHomeProducts() {
     let sectionsList = safeParseArray(getStorageItem('SWEETOS_homepage_sections'));
-    if (sectionsList.length === 0) {
+    const hasOutdatedCat = sectionsList.some(s => s && (s.category === 'Apple' || s.category === 'Keyboards' || s.category === 'Audio'));
+    if (sectionsList.length === 0 || hasOutdatedCat) {
       sectionsList = defaultSections || [];
+      saveStorageItem('SWEETOS_homepage_sections', sectionsList);
     }
 
     // Sort active sections by order

@@ -27,30 +27,44 @@ export async function fetchProductsFromSupabase() {
         data.forEach(p => {
           const id = p.legacy_id || p.id;
           if (id) {
-            productMap.set(String(id), {
+            const formatted = {
               id: id,
               uuid: p.id,
               name: p.name,
               slug: p.slug,
-              description: p.description,
+              description: p.description || '',
               price: parseFloat(p.price) || 0,
               originalPrice: p.original_price ? parseFloat(p.original_price) : null,
+              original_price: p.original_price ? parseFloat(p.original_price) : null,
+              comparePrice: p.original_price ? parseFloat(p.original_price) : null,
               category: p.category_name || '',
+              category_name: p.category_name || '',
               subcategory: p.subcategory_name || '',
+              subcategory_name: p.subcategory_name || '',
               brand: p.brand_name || '',
+              brand_name: p.brand_name || '',
               image: p.image,
               gallery: p.gallery || [],
               colors: p.colors || [],
               specs: p.specs || {},
               stock: p.stock ?? 10,
               inStock: p.in_stock ?? true,
+              in_stock: p.in_stock ?? true,
               isBestseller: p.is_bestseller ?? false,
+              is_bestseller: p.is_bestseller ?? false,
               isHotDeal: p.is_hot_deal ?? false,
+              is_hot_deal: p.is_hot_deal ?? false,
               isNew: p.is_new ?? true,
+              is_new: p.is_new ?? true,
+              isNewArrival: p.is_new ?? true,
               rating: p.rating ? parseFloat(p.rating) : 5.0,
               reviews: p.reviews_count ?? 0,
-              homepageSections: p.homepage_sections || ['sec-new', 'sec-best']
-            });
+              reviewsCount: p.reviews_count ?? 0,
+              reviews_count: p.reviews_count ?? 0,
+              homepageSections: p.homepage_sections || ['sec-new', 'sec-best'],
+              homepage_sections: p.homepage_sections || ['sec-new', 'sec-best']
+            };
+            productMap.set(String(id), formatted);
           }
         });
       }
@@ -62,7 +76,24 @@ export async function fetchProductsFromSupabase() {
       if (Array.isArray(cloudFallback) && cloudFallback.length > 0) {
         cloudFallback.forEach(p => {
           if (p && p.id && !productMap.has(String(p.id))) {
-            productMap.set(String(p.id), p);
+            const formatted = {
+              ...p,
+              inStock: p.inStock ?? p.in_stock ?? true,
+              in_stock: p.in_stock ?? p.inStock ?? true,
+              isBestseller: p.isBestseller ?? p.is_bestseller ?? false,
+              is_bestseller: p.is_bestseller ?? p.isBestseller ?? false,
+              isHotDeal: p.isHotDeal ?? p.is_hot_deal ?? false,
+              is_hot_deal: p.is_hot_deal ?? p.isHotDeal ?? false,
+              isNew: p.isNew ?? p.is_new ?? true,
+              is_new: p.is_new ?? p.isNew ?? true,
+              reviews: p.reviews ?? p.reviews_count ?? 0,
+              reviews_count: p.reviews_count ?? p.reviews ?? 0,
+              originalPrice: p.originalPrice ?? p.original_price ?? null,
+              original_price: p.original_price ?? p.originalPrice ?? null,
+              category: p.category || p.category_name || '',
+              category_name: p.category_name || p.category || ''
+            };
+            productMap.set(String(p.id), formatted);
           }
         });
       }

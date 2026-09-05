@@ -24,7 +24,15 @@ const products = [
     "homepageSections": [
       "sec-new",
       "sec-best"
-    ]
+    ],
+    "in_stock": true,
+    "is_bestseller": false,
+    "is_hot_deal": false,
+    "is_new": true,
+    "reviews_count": 0,
+    "reviewsCount": 0,
+    "original_price": 180000,
+    "category_name": "LAPTOPS"
   },
   {
     "id": 1,
@@ -57,7 +65,15 @@ const products = [
     "homepageSections": [
       "sec-new",
       "sec-best"
-    ]
+    ],
+    "in_stock": true,
+    "is_bestseller": false,
+    "is_hot_deal": false,
+    "is_new": true,
+    "reviews_count": 0,
+    "reviewsCount": 0,
+    "original_price": null,
+    "category_name": "computer & it"
   },
   {
     "id": 3,
@@ -90,7 +106,15 @@ const products = [
     "homepageSections": [
       "sec-new",
       "sec-best"
-    ]
+    ],
+    "in_stock": true,
+    "is_bestseller": false,
+    "is_hot_deal": false,
+    "is_new": true,
+    "reviews_count": 0,
+    "reviewsCount": 0,
+    "original_price": null,
+    "category_name": "HEADPHONE"
   },
   {
     "id": 11,
@@ -117,7 +141,15 @@ const products = [
     "homepageSections": [
       "sec-new",
       "sec-best"
-    ]
+    ],
+    "in_stock": true,
+    "is_bestseller": false,
+    "is_hot_deal": false,
+    "is_new": true,
+    "reviews_count": 0,
+    "reviewsCount": 0,
+    "original_price": null,
+    "category_name": "Accessories"
   },
   {
     "id": 12,
@@ -144,7 +176,15 @@ const products = [
     "homepageSections": [
       "sec-new",
       "sec-best"
-    ]
+    ],
+    "in_stock": true,
+    "is_bestseller": false,
+    "is_hot_deal": false,
+    "is_new": true,
+    "reviews_count": 0,
+    "reviewsCount": 0,
+    "original_price": 5000,
+    "category_name": "computer & it"
   },
   {
     "id": 4,
@@ -171,7 +211,15 @@ const products = [
     "homepageSections": [
       "sec-new",
       "sec-best"
-    ]
+    ],
+    "in_stock": true,
+    "is_bestseller": false,
+    "is_hot_deal": false,
+    "is_new": true,
+    "reviews_count": 0,
+    "reviewsCount": 0,
+    "original_price": null,
+    "category_name": "CHAGER"
   },
   {
     "id": 5,
@@ -202,7 +250,15 @@ const products = [
     "homepageSections": [
       "sec-new",
       "sec-best"
-    ]
+    ],
+    "in_stock": true,
+    "is_bestseller": false,
+    "is_hot_deal": false,
+    "is_new": true,
+    "reviews_count": 0,
+    "reviewsCount": 0,
+    "original_price": 20000,
+    "category_name": "LAPTOPS"
   },
   {
     "id": 8,
@@ -229,7 +285,15 @@ const products = [
     "homepageSections": [
       "sec-new",
       "sec-best"
-    ]
+    ],
+    "in_stock": true,
+    "is_bestseller": false,
+    "is_hot_deal": false,
+    "is_new": true,
+    "reviews_count": 0,
+    "reviewsCount": 0,
+    "original_price": null,
+    "category_name": "computer & it"
   },
   {
     "id": 7,
@@ -267,7 +331,15 @@ const products = [
     "homepageSections": [
       "sec-new",
       "sec-best"
-    ]
+    ],
+    "in_stock": true,
+    "is_bestseller": false,
+    "is_hot_deal": false,
+    "is_new": true,
+    "reviews_count": 0,
+    "reviewsCount": 0,
+    "original_price": 15000,
+    "category_name": "HEADPHONE"
   },
   {
     "id": 9,
@@ -311,7 +383,15 @@ const products = [
     "homepageSections": [
       "sec-new",
       "sec-best"
-    ]
+    ],
+    "in_stock": true,
+    "is_bestseller": false,
+    "is_hot_deal": false,
+    "is_new": true,
+    "reviews_count": 0,
+    "reviewsCount": 0,
+    "original_price": 150000,
+    "category_name": "LAPTOPS"
   },
   {
     "id": 10,
@@ -338,7 +418,15 @@ const products = [
     "homepageSections": [
       "sec-new",
       "sec-best"
-    ]
+    ],
+    "in_stock": true,
+    "is_bestseller": false,
+    "is_hot_deal": false,
+    "is_new": true,
+    "reviews_count": 0,
+    "reviewsCount": 0,
+    "original_price": null,
+    "category_name": "Accessories"
   },
   {
     "id": 13,
@@ -365,7 +453,15 @@ const products = [
     "homepageSections": [
       "sec-new",
       "sec-best"
-    ]
+    ],
+    "in_stock": true,
+    "is_bestseller": false,
+    "is_hot_deal": false,
+    "is_new": true,
+    "reviews_count": 0,
+    "reviewsCount": 0,
+    "original_price": null,
+    "category_name": "computer & it"
   },
   {
     "id": 6,
@@ -398,7 +494,15 @@ const products = [
     "homepageSections": [
       "sec-new",
       "sec-best"
-    ]
+    ],
+    "in_stock": true,
+    "is_bestseller": false,
+    "is_hot_deal": false,
+    "is_new": true,
+    "reviews_count": 0,
+    "reviewsCount": 0,
+    "original_price": 8000,
+    "category_name": "CHAGER"
   }
 ];
 
