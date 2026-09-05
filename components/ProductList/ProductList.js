@@ -253,6 +253,7 @@ class ProductList extends HTMLElement {
       // ===== SET PRODUCTS =====
       if (products && products.length > 0) {
         this.products = products;
+        this.initializeHomepageSectionsForProducts(this.products);
         console.log('✅ [ProductList] Loaded from Supabase:', this.products.length);
         
         // Cache in storage

@@ -46,9 +46,10 @@ export async function fetchProductsFromSupabase() {
               inStock: p.in_stock ?? true,
               isBestseller: p.is_bestseller ?? false,
               isHotDeal: p.is_hot_deal ?? false,
-              isNew: p.is_new ?? false,
+              isNew: p.is_new ?? true,
               rating: p.rating ? parseFloat(p.rating) : 5.0,
-              reviews: p.reviews_count ?? 0
+              reviews: p.reviews_count ?? 0,
+              homepageSections: p.homepage_sections || ['sec-new', 'sec-best']
             });
           }
         });
