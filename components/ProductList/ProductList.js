@@ -3206,6 +3206,26 @@ class ProductList extends HTMLElement {
       });
     });
 
+    // Auto-slide all product carousels (New Arrivals, Hot Deals, Best Sellers) continuously like the Hero Banner
+    if (this._rowsAutoSlideInterval) {
+      clearInterval(this._rowsAutoSlideInterval);
+    }
+    const slidableRows = shadow.querySelectorAll('.slidable-product-row');
+    if (slidableRows.length > 0) {
+      this._rowsAutoSlideInterval = setInterval(() => {
+        slidableRows.forEach(row => {
+          if (row && row.scrollWidth > row.clientWidth) {
+            const maxScroll = row.scrollWidth - row.clientWidth;
+            if (row.scrollLeft >= maxScroll - 10) {
+              row.scrollTo({ left: 0, behavior: 'smooth' });
+            } else {
+              row.scrollBy({ left: 280, behavior: 'smooth' });
+            }
+          }
+        });
+      }, 3500);
+    }
+
     // Today's Deals Hero Dynamic Background Slider
     if (this._dealsSliderInterval) {
       clearInterval(this._dealsSliderInterval);
