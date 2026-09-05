@@ -254,19 +254,15 @@ class ProductList extends HTMLElement {
         subscribeToGlobalRealtimeSync 
       } = await import('../../utils/supabase.js');
       
-      // Fetch all data in parallel safely using Promise.allSettled to prevent single-request failures
-      const [productsRes, categoriesRes, brandsRes] = await Promise.allSettled([
+      // Fetch all data in parallel
+      const [products, categories, brands] = await Promise.all([
         fetchProductsFromSupabase(),
         fetchCategoriesFromSupabase(),
         fetchBrandsFromSupabase()
       ]);
-
-      const products = productsRes.status === 'fulfilled' ? productsRes.value : null;
-      const categories = categoriesRes.status === 'fulfilled' ? categoriesRes.value : null;
-      const brands = brandsRes.status === 'fulfilled' ? brandsRes.value : null;
       
       // ===== SET PRODUCTS =====
-      if (products && Array.isArray(products) && products.length > 0) {
+      if (products && products.length > 0) {
         this.products = products;
         this.initializeHomepageSectionsForProducts(this.products);
         console.log('✅ [ProductList] Loaded from Supabase:', this.products.length);
@@ -275,10 +271,15 @@ class ProductList extends HTMLElement {
         saveStorageItem('SWEETOS_products', this.products);
         sessionStorage.setItem('SWEETOS_products', JSON.stringify(this.products));
       } else {
-        console.log('📭 [ProductList] No products returned from Supabase, preserving current catalog');
-        if (!this.products || this.products.length === 0) {
-          this.products = defaultProducts || [];
-          saveStorageItem('SWEETOS_products', this.products);
+        console.log('📭 [ProductList] No products in Supabase');
+        this.products = [];
+        // Try fallback to localStorage
+        const cached = getStorageItem('SWEETOS_products');
+        if (cached) {
+          try {
+            this.products = typeof cached === 'string' ? JSON.parse(cached) : cached;
+            console.log('📦 [ProductList] Fallback to cached products:', this.products.length);
+          } catch(e) {}
         }
       }
       
@@ -1196,8 +1197,7 @@ class ProductList extends HTMLElement {
       const defaultSecs = defaultSections;
 
       let needsSave = false;
-      const hasOutdatedCat = sectionsList.some(s => s && (s.category === 'Apple' || s.category === 'Keyboards' || s.category === 'Audio'));
-      if (sectionsList.length === 0 || hasOutdatedCat) {
+      if (sectionsList.length === 0) {
         sectionsList = [...defaultSecs];
         needsSave = true;
       } else {
@@ -2940,10 +2940,8 @@ class ProductList extends HTMLElement {
 
   injectHomeProducts() {
     let sectionsList = safeParseArray(getStorageItem('SWEETOS_homepage_sections'));
-    const hasOutdatedCat = sectionsList.some(s => s && (s.category === 'Apple' || s.category === 'Keyboards' || s.category === 'Audio'));
-    if (sectionsList.length === 0 || hasOutdatedCat) {
+    if (sectionsList.length === 0) {
       sectionsList = defaultSections || [];
-      saveStorageItem('SWEETOS_homepage_sections', sectionsList);
     }
 
     // Sort active sections by order

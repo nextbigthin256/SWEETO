@@ -335,40 +335,19 @@ ON CONFLICT (id) DO UPDATE SET public = true;
 CREATE POLICY "Public Uploads Access" ON storage.objects FOR ALL USING (bucket_id = 'uploads') WITH CHECK (bucket_id = 'uploads');
 
 -- ====================================================================
--- ====================================================================
--- SEED DATA (INITIAL CATEGORIES, BRANDS & 13 PRODUCTS)
+-- SEED DATA (INITIAL CATEGORIES & BRANDS)
 -- ====================================================================
 INSERT INTO public.store_settings (store_name, currency, hero_title, hero_subtitle)
-VALUES ('SWEETOS', 'FCFA', 'Find Your Style, Love Your Look ✨', 'Discover the latest trends in minimalist tech layouts, high-end accessories, and premium workspace gear.')
-ON CONFLICT (id) DO NOTHING;
+VALUES ('SWEETOS', 'FCFA', 'Find Your Style, Love Your Look ✨', 'Discover the latest trends in minimalist tech layouts, high-end accessories, and premium workspace gear.');
 
 INSERT INTO public.categories (name, slug, icon, description) VALUES
-('LAPTOPS', 'laptops', '💻', 'High-performance laptops & notebooks'),
-('computer & it', 'computer-it', '🖥️', 'Computers, workstations & IT accessories'),
-('HEADPHONE', 'headphone', '🎧', 'Studio headphones & wireless audio'),
-('Accessories', 'accessories', '🔌', 'Workspace & tech accessories'),
-('CHAGER', 'chager', '⚡', 'Chargers, power adapters & cables')
-ON CONFLICT (slug) DO NOTHING;
+('Keyboards', 'keyboards', '⌨️', 'Custom mechanical keyboards and keycaps'),
+('Audio', 'audio', '🎧', 'High-fidelity headphones and studio DACs'),
+('Desks', 'desks', '🪵', 'Solid hardwood monitor stands and organizers'),
+('Lighting', 'lighting', '💡', 'Minimalist LED screen bars and ambiance lighting');
 
 INSERT INTO public.brands (name, slug, description, is_official) VALUES
-('hp', 'hp', 'Official HP Laptops & Workstations', true),
-('BOSE', 'bose', 'Bose High-Fidelity Audio Gear', true),
-('JBL', 'jbl', 'JBL Premium Audio Equipment', true),
-('SWEETOS', 'sweetos', 'Official Sweetos Tech Accessories', true)
-ON CONFLICT (slug) DO NOTHING;
-
-INSERT INTO public.products (legacy_id, name, slug, description, price, original_price, category_name, subcategory_name, brand_name, image, stock, in_stock, is_bestseller, is_hot_deal, is_new, rating, reviews_count) VALUES
-(2, 'HP ELITEBOOK', 'hp-elitebook-2', 'High performance HP EliteBook laptop', 150000, 180000, 'LAPTOPS', '', 'hp', 'https://euuzsxjsmsktegilbqpv.supabase.co/storage/v1/object/public/uploads/prod_2.png', 46, true, false, false, true, 5.0, 0),
-(1, 'hp elite book', 'hp-elite-book-1', 'Premium refurbished HP EliteBook notebook', 200000, NULL, 'computer & it', '', 'hp', 'https://euuzsxjsmsktegilbqpv.supabase.co/storage/v1/object/public/uploads/prod_1.png', 46, true, false, false, true, 5.0, 0),
-(3, 'BOSE ULTRA', 'bose-ultra-3', 'Bose QuietComfort Ultra wireless headphones', 10000, NULL, 'HEADPHONE', '', 'BOSE', 'https://euuzsxjsmsktegilbqpv.supabase.co/storage/v1/object/public/uploads/upload_1788007023036_x1jwcn.jpg', 35, true, false, false, true, 5.0, 0),
-(11, 'External case m.2', 'external-case-m-2-11', 'High-speed M.2 NVMe SSD External Enclosure', 15000, NULL, 'Accessories', '', 'SWEETOS', 'https://euuzsxjsmsktegilbqpv.supabase.co/storage/v1/object/public/uploads/upload_1788007137593_wxs0r4.jpg', 50, true, false, false, true, 5.0, 0),
-(12, 'Wireless mouse', 'wireless-mouse-12', 'Ergonomic 2.4G wireless optical mouse', 8000, NULL, 'computer & it', '', 'hp', 'https://euuzsxjsmsktegilbqpv.supabase.co/storage/v1/object/public/uploads/upload_1788007204558_p98b2c.jpg', 40, true, false, false, true, 5.0, 0),
-(4, 'HP BLEU MOUTH', 'hp-bleu-mouth-4', 'Official HP Blue Optical Mouse', 5000, NULL, 'CHAGER', '', 'hp', 'https://euuzsxjsmsktegilbqpv.supabase.co/storage/v1/object/public/uploads/upload_1788007270425_d05a9u.jpg', 30, true, false, false, true, 5.0, 0),
-(5, '8GO RAM DDR4', '8go-ram-ddr4-5', '8GB DDR4 2666MHz SODIMM Memory Module', 25000, NULL, 'LAPTOPS', '', 'hp', 'https://euuzsxjsmsktegilbqpv.supabase.co/storage/v1/object/public/uploads/upload_1788007328901_35vhge.jpg', 25, true, false, false, true, 5.0, 0),
-(8, 'mouse', 'mouse-8', 'Precision wired USB optical mouse', 4000, NULL, 'computer & it', '', 'hp', 'https://euuzsxjsmsktegilbqpv.supabase.co/storage/v1/object/public/uploads/upload_1788007399899_z6u55g.jpg', 60, true, false, false, true, 5.0, 0),
-(7, 'HEADPHONE JBL', 'headphone-jbl-7', 'JBL PureBass wireless over-ear headphones', 18000, NULL, 'HEADPHONE', '', 'JBL', 'https://euuzsxjsmsktegilbqpv.supabase.co/storage/v1/object/public/uploads/upload_1788007466231_27n06s.jpg', 20, true, false, false, true, 5.0, 0),
-(9, 'Hp Elitebook G4 830', 'hp-elitebook-g4-830-9', 'HP EliteBook 830 G4 Core i5 8GB RAM 256GB SSD', 175000, NULL, 'LAPTOPS', '', 'hp', 'https://euuzsxjsmsktegilbqpv.supabase.co/storage/v1/object/public/uploads/upload_1788007530111_p40hns.jpg', 15, true, false, false, true, 5.0, 0),
-(10, 'External case', 'external-case-10', '2.5 inch SATA External Hard Drive Enclosure', 10000, NULL, 'Accessories', '', 'SWEETOS', 'https://euuzsxjsmsktegilbqpv.supabase.co/storage/v1/object/public/uploads/upload_1788007589145_m29vhx.jpg', 35, true, false, false, true, 5.0, 0),
-(13, 'this', 'this-13', 'Universal USB-C Fast Charger Cable', 6000, NULL, 'computer & it', '', 'hp', 'https://euuzsxjsmsktegilbqpv.supabase.co/storage/v1/object/public/uploads/upload_1788007655001_s91kd8.jpg', 50, true, false, false, true, 5.0, 0),
-(6, 'chager hp', 'chager-hp-6', 'Original HP Smart AC Power Adapter Charger', 12000, NULL, 'CHAGER', '', 'hp', 'https://euuzsxjsmsktegilbqpv.supabase.co/storage/v1/object/public/uploads/upload_1788007718999_x03c81.jpg', 40, true, false, false, true, 5.0, 0)
-ON CONFLICT (slug) DO NOTHING;
+('SWEETOS', 'sweetos', 'Official Sweetos Luxury Workspace Hardware', true),
+('Aero', 'aero', 'Precision Mechanical Keyboards & Accessories', true),
+('Apex', 'apex', 'Studio Acoustics & Audio Engineering', true),
+('Nebula', 'nebula', 'Artisan Hardwood Ergonomics', true);
