@@ -39,11 +39,21 @@ class Header extends HTMLElement {
     
     const loggedInUserStr = getStorageItem('SWEETOS_logged_in_user');
     
-    if (!loggedInUserStr) {
+    const renderLoggedOut = () => {
       profilePill.innerHTML = `
-        <div class="user-avatar" style="background: rgba(0, 82, 204, 0.1); color: #0052cc; font-size: 13px; font-weight: 800;">👤</div>
-        <span class="user-name" style="font-weight: 750; color: #0f172a;">Connexion / S'inscrire</span>
+        <div style="display: flex; align-items: center; gap: 7px; color: #0052cc; font-weight: 750; font-size: 13px;">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="color: #0052cc; flex-shrink: 0;">
+            <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path>
+            <polyline points="10 17 15 12 10 7"></polyline>
+            <line x1="15" y1="12" x2="3" y2="12"></line>
+          </svg>
+          <span style="font-weight: 750; color: #0052cc;">Connexion / S'inscrire</span>
+        </div>
       `;
+    };
+
+    if (!loggedInUserStr || loggedInUserStr === 'null' || loggedInUserStr === 'undefined' || loggedInUserStr === '{}') {
+      renderLoggedOut();
       return;
     }
 
@@ -51,10 +61,7 @@ class Header extends HTMLElement {
     try { loggedObj = JSON.parse(loggedInUserStr); } catch(e) {}
 
     if (!loggedObj || !loggedObj.email) {
-      profilePill.innerHTML = `
-        <div class="user-avatar" style="background: rgba(0, 82, 204, 0.1); color: #0052cc; font-size: 13px; font-weight: 800;">👤</div>
-        <span class="user-name" style="font-weight: 750; color: #0f172a;">Connexion / S'inscrire</span>
-      `;
+      renderLoggedOut();
       return;
     }
 
