@@ -2,7 +2,19 @@ import defaultSections from '../../data/sections.js';
 import { showEditAddressModal } from '../Modals/EditAddressModal.js';
 import { showCancelOrderModal } from '../Modals/CancelOrderModal.js';
 import { getAuthPageHTML, attachAuthListeners } from '../Auth/AuthPage.js';
-import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getScratchcardsStorageKey, formatPrice, formatTimeAgo, syncDeliveredNotifications, getAllOrdersFromStorage, saveAllOrdersToStorage, getStorageItem, saveStorageItem } from '../../utils/storage.js';
+import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getScratchcardsStorageKey, formatPrice, formatTimeAgo, syncDeliveredNotifications, getAllOrdersFromStorage, saveAllOrdersToStorage, getStorageItem, saveStorageItem, isLocalDevHost } from '../../utils/storage.js';
+
+function safeGetOrders() {
+  if (isLocalDevHost()) {
+    return fetch('/api/orders')
+      .then(res => {
+        if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return getAllOrdersFromStorage();
+        return res.json().catch(() => getAllOrdersFromStorage());
+      })
+      .catch(() => getAllOrdersFromStorage());
+  }
+  return Promise.resolve(getAllOrdersFromStorage() || []);
+}
 
 import { CUSTOMER_LEVELS, VERIFIED_BADGES, renderVerificationBadge, renderLevelPill, getCustomerLevel, getCustomerBadge, getBadgeRewardCoupon, getCustomerAvatarStyle, renderLevelChevronV, scratchBadgeReward, isBadgeRewardScratched } from '../../utils/badges.js';
 import { getTodaysDealsConfig, isTodaysDealsActive, getTimeRemaining, awardMysteryBoxForDeliveredOrder, getTodaysDealsTheme, DEAL_BANNER_THEMES } from '../../utils/todaysDeals.js';
@@ -1050,13 +1062,15 @@ class ProductList extends HTMLElement {
     window.dispatchEvent(new CustomEvent('reviews:updated', { detail: allReviews }));
 
     // Sync to server disk if backend API is active
-    fetch('/api/reviews', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(allReviews)
-    }).catch(() => {});
+    if (isLocalDevHost()) {
+      fetch('/api/reviews', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(allReviews)
+      }).catch(() => {});
+    }
   }
 
   renderPageContent() {
@@ -7484,11 +7498,7 @@ class ProductList extends HTMLElement {
     }
 
     // Fetch latest orders from server to synchronize status
-    fetch('/api/orders')
-      .then(res => {
-        if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return [];
-        return res.json().catch(() => []);
-      })
+    safeGetOrders()
       .then(serverOrders => {
         if (Array.isArray(serverOrders)) {
           const profile = this.loadUserProfile();
@@ -8079,11 +8089,7 @@ class ProductList extends HTMLElement {
             sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
             
             // 2. Fetch latest orders from server, update and POST back
-            fetch('/api/orders')
-              .then(res => {
-                if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return getAllOrdersFromStorage();
-                return res.json().catch(() => getAllOrdersFromStorage());
-              })
+            safeGetOrders()
               .then(serverOrders => {
                 let allOrders = Array.isArray(serverOrders) ? serverOrders : [];
                 const globalOrder = allOrders.find(go => go.id === o.id);
@@ -8118,11 +8124,7 @@ class ProductList extends HTMLElement {
             sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
             
             // 2. Fetch latest orders from server, update and POST back
-            fetch('/api/orders')
-              .then(res => {
-                if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return getAllOrdersFromStorage();
-                return res.json().catch(() => getAllOrdersFromStorage());
-              })
+            safeGetOrders()
               .then(serverOrders => {
                 let allOrders = Array.isArray(serverOrders) ? serverOrders : [];
                 const globalOrder = allOrders.find(go => go.id === o.id);
@@ -8154,11 +8156,7 @@ class ProductList extends HTMLElement {
           sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
           
            // 2. Fetch latest orders from server, update and POST back
-           fetch('/api/orders')
-             .then(res => {
-               if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return getAllOrdersFromStorage();
-               return res.json().catch(() => getAllOrdersFromStorage());
-             })
+           safeGetOrders()
              .then(serverOrders => {
                let allOrders = Array.isArray(serverOrders) ? serverOrders : [];
                const globalOrder = allOrders.find(go => go.id === o.id);
@@ -8190,11 +8188,7 @@ class ProductList extends HTMLElement {
           sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
           
           // 2. Fetch latest orders from server, update and POST back
-          fetch('/api/orders')
-            .then(res => {
-              if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return getAllOrdersFromStorage();
-              return res.json().catch(() => getAllOrdersFromStorage());
-            })
+          safeGetOrders()
             .then(serverOrders => {
               let allOrders = Array.isArray(serverOrders) ? serverOrders : [];
               const globalOrder = allOrders.find(go => go.id === o.id);
@@ -8204,15 +8198,19 @@ class ProductList extends HTMLElement {
               saveAllOrdersToStorage(allOrders);
             })
             .then(() => {
-              // 3. Broadcast custom alert to admin panel
-              fetch('/api/broadcast-alert', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                  type: 'orders',
-                  message: `Order ${o.id} has been marked as Received (Done) by the customer!`
+              // 3. Broadcast custom alert to admin panel if local node dev host
+              if (isLocalDevHost()) {
+                fetch('/api/broadcast-alert', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json'
+                  },
+                  body: JSON.stringify({
+                    type: 'orders',
+                    message: `Order ${o.id} has been marked as Received (Done) by the customer!`
+                  })
+                }).catch(() => {});
+              }
                 })
               }).catch(e => console.error('Failed to broadcast received order alert:', e));
             })

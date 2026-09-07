@@ -526,20 +526,21 @@ export async function syncDeliveredNotifications() {
     const orders = await fetchOrdersFromSupabase(userEmail);
     if (Array.isArray(orders) && orders.length > 0) {
       await processOrders(orders);
-    } else {
-      const res = await fetch('/api/orders');
-      const ordersData = res.ok ? await res.json() : [];
-      await processOrders(ordersData);
+    } else if (isLocalDevHost()) {
+      const res = await fetch('/api/orders').catch(() => null);
+      const ordersData = (res && res.ok) ? await res.json().catch(() => []) : [];
+      if (Array.isArray(ordersData)) await processOrders(ordersData);
     }
   } catch(e) {
     console.error('[syncDeliveredNotifications] Error:', e);
-    // Fallback to local API
-    try {
-      const res = await fetch('/api/orders');
-      const ordersData = res.ok ? await res.json() : [];
-      await processOrders(ordersData);
-    } catch(fallbackErr) {
-      console.error('[syncDeliveredNotifications] Fallback error:', fallbackErr);
+    if (isLocalDevHost()) {
+      try {
+        const res = await fetch('/api/orders').catch(() => null);
+        const ordersData = (res && res.ok) ? await res.json().catch(() => []) : [];
+        if (Array.isArray(ordersData)) await processOrders(ordersData);
+      } catch(fallbackErr) {
+        console.error('[syncDeliveredNotifications] Fallback error:', fallbackErr);
+      }
     }
   }
 }
