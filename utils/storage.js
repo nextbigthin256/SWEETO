@@ -943,8 +943,29 @@ export async function syncCustomersToSupabase(customers) {
   }
 }
 
+const CURRENT_APP_VERSION = 'v1.0.5';
+
+export function checkAppVersionAndCleanStorage() {
+  try {
+    const storedVersion = localStorage.getItem('SWEETOS_APP_VERSION');
+    if (storedVersion !== CURRENT_APP_VERSION) {
+      console.log(`🧹 [Storage] App updated from ${storedVersion || 'legacy'} to ${CURRENT_APP_VERSION}. Invalidating old local/session storage...`);
+      
+      // Clean out obsolete cached products & session states
+      try { localStorage.removeItem('SWEETOS_products'); } catch(e) {}
+      try { sessionStorage.clear(); } catch(e) {}
+      
+      // Set current app version marker
+      localStorage.setItem('SWEETOS_APP_VERSION', CURRENT_APP_VERSION);
+    }
+  } catch (e) {
+    console.warn('[Storage] App version check skipped:', e);
+  }
+}
+
 export async function initStorageSync() {
   console.log('[Storage] Initializing with Supabase sync...');
+  checkAppVersionAndCleanStorage();
   await retryPendingSupabaseSyncs();
   console.log('[Storage] Initialization complete');
 }

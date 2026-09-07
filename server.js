@@ -570,7 +570,13 @@ const server = http.createServer((req, res) => {
         res.writeHead(500, { 'Content-Type': 'text/plain' });
         res.end('500 Internal Server Error');
       } else {
-        res.writeHead(200, { 'Content-Type': MIME_TYPES[ext] || 'application/octet-stream' });
+        const headers = {
+          'Content-Type': MIME_TYPES[ext] || 'application/octet-stream'
+        };
+        if (ext === '.html' || ext === '.js' || ext === '.css') {
+          headers['Cache-Control'] = 'no-cache, must-revalidate';
+        }
+        res.writeHead(200, headers);
         res.end(data);
       }
     });

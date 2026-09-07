@@ -34,26 +34,42 @@ self.addEventListener('activate', (event) => {
   return self.clients.claim();
 });
 
-// Fetch - Serve from cache or network fallback
+// Fetch - Network-First for core HTML/JS/CSS, fallback to cache if offline
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
-  event.respondWith(
-    caches.match(event.request).then((cachedResponse) => {
-      if (cachedResponse) {
-        fetch(event.request).then(response => {
-          if (response && response.status === 200) {
-            caches.open(CACHE_NAME).then(cache => cache.put(event.request, response));
-          }
-        }).catch(() => {});
-        return cachedResponse;
-      }
-      return fetch(event.request).catch(() => {
-        if (event.request.mode === 'navigate') {
-          return caches.match(OFFLINE_URL);
+  
+  const url = new URL(event.request.url);
+  const isCoreAsset = event.request.mode === 'navigate' || 
+                      url.pathname.endsWith('.html') || 
+                      url.pathname.endsWith('.js') || 
+                      url.pathname.endsWith('.css');
+
+  if (isCoreAsset) {
+    event.respondWith(
+      fetch(event.request).then((response) => {
+        if (response && response.status === 200) {
+          const responseClone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
         }
-      });
-    })
-  );
+        return response;
+      }).catch(() => {
+        return caches.match(event.request).then((cached) => cached || (event.request.mode === 'navigate' ? caches.match(OFFLINE_URL) : null));
+      })
+    );
+  } else {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        if (cachedResponse) return cachedResponse;
+        return fetch(event.request).then((response) => {
+          if (response && response.status === 200) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          }
+          return response;
+        });
+      })
+    );
+  }
 });
 
 // ===== WEB PUSH NOTIFICATIONS =====
