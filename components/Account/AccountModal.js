@@ -24,48 +24,68 @@ class AccountModal extends HTMLElement {
   }
 
   loadUserData() {
-    const loggedIn = getStorageItem('SWEETOS_logged_in_user') || sessionStorage.getItem('SWEETOS_logged_in_user');
+    const loggedIn = getStorageItem('SWEETOS_logged_in_user');
     if (loggedIn) {
       try {
         const session = JSON.parse(loggedIn);
         const email = (session.email || '').toLowerCase().trim();
-        if (!email) return;
+        if (email) {
+          const profileKey = getProfileStorageKey(email);
+          let profileStr = getStorageItem(profileKey) || getStorageItem('SWEETOS_user_profile');
+          let parsed = null;
+          if (profileStr) {
+            try {
+              const p = JSON.parse(profileStr);
+              if (p && (!p.email || (p.email || '').toLowerCase().trim() === email)) {
+                parsed = p;
+              }
+            } catch(e) {}
+          }
 
-        const profileKey = getProfileStorageKey(email);
-        let profileStr = getStorageItem(profileKey) || sessionStorage.getItem(profileKey);
-        let parsed = null;
-        if (profileStr) {
-          try {
-            parsed = JSON.parse(profileStr);
-            if (parsed && (parsed.email || '').toLowerCase().trim() !== email) {
-              parsed = null;
-            }
-          } catch(e) {}
+          // Exact display name matching Header
+          let fullName = '';
+          if (parsed && (parsed.firstName || parsed.lastName)) {
+            fullName = `${parsed.firstName || ''} ${parsed.lastName || ''}`.trim();
+          } else if (parsed && parsed.name) {
+            fullName = parsed.name.trim();
+          } else if (session.name) {
+            fullName = session.name.trim();
+          } else if (session.fullname) {
+            fullName = session.fullname.trim();
+          } else {
+            fullName = email.split('@')[0];
+          }
+
+          const initials = fullName
+            ? fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+            : email.substring(0, 2).toUpperCase();
+
+          const globalOrders = getAllOrdersFromStorage();
+          const userOrders = globalOrders.filter(o => {
+            const oEmail = (o.customerEmail || o.email || o.userEmail || '').toLowerCase().trim();
+            return oEmail === email && (o.status || '').toLowerCase() !== 'deleted';
+          });
+
+          const formattedAddress = parsed?.address || 
+            (parsed?.addresses && parsed.addresses[0] ? (typeof parsed.addresses[0] === 'string' ? parsed.addresses[0] : parsed.addresses[0].street || parsed.addresses[0].address) : '') ||
+            "Abidjan, Côte d'Ivoire";
+
+          this.user = {
+            name: fullName,
+            email: email,
+            phone: parsed?.phone || session.phone || "",
+            memberSince: parsed?.registrationDate || "Nouveau Client",
+            address: formattedAddress,
+            avatar: initials
+          };
+          this.orders = userOrders;
+
+          import('../../utils/supabase.js').then(({ fetchProfileFromSupabase }) => {
+            fetchProfileFromSupabase(email);
+          }).catch(() => {});
+
+          return;
         }
-
-        // Strictly filter orders matching THIS user's email only
-        const globalOrders = getAllOrdersFromStorage();
-        const userOrders = globalOrders.filter(o => {
-          const oEmail = (o.customerEmail || o.email || o.userEmail || '').toLowerCase().trim();
-          return oEmail === email && (o.status || '').toLowerCase() !== 'deleted';
-        });
-
-        this.user = {
-          name: parsed ? `${parsed.firstName || ''} ${parsed.lastName || ''}`.trim() : (session.name || session.fullname || 'SWEETOS Member'),
-          email: email,
-          phone: parsed?.phone || session.phone || "",
-          memberSince: parsed?.registrationDate || "October 2025",
-          address: parsed?.address || (parsed?.addresses && parsed.addresses[0]) || "",
-          avatar: (parsed && parsed.firstName && parsed.lastName) ? `${parsed.firstName.charAt(0).toUpperCase()}${parsed.lastName.charAt(0).toUpperCase()}` : 'US'
-        };
-        this.orders = userOrders;
-
-        // Async sync from Supabase Cloud
-        import('../../utils/supabase.js').then(({ fetchProfileFromSupabase }) => {
-          fetchProfileFromSupabase(email);
-        }).catch(() => {});
-
-        return;
       } catch (e) {
         console.error(e);
       }
@@ -216,13 +236,37 @@ class AccountModal extends HTMLElement {
     const logoutBtn = shadow.getElementById('logout-btn');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', () => {
-        // Clear active session
+        const currentUserStr = getStorageItem('SWEETOS_logged_in_user');
+        let currentEmail = '';
+        if (currentUserStr) {
+          try { currentEmail = JSON.parse(currentUserStr).email || ''; } catch(e) {}
+        }
+
+        // Clear active session and all profile keys
         try { localStorage.removeItem('SWEETOS_logged_in_user'); } catch(e) {}
-        try { localStorage.removeItem('SWEETOS_user_profile'); } catch(e) {}
         try { sessionStorage.removeItem('SWEETOS_logged_in_user'); } catch(e) {}
+        try { localStorage.removeItem('SWEETOS_user_profile'); } catch(e) {}
         try { sessionStorage.removeItem('SWEETOS_user_profile'); } catch(e) {}
         
+        if (currentEmail) {
+          const safeKey = currentEmail.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
+          try { localStorage.removeItem(`SWEETOS_user_profile_${safeKey}`); } catch(e) {}
+          try { sessionStorage.removeItem(`SWEETOS_user_profile_${safeKey}`); } catch(e) {}
+        }
+
+        this.user = {
+          name: "Guest User",
+          email: "guest@SWEETOS.com",
+          phone: "N/A",
+          memberSince: "N/A",
+          address: "N/A",
+          avatar: "G"
+        };
+        this.orders = [];
+
         window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: false } }));
+        window.dispatchEvent(new CustomEvent('profile:updated'));
+        window.dispatchEvent(new CustomEvent('orders:updated'));
         window.dispatchEvent(new CustomEvent('notifications:updated'));
         window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: 0 }));
         window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Déconnexion réussie.' }));

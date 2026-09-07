@@ -58,21 +58,41 @@ class Header extends HTMLElement {
       return;
     }
 
-    const profileKey = getProfileStorageKey();
-    const saved = sessionStorage.getItem(profileKey);
+    const currentEmail = loggedObj.email.toLowerCase().trim();
+    const profileKey = getProfileStorageKey(currentEmail);
+    
     let profile = null;
-    if (saved) {
-      try { profile = JSON.parse(saved); } catch(e) {}
+    const savedProfileStr = getStorageItem(profileKey) || getStorageItem('SWEETOS_user_profile');
+    if (savedProfileStr) {
+      try {
+        const p = JSON.parse(savedProfileStr);
+        if (p && (!p.email || (p.email || '').toLowerCase().trim() === currentEmail)) {
+          profile = p;
+        }
+      } catch(e) {}
     }
 
-    const currentEmail = loggedObj.email.toLowerCase().trim();
+    // Determine exact display name matching AccountModal
+    let fullName = '';
+    if (profile && (profile.firstName || profile.lastName)) {
+      fullName = `${profile.firstName || ''} ${profile.lastName || ''}`.trim();
+    } else if (profile && profile.name) {
+      fullName = profile.name.trim();
+    } else if (loggedObj.name) {
+      fullName = loggedObj.name.trim();
+    } else if (loggedObj.fullname) {
+      fullName = loggedObj.fullname.trim();
+    } else {
+      fullName = currentEmail.split('@')[0];
+    }
+
     let hasAdminBadgeOverride = false;
     let hasAdminLevelOverride = false;
 
     try {
-      const customersList = JSON.parse(sessionStorage.getItem('SWEETOS_customers') || '[]');
+      const customersList = JSON.parse(getStorageItem('SWEETOS_customers') || '[]');
       if (currentEmail) {
-        const custRecord = customersList.find(c => c.email && c.email.toLowerCase() === currentEmail);
+        const custRecord = customersList.find(c => c.email && c.email.toLowerCase().trim() === currentEmail);
         if (custRecord) {
           if (custRecord.level) hasAdminLevelOverride = true;
           if (custRecord.badgeType) hasAdminBadgeOverride = true;
@@ -95,31 +115,29 @@ class Header extends HTMLElement {
     const effectiveLevel = (hasAdminLevelOverride && profile?.level) ? profile.level : calculatedLevelObj.id;
     const effectiveBadge = (hasAdminBadgeOverride && profile?.badgeType) ? profile.badgeType : (profile?.badgeType || 'none');
 
-    const fullName = profile ? `${profile.firstName || ''} ${profile.lastName || ''}`.trim() : (loggedObj.fullname || loggedObj.email.split('@')[0]);
-    const profileSaved = sessionStorage.getItem('SWEETOS_user_profile');
     const badgeHtml = renderVerificationBadge(effectiveBadge, 14);
-
     const avatarData = getCustomerAvatarStyle(profile, effectiveLevel);
-    const initials = (fullName || 'U').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+
+    const initials = fullName
+      ? fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
+      : currentEmail.substring(0, 2).toUpperCase();
     const avatarStyle = avatarData.style;
 
-    if (loggedObj || profileSaved || profile) {
-      profilePill.innerHTML = `
-        <div style="position: relative; display: inline-flex; align-items: center; justify-content: center;">
-          <div class="user-avatar" style="${avatarStyle}">
-            ${profile?.avatar ? '' : initials}
-          </div>
-          ${renderLevelChevronV(avatarData.level, 15)}
+    profilePill.innerHTML = `
+      <div style="position: relative; display: inline-flex; align-items: center; justify-content: center;">
+        <div class="user-avatar" style="${avatarStyle}">
+          ${profile?.avatar ? '' : initials}
         </div>
-        <span class="user-name" style="display:inline-flex; align-items:center; gap:5px; font-weight: 750; color: #0f172a;">
-          ${fullName}
-          ${badgeHtml}
-        </span>
-        <svg class="chevron-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
-      `;
-    }
+        ${renderLevelChevronV(avatarData.level, 15)}
+      </div>
+      <span class="user-name" style="display:inline-flex; align-items:center; gap:5px; font-weight: 750; color: #0f172a;">
+        ${fullName}
+        ${badgeHtml}
+      </span>
+      <svg class="chevron-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <polyline points="6 9 12 15 18 9"/>
+      </svg>
+    `;
   }
 
   syncCartBadge() {

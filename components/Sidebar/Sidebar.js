@@ -21,6 +21,11 @@ class Sidebar extends HTMLElement {
       this.syncBadges();
     });
 
+    window.addEventListener('profile:updated', () => {
+      this.updateAuthLink();
+      this.syncBadges();
+    });
+
     window.addEventListener('wishlist:updated', () => {
       this.syncBadges();
     });
