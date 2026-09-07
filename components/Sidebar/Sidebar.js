@@ -290,7 +290,7 @@ class Sidebar extends HTMLElement {
           <h3>Summer Sale</h3>
           <p>Up to 50% Off</p>
           <button class="sidebar-promo-btn">Shop Now</button>
-          <img src="./assets/desk_mat.jpg" alt="Summer Sale Products" loading="lazy">
+          <img src="https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=600&q=80" alt="Summer Sale Products" loading="lazy">
         </div>
 
         <!-- Sidebar footer help and themes -->

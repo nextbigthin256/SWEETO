@@ -5691,7 +5691,7 @@ class ProductList extends HTMLElement {
     if (this.activeAboutTab === 'about-us') {
       const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
       const storeAboutStory = sessionStorage.getItem('SWEETOS_store_about_story') || 'We believe that your physical workspace is a direct reflection of your mind. Every tactile keystroke on our mechanical layouts, every frequency shift in our custom studio audio monitors, and every ambient ray of smart lighting is calibrated to enhance focus, creativity, and deep flow.\n\nSWEETOS was founded to rescue professionals from cluttered, generic desks. By sourcing only the finest premium materials — including solid oak, CNC-milled aluminum, and artisan felt wool — we deliver functional luxury that is made to last a lifetime.';
-      const storeEntranceImage = sessionStorage.getItem('SWEETOS_store_entrance_image') || './assets/desk_mat_1786712444512.jpg';
+      const storeEntranceImage = sessionStorage.getItem('SWEETOS_store_entrance_image') || 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=1200&q=80';
       
       const s1Val = sessionStorage.getItem('SWEETOS_about_stat_1_val') || '15,000+';
       const s1Lbl = sessionStorage.getItem('SWEETOS_about_stat_1_lbl') || 'Workspace upgrades';
@@ -5782,7 +5782,7 @@ class ProductList extends HTMLElement {
               
               <!-- Gallery Card 1: Keyboards -->
               <div class="glass-panel" style="border: 1.5px solid var(--border); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'">
-                <img src="./assets/keyboard.jpg" alt="SWEETOS Custom Switches" style="width: 100%; height: 150px; object-fit: cover;">
+                <img src="https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=600&q=80" alt="SWEETOS Custom Switches" style="width: 100%; height: 150px; object-fit: cover;">
                 <div style="padding: 16px; display: flex; flex-direction: column; gap: 6px;">
                   <strong style="font-size: 14.5px; color: var(--text-dark);">⌨️ Keyboard Mechanics</strong>
                   <span style="font-size: 12.5px; color: var(--text-gray); line-height: 1.4;">CNC aluminum keycaps and customizable mechanical switch housings.</span>
@@ -5791,7 +5791,7 @@ class ProductList extends HTMLElement {
 
               <!-- Gallery Card 2: Monitor Stands -->
               <div class="glass-panel" style="border: 1.5px solid var(--border); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'">
-                <img src="./assets/monitor_stand.jpg" alt="Solid Oak Shelving" style="width: 100%; height: 150px; object-fit: cover;">
+                <img src="https://images.unsplash.com/photo-1593640408182-31c70c8268f5?w=600&q=80" alt="Solid Oak Shelving" style="width: 100%; height: 150px; object-fit: cover;">
                 <div style="padding: 16px; display: flex; flex-direction: column; gap: 6px;">
                   <strong style="font-size: 14.5px; color: var(--text-dark);">🪵 Solid Oak Woodcuts</strong>
                   <span style="font-size: 12.5px; color: var(--text-gray); line-height: 1.4;">Hand-sanded solid oak timber logs shaped into monitor risers.</span>
@@ -5800,7 +5800,7 @@ class ProductList extends HTMLElement {
 
               <!-- Gallery Card 3: Headphones -->
               <div class="glass-panel" style="border: 1.5px solid var(--border); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'">
-                <img src="./assets/headphones.jpg" alt="High Fidelity Headphones" style="width: 100%; height: 150px; object-fit: cover;">
+                <img src="https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&q=80" alt="High Fidelity Headphones" style="width: 100%; height: 150px; object-fit: cover;">
                 <div style="padding: 16px; display: flex; flex-direction: column; gap: 6px;">
                   <strong style="font-size: 14.5px; color: var(--text-dark);">🎧 Acoustic Engineering</strong>
                   <span style="font-size: 12.5px; color: var(--text-gray); line-height: 1.4;">Beryllium drivers calibrated for true spatial frequency response.</span>
@@ -5809,7 +5809,7 @@ class ProductList extends HTMLElement {
 
               <!-- Gallery Card 4: Lighting -->
               <div class="glass-panel" style="border: 1.5px solid var(--border); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; transition: transform 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='none'">
-                <img src="./assets/desk_lamp.jpg" alt="Intelligent Ambient Lights" style="width: 100%; height: 150px; object-fit: cover;">
+                <img src="https://images.unsplash.com/photo-1507473885765-e6ed057f782c?w=600&q=80" alt="Intelligent Ambient Lights" style="width: 100%; height: 150px; object-fit: cover;">
                 <div style="padding: 16px; display: flex; flex-direction: column; gap: 6px;">
                   <strong style="font-size: 14.5px; color: var(--text-dark);">💡 Ambient Raytracing</strong>
                   <span style="font-size: 12.5px; color: var(--text-gray); line-height: 1.4;">Intelligent smart LED strips reflecting warm daylight ambiance.</span>
