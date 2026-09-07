@@ -36,21 +36,26 @@ export async function fetchProductsFromSupabase() {
               slug: p.slug,
               description: p.description,
               price: parseFloat(p.price) || 0,
-              originalPrice: p.original_price ? parseFloat(p.original_price) : null,
-              category: p.category_name || '',
-              subcategory: p.subcategory_name || '',
-              brand: p.brand_name || '',
+              originalPrice: p.original_price ? parseFloat(p.original_price) : (p.compare_price ? parseFloat(p.compare_price) : null),
+              comparePrice: p.compare_price ? parseFloat(p.compare_price) : (p.original_price ? parseFloat(p.original_price) : null),
+              category: p.category_name || p.category || '',
+              subcategory: p.subcategory_name || p.subcategory || '',
+              brand: p.brand_name || p.brand || '',
               image: p.image,
               gallery: p.gallery || [],
               colors: p.colors || [],
               specs: p.specs || {},
               stock: p.stock ?? 10,
               inStock: p.in_stock ?? true,
-              isBestseller: p.is_bestseller ?? false,
-              isHotDeal: p.is_hot_deal ?? false,
-              isNew: p.is_new ?? false,
+              badge: p.badge || p.badge_text || '',
+              homepageSections: p.homepage_sections || p.homepageSections || [],
+              isBestseller: p.is_bestseller ?? p.isBestseller ?? false,
+              isHotDeal: p.is_hot_deal ?? p.isHotDeal ?? false,
+              isNew: p.is_new ?? p.isNew ?? false,
               rating: p.rating ? parseFloat(p.rating) : 5.0,
-              reviews: p.reviews_count ?? 0
+              reviews: p.reviews_count ?? (Array.isArray(p.reviews) ? p.reviews.length : 0),
+              reviewsCount: p.reviews_count ?? (Array.isArray(p.reviews) ? p.reviews.length : 0),
+              createdAt: p.created_at || null
             });
           }
         });
@@ -63,8 +68,24 @@ export async function fetchProductsFromSupabase() {
       if (Array.isArray(cloudFallback)) {
         querySuccess = true;
         cloudFallback.forEach(p => {
-          if (p && p.id && !productMap.has(String(p.id))) {
-            productMap.set(String(p.id), p);
+          if (p && p.id) {
+            const key = String(p.id);
+            if (productMap.has(key)) {
+              const existing = productMap.get(key);
+              productMap.set(key, {
+                ...p,
+                ...existing,
+                badge: existing.badge || p.badge || '',
+                comparePrice: existing.comparePrice || p.comparePrice || null,
+                originalPrice: existing.originalPrice || p.originalPrice || null,
+                homepageSections: (existing.homepageSections && existing.homepageSections.length > 0) ? existing.homepageSections : (p.homepageSections || []),
+                isBestseller: existing.isBestseller || p.isBestseller || false,
+                isHotDeal: existing.isHotDeal || p.isHotDeal || false,
+                isNew: existing.isNew || p.isNew || false,
+              });
+            } else {
+              productMap.set(key, p);
+            }
           }
         });
       }
@@ -107,13 +128,22 @@ export async function syncProductsToSupabase(productsList) {
       const legId = typeof p.id === 'number' ? p.id : (parseInt(p.id) || Date.now());
       const pName = p.name || 'Product';
       const pSlug = p.slug || (pName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') + '-' + legId);
+      const bText = p.badge || p.badge_text || '';
+      const isBest = p.isBestseller ?? p.is_bestseller ?? (bText.toUpperCase().includes('BEST'));
+      const isHot = p.isHotDeal ?? p.is_hot_deal ?? (bText.toUpperCase().includes('DEAL') || (p.comparePrice && p.comparePrice > p.price));
+      const isNewProd = p.isNew ?? p.is_new ?? (bText.toUpperCase().includes('NEW'));
+
       return {
         legacy_id: legId,
         name: pName,
         slug: pSlug,
         description: p.description || '',
         price: parseFloat(p.price) || 0,
-        original_price: p.originalPrice || p.comparePrice ? parseFloat(p.originalPrice || p.comparePrice) : null,
+        original_price: (p.originalPrice || p.comparePrice) ? parseFloat(p.originalPrice || p.comparePrice) : null,
+        compare_price: (p.comparePrice || p.originalPrice) ? parseFloat(p.comparePrice || p.originalPrice) : null,
+        badge_text: bText,
+        badge: bText,
+        homepage_sections: p.homepageSections || p.homepage_sections || [],
         category_name: p.category || '',
         subcategory_name: p.subcategory || '',
         brand_name: p.brand || '',
@@ -123,9 +153,9 @@ export async function syncProductsToSupabase(productsList) {
         specs: p.specs || {},
         stock: p.stock ?? 10,
         in_stock: p.inStock ?? (p.stock > 0),
-        is_bestseller: p.isBestseller ?? false,
-        is_hot_deal: p.isHotDeal ?? false,
-        is_new: p.isNew ?? true,
+        is_bestseller: isBest,
+        is_hot_deal: isHot,
+        is_new: isNewProd,
         rating: p.rating || 5.0,
         reviews_count: p.reviews || 0
       };

@@ -20,8 +20,8 @@ function safeParseArray(raw) {
 }
 
 function getSecArray(p) {
-  if (!p || !p.homepageSections) return [];
-  let sec = p.homepageSections;
+  if (!p) return [];
+  let sec = p.homepageSections || p.homepage_sections || p.sections || [];
   if (typeof sec === 'string') { try { sec = JSON.parse(sec); } catch(e) {} }
   if (typeof sec === 'string') {
     return sec.split(',').map(s => String(s).trim().toLowerCase());
@@ -3990,50 +3990,71 @@ class ProductList extends HTMLElement {
     const all = this.products || [];
     if (all.length === 0) return { deals: [], newArrivals: [], bestSellers: [] };
 
-    // Reverse list so newest uploaded products are evaluated first
-    const sortedAll = [...all].reverse();
+    // Newest uploaded products first (sorted by createdAt or id descending)
+    const sortedNewestFirst = [...all].sort((a, b) => {
+      if (a.createdAt && b.createdAt) {
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+      return (parseInt(b.id) || 0) - (parseInt(a.id) || 0);
+    });
 
-    // 1. Hot Deals: explicit section assigned, sale badge, or discount price
-    let deals = all.filter(p => {
+    // 1. Hot Deals: explicit section assigned, isHotDeal flag, sale badge, or discount price
+    let dealsExplicit = all.filter(p => {
       if (!p) return false;
       const b = String(p.badge || '').toUpperCase();
       const sec = getSecArray(p);
       const isAssigned = sec.some(s => s === 'sec-deals' || s === 'deals' || s === 'hot deals' || s.includes('deal'));
       return isAssigned ||
-             b.includes('DEAL') || b.includes('SALE') || b.includes('HOT') || b.includes('OFF') ||
+             p.isHotDeal === true || p.isDeal === true ||
+             b.includes('DEAL') || b.includes('SALE') || b.includes('HOT') || b.includes('OFF') || b.includes('%') ||
              (p.comparePrice && parseFloat(p.comparePrice) > parseFloat(p.price)) ||
              (p.originalPrice && parseFloat(p.originalPrice) > parseFloat(p.price));
     });
+
+    let deals = dealsExplicit;
     if (deals.length < 4) {
-      deals = [...new Set([...deals, ...sortedAll])].slice(0, 12);
+      const remainder = sortedNewestFirst.filter(p => !deals.some(d => String(d.id) === String(p.id)));
+      deals = [...deals, ...remainder];
     }
 
-    // 2. New Arrivals: prioritize newly created/uploaded products
-    let newArrivals = all.filter(p => {
+    // 2. New Arrivals: explicit section assigned, isNew flag, or badge 'NEW'/'FRESH'/'ARRIV'
+    let newArrivalsExplicit = all.filter(p => {
       if (!p) return false;
       const b = String(p.badge || '').toUpperCase();
       const sec = getSecArray(p);
       const isAssigned = sec.some(s => s === 'sec-new' || s === 'new-arrivals' || s === 'new arrivals' || s.includes('new'));
-      return isAssigned || p.isNew === true || p.isNewArrival === true || b.includes('NEW') || b.includes('FRESH') || b.includes('ARRIV') || (p.id && p.id >= 1);
+      return isAssigned || p.isNew === true || p.isNewArrival === true || b.includes('NEW') || b.includes('FRESH') || b.includes('ARRIV');
     });
-    if (newArrivals.length === 0) {
-      newArrivals = sortedAll;
-    } else {
-      newArrivals = [...new Set([...sortedAll, ...newArrivals])];
-    }
 
-    // 3. Best Sellers: explicit section assigned, isBestseller flag, rating >= 4.5, or BEST/POPULAR badge
-    let bestSellers = all.filter(p => {
+    let newArrivals = [...new Set([...newArrivalsExplicit, ...sortedNewestFirst])];
+
+    // 3. Best Sellers: explicit section assigned, isBestseller flag, badge BEST/TOP/POPULAR/TRENDING, or sales/orders/reviews
+    let bestSellersExplicit = all.filter(p => {
       if (!p) return false;
       const b = String(p.badge || '').toUpperCase();
       const sec = getSecArray(p);
       const isAssigned = sec.some(s => s === 'sec-best' || s === 'best-sellers' || s === 'best sellers' || s.includes('best'));
       return isAssigned ||
-             p.isBestseller === true || p.isBestSeller === true || (p.rating && parseFloat(p.rating) >= 4.5) ||
-             b.includes('BEST') || b.includes('TOP') || b.includes('POPULAR');
+             p.isBestseller === true || p.isBestSeller === true ||
+             b.includes('BEST') || b.includes('TOP') || b.includes('POPULAR') || b.includes('TRENDING') || b.includes('HOT SELLER') ||
+             (p.salesCount && parseInt(p.salesCount) > 0) ||
+             (p.ordersCount && parseInt(p.ordersCount) > 0) ||
+             (p.reviewsCount && parseInt(p.reviewsCount) > 3) ||
+             (Array.isArray(p.reviews) && p.reviews.length > 3);
     });
-    if (bestSellers.length < 4) {
-      bestSellers = [...new Set([...bestSellers, ...all])].slice(0, 12);
+
+    let bestSellers;
+    if (bestSellersExplicit.length >= 4) {
+      bestSellers = [...new Set([...bestSellersExplicit, ...all])];
+    } else {
+      // Sort by popularity metrics (or ascending ID order so it differs from New Arrivals which is descending)
+      const sortedByPopularity = [...all].sort((a, b) => {
+        const scoreA = (a.salesCount || 0) * 10 + (a.reviewsCount || (Array.isArray(a.reviews) ? a.reviews.length : 0)) * 5 + (a.isBestseller ? 50 : 0);
+        const scoreB = (b.salesCount || 0) * 10 + (b.reviewsCount || (Array.isArray(b.reviews) ? b.reviews.length : 0)) * 5 + (b.isBestseller ? 50 : 0);
+        if (scoreA !== scoreB) return scoreB - scoreA;
+        return (parseInt(a.id) || 0) - (parseInt(b.id) || 0);
+      });
+      bestSellers = [...new Set([...bestSellersExplicit, ...sortedByPopularity])];
     }
 
     return { deals, newArrivals, bestSellers };
