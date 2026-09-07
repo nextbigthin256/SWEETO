@@ -3163,18 +3163,30 @@ class ProductList extends HTMLElement {
   attachHomeCarouselListeners(activeSections) {
     const shadow = this.shadowRoot;
 
-    // Generic slidable carousel arrow buttons
-    shadow.querySelectorAll('.carousel-control-btn[data-target-carousel]').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
+    // Generic slidable carousel arrow buttons with event delegation
+    if (!this._carouselDelegated) {
+      this._carouselDelegated = true;
+      shadow.addEventListener('click', (e) => {
+        const btn = e.target.closest('.carousel-control-btn');
+        if (!btn) return;
         const targetId = btn.getAttribute('data-target-carousel');
-        const container = shadow.getElementById(targetId);
+        let container = targetId ? shadow.getElementById(targetId) : null;
+        if (!container) {
+          const secWrapper = btn.closest('.home-section');
+          if (secWrapper) {
+            container = secWrapper.querySelector('.slidable-product-row, .carousel-scroll-wrapper');
+          }
+        }
         if (container) {
-          const isNext = btn.classList.contains('next-btn');
-          container.scrollBy({ left: isNext ? 320 : -320, behavior: 'smooth' });
+          e.preventDefault();
+          e.stopPropagation();
+          const isNext = btn.classList.contains('next-btn') || btn.textContent.includes('→');
+          const firstCard = container.querySelector('product-card');
+          const step = firstCard ? (firstCard.offsetWidth + 16) : 280;
+          container.scrollBy({ left: isNext ? step : -step, behavior: 'smooth' });
         }
       });
-    });
+    }
 
     // Today's Deals Hero Dynamic Background Slider
     if (this._dealsSliderInterval) {

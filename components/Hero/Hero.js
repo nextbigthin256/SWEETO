@@ -13,33 +13,50 @@ class Hero extends HTMLElement {
   }
 
   getProductsList() {
+    const pl = document.querySelector('product-list');
+    if (pl && Array.isArray(pl.products) && pl.products.length > 0) {
+      return pl.products;
+    }
+    if (window.__SWEETOS_PRODUCTS__ && Array.isArray(window.__SWEETOS_PRODUCTS__)) {
+      return window.__SWEETOS_PRODUCTS__;
+    }
     try {
-      const stored = sessionStorage.getItem('SWEETOS_products') || localStorage.getItem('SWEETOS_products');
+      const stored = sessionStorage.getItem('SWEETOS_cloud_products') || localStorage.getItem('SWEETOS_cloud_products');
       if (stored) {
-        const parsed = JSON.parse(stored);
-        if (Array.isArray(parsed)) return parsed;
+        const parsed = typeof stored === 'string' ? JSON.parse(stored) : stored;
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
       }
     } catch(e) {}
     return [];
   }
 
-  initSlides() {
-    const allProds = this.getProductsList();
+  async initSlides() {
+    let allProds = this.getProductsList();
+    if (!Array.isArray(allProds) || allProds.length === 0) {
+      try {
+        const { fetchProductsFromSupabase } = await import('../../utils/supabase.js');
+        const cloudProds = await fetchProductsFromSupabase();
+        if (Array.isArray(cloudProds) && cloudProds.length > 0) {
+          allProds = cloudProds;
+        }
+      } catch(e) {}
+    }
+
     const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
     const heroTitle = sessionStorage.getItem('SWEETOS_hero_title') || 'Find Your Style, Love Your Look ✨';
     const heroSubtitle = sessionStorage.getItem('SWEETOS_hero_subtitle') || 'Discover the latest trends in high-end tech layouts, accessories, and premium workspace gear.';
-    const entranceImg = sessionStorage.getItem('SWEETOS_store_entrance_image') || null;
+    const entranceImg = sessionStorage.getItem('SWEETOS_store_entrance_image') || 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=1200&q=80';
 
     if (!Array.isArray(allProds) || allProds.length === 0) {
-      // 0 Products in store - Clean branded showcase without any mock cards
+      // 0 Products in store - Clean branded showcase with default entrance banner image
       this.slides = [
         {
           tag: `✨ ${storeName.toUpperCase()} OFFICIAL STORE`,
           title: heroTitle.includes('<br>') ? heroTitle : heroTitle.replace('\n', '<br>'),
           subtitle: heroSubtitle,
-          bg: "linear-gradient(135deg, rgba(9, 17, 30, 0.65) 0%, rgba(13, 33, 73, 0.55) 50%, rgba(0, 82, 204, 0.45) 100%)",
-          glow1: "rgba(0, 82, 204, 0.35)",
-          glow2: "rgba(0, 180, 216, 0.25)",
+          bg: "linear-gradient(135deg, rgba(9, 17, 30, 0.85) 0%, rgba(13, 33, 73, 0.75) 50%, rgba(0, 82, 204, 0.65) 100%)",
+          glow1: "rgba(0, 82, 204, 0.4)",
+          glow2: "rgba(0, 180, 216, 0.3)",
           product: null,
           bannerImage: entranceImg,
           perks: ["Authentic Guaranteed", "Fast Delivery", "Official Warranty"],
@@ -52,24 +69,24 @@ class Hero extends HTMLElement {
 
     // Dynamic slides generated purely from REAL products in catalog
     const gradients = [
-      { bg: "linear-gradient(135deg, rgba(9, 17, 30, 0.65) 0%, rgba(13, 33, 73, 0.55) 50%, rgba(0, 82, 204, 0.45) 100%)", glow1: "rgba(0, 82, 204, 0.35)", glow2: "rgba(0, 180, 216, 0.25)" },
-      { bg: "linear-gradient(135deg, rgba(11, 15, 25, 0.65) 0%, rgba(23, 23, 44, 0.55) 50%, rgba(49, 16, 78, 0.45) 100%)", glow1: "rgba(147, 51, 234, 0.35)", glow2: "rgba(0, 180, 216, 0.25)" },
-      { bg: "linear-gradient(135deg, rgba(21, 0, 43, 0.65) 0%, rgba(41, 8, 73, 0.55) 50%, rgba(91, 14, 140, 0.45) 100%)", glow1: "rgba(217, 70, 239, 0.35)", glow2: "rgba(99, 102, 241, 0.25)" },
-      { bg: "linear-gradient(135deg, rgba(24, 18, 11, 0.65) 0%, rgba(48, 31, 16, 0.55) 50%, rgba(84, 56, 24, 0.45) 100%)", glow1: "rgba(245, 158, 11, 0.35)", glow2: "rgba(217, 119, 6, 0.25)" }
+      { bg: "linear-gradient(135deg, rgba(9, 17, 30, 0.85) 0%, rgba(13, 33, 73, 0.75) 50%, rgba(0, 82, 204, 0.65) 100%)", glow1: "rgba(0, 82, 204, 0.4)", glow2: "rgba(0, 180, 216, 0.3)" },
+      { bg: "linear-gradient(135deg, rgba(11, 15, 25, 0.85) 0%, rgba(23, 23, 44, 0.75) 50%, rgba(49, 16, 78, 0.65) 100%)", glow1: "rgba(147, 51, 234, 0.4)", glow2: "rgba(0, 180, 216, 0.3)" },
+      { bg: "linear-gradient(135deg, rgba(21, 0, 43, 0.85) 0%, rgba(41, 8, 73, 0.75) 50%, rgba(91, 14, 140, 0.65) 100%)", glow1: "rgba(217, 70, 239, 0.4)", glow2: "rgba(99, 102, 241, 0.3)" },
+      { bg: "linear-gradient(135deg, rgba(24, 18, 11, 0.85) 0%, rgba(48, 31, 16, 0.75) 50%, rgba(84, 56, 24, 0.65) 100%)", glow1: "rgba(245, 158, 11, 0.4)", glow2: "rgba(217, 119, 6, 0.3)" }
     ];
 
-    this.slides = allProds.slice(0, 4).map((p, idx) => {
+    this.slides = allProds.slice(0, 5).map((p, idx) => {
       const g = gradients[idx % gradients.length];
       const isFirst = idx === 0;
       return {
         tag: `✨ ${storeName.toUpperCase()} • ${(p.category || 'FEATURED').toUpperCase()}`,
         title: isFirst ? (heroTitle.includes('<br>') ? heroTitle : heroTitle.replace('\n', '<br>')) : p.name,
-        subtitle: isFirst ? heroSubtitle : (p.description ? p.description.slice(0, 130) + '...' : `Premium quality ${p.name} available now in stock.`),
+        subtitle: isFirst ? heroSubtitle : (p.description ? (p.description.length > 130 ? p.description.slice(0, 130) + '...' : p.description) : `Premium quality ${p.name} available now in stock.`),
         bg: g.bg,
         glow1: g.glow1,
         glow2: g.glow2,
         product: p,
-        bannerImage: null,
+        bannerImage: p.image || null,
         perks: ["Authentic Quality", "2-Year Warranty", "Verified In Stock"],
         ctaText: "Shop Now",
         actionTarget: "catalog"
@@ -77,16 +94,17 @@ class Hero extends HTMLElement {
     });
   }
 
-  connectedCallback() {
-    this.initSlides();
+  async connectedCallback() {
+    await this.initSlides();
     this.render();
     this.setupEventListeners();
     this.startAutoSlide();
     
-    this._dataListener = () => {
-      this.initSlides();
+    this._dataListener = async () => {
+      await this.initSlides();
       this.render();
       this.setupEventListeners();
+      this.startAutoSlide();
     };
 
     window.addEventListener('branding:updated', this._dataListener);
