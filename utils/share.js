@@ -51,22 +51,23 @@ export function updateProductShareMetaTags(product) {
   // Get product image - use first image or fallback
   const productImage = product.image || 
                        (product.images && product.images.length > 0 ? product.images[0] : null) ||
-                       `${window.location.origin}/assets/sweetos_logo.svg`;
+                       `${window.location.origin}/assets/sweetos_share.jpg`;
   
   // Format price
   const formattedPrice = formatPrice(product.price);
   
   // Generate share title
-  const shareTitle = `${product.name} - SWEETOS`;
+  const shareTitle = `${product.name} - ${formattedPrice} | SWEETOS`;
   
   // Generate share description
   const shareDescription = product.shortDesc || 
                            product.description || 
                            `${product.name} disponible sur SWEETOS. Prix: ${formattedPrice}`;
   
-  // Generate share URL
-  const productId = product.id ?? product.uuid;
-  const shareUrl = `${window.location.origin}${window.location.pathname}#/product/${encodeURIComponent(productId)}`;
+  // Generate share URL (Point to server API endpoint for WhatsApp crawler preview)
+  const productId = product.legacy_id ?? product.id ?? product.uuid;
+  const shareUrl = `${window.location.origin}/api/share?product=${encodeURIComponent(productId)}`;
+  const appUrl = `${window.location.origin}/#/?product=${encodeURIComponent(productId)}`;
 
   // Update Open Graph (Facebook, WhatsApp, LinkedIn)
   updateMetaTag('og:title', shareTitle);
@@ -74,7 +75,7 @@ export function updateProductShareMetaTags(product) {
   updateMetaTag('og:image', productImage);
   updateMetaTag('og:image:secure_url', productImage);
   updateMetaTag('og:url', shareUrl);
-  updateMetaTag('og:type', 'product');
+  updateMetaTag('og:type', 'website');
   if (product.price) {
     updateMetaTag('og:price:amount', product.price);
     updateMetaTag('og:price:currency', 'XOF');
@@ -90,7 +91,7 @@ export function updateProductShareMetaTags(product) {
   document.title = `${product.name} - SWEETOS`;
 
   // Update canonical URL
-  updateCanonicalUrl(shareUrl);
+  updateCanonicalUrl(appUrl);
 
   console.log('✅ [Share] Meta tags updated for:', product.name);
 }
@@ -138,8 +139,8 @@ export async function copyShareLink(url) {
 export function getProductShareButtons(product) {
   if (!product) return '';
   
-  const productId = product.id ?? product.uuid;
-  const shareUrl = `${window.location.origin}${window.location.pathname}#/product/${encodeURIComponent(productId)}`;
+  const productId = product.legacy_id ?? product.id ?? product.uuid;
+  const shareUrl = `${window.location.origin}/api/share?product=${encodeURIComponent(productId)}`;
   const shareText = `🛒 ${product.name}\n💰 ${formatPrice(product.price)}\n\n${product.shortDesc || product.description || ''}\n\nAcheter sur SWEETOS!`;
   
   const encodedText = encodeURIComponent(shareText);
@@ -187,15 +188,15 @@ export async function shareProduct(product) {
   // 1. Update Open Graph & Twitter meta tags for rich social card previews
   updateProductShareMetaTags(product);
 
-  const productId = product.id ?? product.uuid;
-  const productUrl = `${window.location.origin}${window.location.pathname}#/product/${encodeURIComponent(productId)}`;
+  const productId = product.legacy_id ?? product.id ?? product.uuid;
+  const shareUrl = `${window.location.origin}/api/share?product=${encodeURIComponent(productId)}`;
   const formattedPrice = formatPrice(product.price);
   const shareText = `🛒 ${product.name}\n💰 ${formattedPrice}\n\n${product.shortDesc || product.description || ''}\n\nAcheter sur SWEETOS!`;
 
   const shareData = {
-    title: `${product.name} - SWEETOS`,
+    title: `${product.name} - ${formattedPrice} | SWEETOS`,
     text: shareText,
-    url: productUrl
+    url: shareUrl
   };
 
   try {
@@ -209,6 +210,6 @@ export async function shareProduct(product) {
   }
 
   // Fallback to copying link
-  await copyShareLink(productUrl);
+  await copyShareLink(shareUrl);
   return true;
 }

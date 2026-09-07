@@ -30,6 +30,71 @@ const MIME_TYPES = {
   '.ico': 'image/x-icon'
 };
 
+const SUPABASE_URL = 'https://euuzsxjsmsktegilbqpv.supabase.co';
+const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1dXpzeGpzbXNrdGVnaWxicXB2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc4MzIyMzcsImV4cCI6MjEwMzQwODIzN30.BJtkw4BBkAytc5vDSr8a0dOmUyGk_1xfpdHK3sEHwHs';
+
+let productsCache = null;
+let lastProductsFetch = 0;
+
+function fetchSupabaseProducts() {
+  return new Promise((resolve) => {
+    if (productsCache && (Date.now() - lastProductsFetch < 60000)) {
+      return resolve(productsCache);
+    }
+    
+    const reqUrl = `${SUPABASE_URL}/rest/v1/products?select=*`;
+    const options = {
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+      }
+    };
+    
+    const https = require('https');
+    https.get(reqUrl, options, (res) => {
+      let data = '';
+      res.on('data', chunk => data += chunk);
+      res.on('end', () => {
+        try {
+          if (res.statusCode === 200) {
+            const list = JSON.parse(data);
+            if (Array.isArray(list) && list.length > 0) {
+              productsCache = list;
+              lastProductsFetch = Date.now();
+              return resolve(productsCache);
+            }
+          }
+        } catch(e) {}
+        resolve(productsCache || []);
+      });
+    }).on('error', (err) => {
+      console.error('[Server] Failed to fetch Supabase products:', err);
+      resolve(productsCache || []);
+    });
+  });
+}
+
+async function findProductById(rawId) {
+  const products = await fetchSupabaseProducts();
+  if (!products || products.length === 0) return null;
+  
+  const searchStr = String(rawId || '').trim().toLowerCase();
+  if (!searchStr) return products[0];
+
+  let found = products.find(p => 
+    String(p.legacy_id) === searchStr || 
+    String(p.id) === searchStr ||
+    (p.slug && String(p.slug).toLowerCase() === searchStr)
+  );
+
+  if (!found && !isNaN(parseInt(searchStr))) {
+    const numId = parseInt(searchStr);
+    found = products.find(p => p.legacy_id === numId || p.id === numId);
+  }
+
+  return found || products[0];
+}
+
 const server = http.createServer((req, res) => {
   // Enable CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -419,116 +484,156 @@ const server = http.createServer((req, res) => {
 
   // 2h. API: GET /api/product-image or /product-image (Binary image endpoint)
   if (req.method === 'GET' && (reqUrl.pathname === '/api/product-image' || reqUrl.pathname === '/product-image')) {
-    try {
-      const productId = parseInt(reqUrl.searchParams.get('id') || reqUrl.searchParams.get('product') || reqUrl.searchParams.get('p') || '1');
-      const productsPath = path.join(__dirname, 'data', 'products.js');
-      fs.readFile(productsPath, 'utf8', (err, content) => {
-        let rawProduct = null;
-        if (!err && content) {
-          const startIdx = content.indexOf('[');
-          const endIdx = content.lastIndexOf(']');
-          if (startIdx !== -1 && endIdx !== -1) {
-            try {
-              const list = JSON.parse(content.substring(startIdx, endIdx + 1));
-              rawProduct = list.find(p => p.id === productId) || list[0];
-            } catch (e) {}
+    (async () => {
+      try {
+        const paramId = reqUrl.searchParams.get('id') || reqUrl.searchParams.get('product') || reqUrl.searchParams.get('p') || '1';
+        const rawProduct = await findProductById(paramId);
+
+        if (rawProduct && rawProduct.image && typeof rawProduct.image === 'string') {
+          const imgStr = rawProduct.image.trim();
+          if (imgStr.startsWith('http://') || imgStr.startsWith('https://')) {
+            res.writeHead(302, { 'Location': imgStr });
+            res.end();
+            return;
+          }
+          if (imgStr.startsWith('data:image/')) {
+            const parts = imgStr.split(',');
+            const meta = parts[0];
+            const base64Data = parts[1];
+            let mimeType = 'image/jpeg';
+            if (meta.includes('image/png')) mimeType = 'image/png';
+            else if (meta.includes('image/webp')) mimeType = 'image/webp';
+
+            const imgBuffer = Buffer.from(base64Data, 'base64');
+            res.writeHead(200, {
+              'Content-Type': mimeType,
+              'Content-Length': imgBuffer.length,
+              'Cache-Control': 'public, max-age=86400'
+            });
+            res.end(imgBuffer);
+            return;
           }
         }
 
-        if (rawProduct && rawProduct.image && typeof rawProduct.image === 'string' && rawProduct.image.startsWith('data:image/')) {
-          const parts = rawProduct.image.split(',');
-          const meta = parts[0];
-          const base64Data = parts[1];
-          let mimeType = 'image/jpeg';
-          if (meta.includes('image/png')) mimeType = 'image/png';
-          else if (meta.includes('image/webp')) mimeType = 'image/webp';
-
-          const imgBuffer = Buffer.from(base64Data, 'base64');
-          res.writeHead(200, {
-            'Content-Type': mimeType,
-            'Content-Length': imgBuffer.length,
-            'Cache-Control': 'public, max-age=86400'
-          });
-          res.end(imgBuffer);
-          return;
-        }
-
-        res.writeHead(404, { 'Content-Type': 'text/plain' });
-        res.end('Image Not Found');
-      });
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end('Server Error');
-    }
+        const fallbackPath = path.join(__dirname, 'assets', 'sweetos_share.jpg');
+        fs.readFile(fallbackPath, (err, data) => {
+          if (!err && data) {
+            res.writeHead(200, { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=86400' });
+            res.end(data);
+          } else {
+            res.writeHead(404, { 'Content-Type': 'text/plain' });
+            res.end('Image Not Found');
+          }
+        });
+      } catch (e) {
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Server Error');
+      }
+    })();
     return;
   }
 
   // 2i. API: GET /api/share or /share (Dynamic Open Graph Preview)
   if (req.method === 'GET' && (reqUrl.pathname === '/api/share' || reqUrl.pathname === '/share')) {
-    try {
-      const productId = parseInt(reqUrl.searchParams.get('product') || reqUrl.searchParams.get('id') || reqUrl.searchParams.get('p') || '1');
-      const productsPath = path.join(__dirname, 'data', 'products.js');
-      fs.readFile(productsPath, 'utf8', (err, content) => {
-        let rawProduct = null;
-        if (!err && content) {
-          const startIdx = content.indexOf('[');
-          const endIdx = content.lastIndexOf(']');
-          if (startIdx !== -1 && endIdx !== -1) {
-            try {
-              const list = JSON.parse(content.substring(startIdx, endIdx + 1));
-              rawProduct = list.find(p => p.id === productId) || list[0];
-            } catch (e) {}
+    (async () => {
+      try {
+        const paramId = reqUrl.searchParams.get('product') || reqUrl.searchParams.get('id') || reqUrl.searchParams.get('p') || '1';
+        const rawProduct = await findProductById(paramId);
+
+        const host = req.headers.host || 'www.sweeto.store';
+        let protocol = req.headers['x-forwarded-proto'] || 'https';
+        if (host.includes('localhost') || host.includes('127.0.0.1')) {
+          protocol = 'http';
+        } else {
+          protocol = 'https';
+        }
+        const baseUrl = `${protocol}://${host}`;
+
+        let imageUrl = `${baseUrl}/assets/sweetos_share.jpg`;
+        let imageType = 'image/jpeg';
+
+        if (rawProduct && rawProduct.image && typeof rawProduct.image === 'string') {
+          const imgStr = rawProduct.image.trim();
+          if (imgStr.startsWith('http://') || imgStr.startsWith('https://')) {
+            imageUrl = imgStr.replace(/^http:\/\//i, 'https://');
+            if (imageUrl.includes('.png')) imageType = 'image/png';
+            else if (imageUrl.includes('.webp')) imageType = 'image/webp';
+            else imageType = 'image/jpeg';
+          } else if (imgStr.startsWith('data:image/')) {
+            const targetId = rawProduct.legacy_id || rawProduct.id;
+            imageUrl = `${baseUrl}/api/product-image?id=${targetId}`;
+            if (imgStr.includes('image/png')) imageType = 'image/png';
+            else if (imgStr.includes('image/webp')) imageType = 'image/webp';
+            else imageType = 'image/jpeg';
+          } else if (imgStr.startsWith('/')) {
+            imageUrl = `${baseUrl}${imgStr}`;
           }
         }
 
-        if (!rawProduct) {
-          rawProduct = { id: productId, name: 'SWEETOS Product', price: 0, image: '/assets/sweetos_logo.svg' };
-        }
+        const prodName = rawProduct ? (rawProduct.name || 'Produit SWEETOS') : 'SWEETOS Product';
+        const prodPrice = rawProduct && rawProduct.price ? `${Number(rawProduct.price).toLocaleString()} FCFA` : '';
+        const titleText = prodPrice ? `${prodName} - ${prodPrice} | SWEETOS` : `${prodName} | SWEETOS`;
+        const descText = rawProduct && rawProduct.description ? 
+          (rawProduct.description.length > 160 ? rawProduct.description.substring(0, 157) + '...' : rawProduct.description) :
+          `${prodName} disponible sur SWEETOS. Matériel high-tech & accessoires.`;
 
-        const host = req.headers.host || 'localhost:8080';
-        const protocol = req.headers['x-forwarded-proto'] || 'http';
-        const baseUrl = `${protocol}://${host}`;
+        const targetId = rawProduct ? (rawProduct.legacy_id || rawProduct.id) : paramId;
+        const targetUrl = `${baseUrl}/#/?product=${targetId}`;
+        const shareUrl = `${baseUrl}/api/share?product=${targetId}`;
 
-        const imageUrl = `${baseUrl}/api/product-image?id=${rawProduct.id}`;
-        const priceText = rawProduct.price ? `${rawProduct.price.toLocaleString('fr-FR')} FCFA` : '';
-        const targetUrl = `${baseUrl}/#/?product=${rawProduct.id}`;
-        const shareUrl = `${baseUrl}/api/share?product=${rawProduct.id}`;
-        const desc = `${rawProduct.name}. ${priceText}. High-tech & workspace gear available on SWEETOS.`;
-        const userAgent = (req.headers['user-agent'] || '').toLowerCase();
-        const isBot = /bot|facebookexternalhit|whatsapp|twitterbot|telegrambot|slackbot|discordbot|linkedinbot|embedly|quora link preview|showyouhave|outbrain|pinterest/i.test(userAgent);
+        res.writeHead(200, { 
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'no-cache, no-store, must-revalidate'
+        });
 
-        res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
         res.end(`<!DOCTYPE html>
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>${rawProduct.name} - ${priceText} | SWEETOS</title>
-  <meta name="description" content="${desc}">
-  <meta property="og:type" content="product">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${titleText}</title>
+  <meta name="description" content="${descText}">
+  
+  <!-- Open Graph / WhatsApp / Facebook -->
+  <meta property="og:type" content="website">
   <meta property="og:site_name" content="SWEETOS">
-  <meta property="og:title" content="${rawProduct.name} - ${priceText} | SWEETOS">
-  <meta property="og:description" content="${desc}">
+  <meta property="og:title" content="${titleText}">
+  <meta property="og:description" content="${descText}">
   <meta property="og:image" content="${imageUrl}">
   <meta property="og:image:secure_url" content="${imageUrl}">
-  <meta property="og:image:type" content="image/jpeg">
+  <meta property="og:image:type" content="${imageType}">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:url" content="${shareUrl}">
+  
+  <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="${rawProduct.name} - ${priceText} | SWEETOS">
-  <meta name="twitter:description" content="${desc}">
+  <meta name="twitter:title" content="${titleText}">
+  <meta name="twitter:description" content="${descText}">
   <meta name="twitter:image" content="${imageUrl}">
-  ${!isBot ? `<script>window.location.replace("${targetUrl}");</script><meta http-equiv="refresh" content="0;url=${targetUrl}">` : ''}
+  
+  <script>
+    if (!/bot|facebookexternalhit|whatsapp|twitterbot|telegrambot|slackbot|discordbot|linkedinbot|embedly/i.test(navigator.userAgent)) {
+      window.location.replace("${targetUrl}");
+    }
+  </script>
 </head>
-<body>
-  <p>Redirection vers <a href="${targetUrl}">${rawProduct.name}</a>...</p>
+<body style="font-family: system-ui, -apple-system, sans-serif; background: #0f172a; color: #fff; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; padding: 20px; box-sizing: border-box;">
+  <div style="text-align: center; max-width: 480px; width: 100%; background: rgba(30, 41, 59, 0.8); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 32px 24px; box-shadow: 0 20px 40px rgba(0,0,0,0.4);">
+    <div style="font-size: 36px; margin-bottom: 12px;">🛍️</div>
+    <h2 style="margin: 0 0 8px 0; font-size: 22px; font-weight: 800; color: #f8fafc;">${prodName}</h2>
+    <p style="margin: 0 0 20px 0; font-size: 18px; font-weight: 700; color: #38bdf8;">${prodPrice}</p>
+    <p style="font-size: 14px; opacity: 0.7; margin-bottom: 24px;">Redirection vers l'application SWEETOS...</p>
+    <a href="${targetUrl}" style="display: inline-block; background: #0052cc; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 30px; font-weight: 700; font-size: 14px;">Ouvrir dans SWEETOS</a>
+  </div>
 </body>
 </html>`);
-      });
-    } catch (e) {
-      res.writeHead(500, { 'Content-Type': 'text/plain' });
-      res.end('Server Error');
-    }
+      } catch (e) {
+        console.error('[Server] Share endpoint error:', e);
+        res.writeHead(500, { 'Content-Type': 'text/plain' });
+        res.end('Server Error');
+      }
+    })();
     return;
   }
 
