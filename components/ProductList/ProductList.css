@@ -7,6 +7,18 @@
   overflow-x: hidden;
 }
 
+@media (max-width: 968px) {
+  :host {
+    padding: 0 20px 20px 20px !important;
+  }
+}
+
+@media (max-width: 600px) {
+  :host {
+    padding: 0 12px 12px 12px !important;
+  }
+}
+
 .more-to-love-title,
 .more-to-love-heading,
 .section-title.more-to-love-title,
