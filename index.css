@@ -126,6 +126,41 @@ body.sidebar-collapsed .main-content {
   padding-right: 56px;
 }
 
+/* Flush Full-Width Edge-to-Edge Hero Banner */
+app-hero {
+  display: block;
+  margin-top: -24px;
+  margin-left: -32px;
+  margin-right: -32px;
+  width: calc(100% + 64px);
+  margin-bottom: 24px;
+}
+
+.main-content.cart-closed app-hero {
+  margin-right: -56px;
+  width: calc(100% + 88px);
+}
+
+@media (max-width: 968px) {
+  app-hero,
+  .main-content.cart-closed app-hero {
+    margin-top: -20px;
+    margin-left: -20px;
+    margin-right: -20px;
+    width: calc(100% + 40px);
+  }
+}
+
+@media (max-width: 600px) {
+  app-hero,
+  .main-content.cart-closed app-hero {
+    margin-top: -14px;
+    margin-left: -12px;
+    margin-right: -12px;
+    width: calc(100% + 24px);
+  }
+}
+
 cart-drawer, notification-drawer {
   width: var(--cart-width);
   position: fixed;
