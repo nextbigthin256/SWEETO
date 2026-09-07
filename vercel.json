@@ -1,9 +1,45 @@
 {
   "version": 2,
-  "rewrites": [
+  "routes": [
     {
-      "source": "/((?!api/|sw\\.js|manifest\\.json|.*\\.(js|css|json|svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot)).*)",
-      "destination": "/index.html"
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
+    {
+      "src": "/sw.js",
+      "dest": "/sw.js"
+    },
+    {
+      "src": "/manifest.json",
+      "dest": "/manifest.json"
+    },
+    {
+      "src": "/admin.html",
+      "dest": "/admin.html"
+    },
+    {
+      "src": "/assets/(.*)",
+      "dest": "/assets/$1"
+    },
+    {
+      "src": "/components/(.*)",
+      "dest": "/components/$1"
+    },
+    {
+      "src": "/utils/(.*)",
+      "dest": "/utils/$1"
+    },
+    {
+      "src": "/data/(.*)",
+      "dest": "/data/$1"
+    },
+    {
+      "src": "/.*\\.(js|css|json|svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot|webmanifest)$",
+      "dest": "/$0"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ],
   "headers": [

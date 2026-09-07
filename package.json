@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "description": "Premium glassmorphic white-and-blue themed modular e-commerce store built with Web Components.",
   "scripts": {
+    "build": "echo 'No build step required'",
+    "vercel-build": "echo 'No build step required'",
     "start": "node server.js"
   },
   "keywords": [
