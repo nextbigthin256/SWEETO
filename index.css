@@ -109,12 +109,12 @@ body.sidebar-collapsed app-sidebar {
   margin-left: var(--sidebar-width);
   margin-right: var(--cart-width);
   flex: 1;
-  padding: 24px 32px;
+  padding: 0;
   min-width: 0;
   max-width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
-  transition: margin-left 0.35s cubic-bezier(0.16, 1, 0.3, 1), margin-right 0.35s cubic-bezier(0.16, 1, 0.3, 1), padding-right 0.35s ease;
+  transition: margin-left 0.35s cubic-bezier(0.16, 1, 0.3, 1), margin-right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 body.sidebar-collapsed .main-content {
@@ -123,42 +123,20 @@ body.sidebar-collapsed .main-content {
 
 .main-content.cart-closed {
   margin-right: 0;
-  padding-right: 56px;
 }
 
-/* Flush Full-Width Edge-to-Edge Hero Banner */
+/* Flush 100% Full-Width Edge-to-Edge Hero Banner */
 app-hero {
   display: block;
+  width: 100%;
   margin-top: 0;
-  margin-left: -32px;
-  margin-right: -32px;
-  width: calc(100% + 64px);
+  margin-left: 0;
+  margin-right: 0;
   margin-bottom: 24px;
 }
 
-.main-content.cart-closed app-hero {
-  margin-right: -56px;
-  width: calc(100% + 88px);
-}
-
-@media (max-width: 968px) {
-  app-hero,
-  .main-content.cart-closed app-hero {
-    margin-top: 0;
-    margin-left: -20px;
-    margin-right: -20px;
-    width: calc(100% + 40px);
-  }
-}
-
-@media (max-width: 600px) {
-  app-hero,
-  .main-content.cart-closed app-hero {
-    margin-top: 0;
-    margin-left: -12px;
-    margin-right: -12px;
-    width: calc(100% + 24px);
-  }
+.main-content.cart-closed product-list {
+  padding-right: 56px;
 }
 
 cart-drawer, notification-drawer {
