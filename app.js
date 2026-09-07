@@ -196,10 +196,18 @@ document.addEventListener('DOMContentLoaded', () => {
     toastEl.textContent = message;
     toastEl.classList.add('show');
     clearTimeout(toastTimeout);
+    const duration = window.innerWidth <= 768 ? 1200 : 1500;
     toastTimeout = setTimeout(() => {
       toastEl.classList.remove('show');
-    }, 2500);
+    }, duration);
   };
+
+  if (toastEl) {
+    toastEl.addEventListener('click', () => {
+      clearTimeout(toastTimeout);
+      toastEl.classList.remove('show');
+    });
+  }
 
   // Listen to global toast requests
   window.addEventListener('toast:show', (e) => {

@@ -60,11 +60,24 @@ class AccountModal extends HTMLElement {
             ? fullName.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()
             : email.substring(0, 2).toUpperCase();
 
+          let sessionOrders = [];
+          try {
+            const pKey = `SWEETOS_user_profile_${email.replace(/[^a-zA-Z0-9]/g, '_')}`;
+            const profObj = JSON.parse(sessionStorage.getItem(pKey) || sessionStorage.getItem('SWEETOS_user_profile') || '{}');
+            if (profObj && Array.isArray(profObj.orders)) {
+              sessionOrders = profObj.orders;
+            }
+          } catch(e) {}
+
           const globalOrders = getAllOrdersFromStorage();
           const userOrders = globalOrders.filter(o => {
             const oEmail = (o.customerEmail || o.email || o.userEmail || '').toLowerCase().trim();
             return oEmail === email && (o.status || '').toLowerCase() !== 'deleted';
           });
+
+          const initialMap = new Map();
+          userOrders.forEach(o => { if (o && (o.id || o.order_number)) initialMap.set(o.id || o.order_number, o); });
+          sessionOrders.forEach(o => { if (o && (o.id || o.order_number)) initialMap.set(o.id || o.order_number, o); });
 
           const formattedAddress = parsed?.address || 
             (parsed?.addresses && parsed.addresses[0] ? (typeof parsed.addresses[0] === 'string' ? parsed.addresses[0] : parsed.addresses[0].street || parsed.addresses[0].address) : '') ||
@@ -78,10 +91,17 @@ class AccountModal extends HTMLElement {
             address: formattedAddress,
             avatar: initials
           };
-          this.orders = userOrders;
+          this.orders = Array.from(initialMap.values());
 
           import('../../utils/supabase.js').then(({ fetchProfileFromSupabase }) => {
-            fetchProfileFromSupabase(email);
+            fetchProfileFromSupabase(email).then(profile => {
+              if (profile && Array.isArray(profile.orders)) {
+                this.orders = profile.orders;
+                if (this.isOpen) {
+                  this.render();
+                }
+              }
+            });
           }).catch(() => {});
 
           return;

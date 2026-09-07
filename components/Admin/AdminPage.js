@@ -515,16 +515,10 @@ class AdminPage extends HTMLElement {
       if (this._isDatabaseLoading) return;
       this._isDatabaseLoading = true;
       try {
-        const prevLen = (this.orders || []).length;
         await this.loadDatabase(false);
-        const newLen = (this.orders || []).length;
-        
-        // Only re-render if order count actually changed
-        if (prevLen !== newLen) {
-          if (['orders', 'dashboard', 'analytics', 'customers', 'loyalty'].includes(this.currentTab)) {
-            this.render(false);
-            this.attachListeners();
-          }
+        if (['orders', 'dashboard', 'analytics', 'customers', 'loyalty'].includes(this.currentTab)) {
+          this.render(false);
+          this.attachListeners();
         }
       } finally {
         this._isDatabaseLoading = false;
@@ -675,13 +669,14 @@ class AdminPage extends HTMLElement {
         if (storedBrands) try { this.brands = JSON.parse(storedBrands); } catch(e) {}
       }
 
-      // Merge Cloud + Local Storage Orders
+      // Merge Cloud + Local Storage Orders (Cloud orders override local storage to preserve Admin status changes)
       const cloudOrders = (ords.status === 'fulfilled' && Array.isArray(ords.value)) ? ords.value : [];
       const localOrders = getAllOrdersFromStorage();
       const ordersMap = new Map();
-      cloudOrders.forEach(o => { if (o && (o.id || o.order_number)) ordersMap.set(o.id || o.order_number, o); });
       localOrders.forEach(o => { if (o && (o.id || o.order_number)) ordersMap.set(o.id || o.order_number, o); });
+      cloudOrders.forEach(o => { if (o && (o.id || o.order_number)) ordersMap.set(o.id || o.order_number, o); });
       this.orders = Array.from(ordersMap.values());
+      saveAllOrdersToStorage(this.orders);
 
       // Merge Cloud + Local Storage Customers
       const cloudCusts = (custs.status === 'fulfilled' && Array.isArray(custs.value)) ? custs.value : [];

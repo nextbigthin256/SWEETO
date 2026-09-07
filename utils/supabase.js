@@ -632,7 +632,7 @@ export async function createOrderInSupabase(newOrder) {
 
 export async function fetchOrdersFromSupabase(userEmail = null) {
   try {
-    if (!supabase) return [];
+    if (!supabase) return getAllOrdersFromStorage() || [];
     
     let allOrders = [];
 
@@ -643,9 +643,10 @@ export async function fetchOrdersFromSupabase(userEmail = null) {
         let sOrders = typeof s.value === 'string' ? JSON.parse(s.value) : s.value;
         if (Array.isArray(sOrders)) {
           sOrders.forEach(o => {
-            if (o && o.id && !allOrders.some(existing => existing.id === o.id)) {
+            if (o && (o.id || o.order_number)) {
+              const id = o.id || o.order_number;
               if (!userEmail || (o.customerEmail && o.customerEmail.toLowerCase() === userEmail.toLowerCase())) {
-                allOrders.push(o);
+                allOrders.push({ ...o, id });
               }
             }
           });
@@ -668,8 +669,16 @@ export async function fetchOrdersFromSupabase(userEmail = null) {
           }
           if (Array.isArray(pOrders)) {
             pOrders.forEach(o => {
-              if (o && o.id && !allOrders.some(existing => existing.id === o.id)) {
-                allOrders.push(o);
+              if (o && (o.id || o.order_number)) {
+                const id = o.id || o.order_number;
+                if (!userEmail || (o.customerEmail && o.customerEmail.toLowerCase() === userEmail.toLowerCase())) {
+                  const idx = allOrders.findIndex(existing => existing.id === id);
+                  if (idx === -1) {
+                    allOrders.push({ ...o, id });
+                  } else {
+                    allOrders[idx] = { ...allOrders[idx], ...o, id };
+                  }
+                }
               }
             });
           }
@@ -687,33 +696,49 @@ export async function fetchOrdersFromSupabase(userEmail = null) {
       if (cloudOrders && cloudOrders.length > 0) {
         cloudOrders.forEach(co => {
           const id = co.order_number || co.id;
-          if (id && !allOrders.some(existing => existing.id === id)) {
-            allOrders.push({
-              id: id,
-              date: co.created_at ? new Date(co.created_at).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
-              status: co.status || 'Pending',
-              total: parseFloat(co.total_amount) || 0,
-              items: co.shipping_notes || 'Product Order',
-              products: [],
-              customerName: co.customer_name || 'Customer',
-              customerEmail: co.customer_email || '',
-              customerPhone: co.customer_phone || '',
-              customerAddress: co.customer_address || '',
-              paymentMethod: co.payment_method || 'cod'
-            });
+          if (id) {
+            const existingIdx = allOrders.findIndex(existing => existing.id === id);
+            if (existingIdx === -1) {
+              allOrders.push({
+                id: id,
+                date: co.created_at ? new Date(co.created_at).toLocaleDateString('fr-FR', { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent',
+                status: co.status || 'Pending',
+                total: parseFloat(co.total_amount) || 0,
+                items: co.shipping_notes || 'Product Order',
+                products: [],
+                customerName: co.customer_name || 'Customer',
+                customerEmail: co.customer_email || '',
+                customerPhone: co.customer_phone || '',
+                customerAddress: co.customer_address || '',
+                paymentMethod: co.payment_method || 'cod'
+              });
+            } else {
+              if (co.status) allOrders[existingIdx].status = co.status;
+              if (co.shipping_notes && (!allOrders[existingIdx].items || allOrders[existingIdx].items === 'Product Order')) {
+                allOrders[existingIdx].items = co.shipping_notes;
+              }
+            }
           }
         });
       }
     } catch(e) {}
 
-    if (allOrders.length > 0 && !userEmail) {
+    if (allOrders.length > 0) {
       saveAllOrdersToStorage(allOrders);
+    } else {
+      const fallbackLocal = getAllOrdersFromStorage();
+      if (fallbackLocal && fallbackLocal.length > 0) {
+        if (userEmail) {
+          return fallbackLocal.filter(o => (o.customerEmail || o.email || '').toLowerCase() === userEmail.toLowerCase());
+        }
+        return fallbackLocal;
+      }
     }
 
     return allOrders;
   } catch (err) {
     console.error('[Supabase Cloud] fetchOrders error:', err);
-    return [];
+    return getAllOrdersFromStorage() || [];
   }
 }
 
@@ -739,7 +764,9 @@ export async function fetchSettingsFromSupabase() {
       window.dispatchEvent(new CustomEvent('branding:updated'));
       return s;
     }
-  } catch(e) {}
+  } catch (err) {
+    console.error('[Supabase Cloud] fetchSettings error:', err);
+  }
   return null;
 }
 
@@ -767,29 +794,27 @@ export async function fetchProfileFromSupabase(email) {
         if (o && o.id) mergedMap.set(o.id, o);
       });
 
-      // Merge Cloud orders
+      // Merge Cloud orders (Cloud order status overrides stale local status)
       cloudOrders.forEach(o => {
         const id = o.order_number || o.id;
         if (id) {
           const itemsStr = o.items || (o.products || []).map(p => `${p.name} (x${p.quantity || 1})`).join(', ') || (o.shipping_notes || 'Commande SWEETOS');
+          const existingItem = mergedMap.get(id) || {};
           mergedMap.set(id, {
+            ...existingItem,
             id: id,
-            date: o.created_at ? new Date(o.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : (o.date || 'Récemment'),
-            status: o.status === 'pending' ? 'Processing' : (o.status === 'completed' ? 'Delivered' : (o.status === 'shipped' ? 'Shipped' : (o.status || 'Pending'))),
-            total: parseFloat(o.total_amount || o.total) || 0,
-            items: itemsStr,
-            itemsCount: (o.order_items || []).reduce((sum, item) => sum + (item.quantity || 1), 0) || (o.products || []).length || 1,
-            products: o.products || (o.order_items || []).map(item => ({
-              name: item.product_name,
-              price: parseFloat(item.unit_price) || 0,
-              quantity: item.quantity || 1,
-              selectedColor: item.selected_color || '',
-              image: item.item_image || ''
-            })),
-            customerName: o.customer_name || o.customerName || 'Client',
-            customerPhone: o.customer_phone || o.customerPhone || '',
-            customerAddress: typeof o.customer_address === 'string' ? o.customer_address : (o.customerAddress || o.customer_address?.street || ''),
-            paymentMethod: o.payment_method || o.paymentMethod || 'cod'
+            date: o.created_at ? new Date(o.created_at).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : (o.date || existingItem.date || 'Récemment'),
+            status: o.status || existingItem.status || 'Pending',
+            total: parseFloat(o.total_amount || o.total) || existingItem.total || 0,
+            items: itemsStr || existingItem.items || 'Commande SWEETOS',
+            itemsCount: (o.order_items || []).reduce((sum, item) => sum + (item.quantity || 1), 0) || (o.products || []).length || existingItem.itemsCount || 1,
+            products: (o.products && o.products.length > 0) ? o.products : (existingItem.products || []),
+            customerName: o.customer_name || o.customerName || existingItem.customerName || 'Client',
+            customerPhone: o.customer_phone || o.customerPhone || existingItem.customerPhone || '',
+            customerAddress: typeof o.customer_address === 'string' ? o.customer_address : (o.customerAddress || existingItem.customerAddress || ''),
+            paymentMethod: o.payment_method || o.paymentMethod || existingItem.paymentMethod || 'cod',
+            trackingNumber: o.trackingNumber || existingItem.trackingNumber || '',
+            courier: o.courier || existingItem.courier || ''
           });
         }
       });
@@ -881,15 +906,18 @@ export function subscribeToGlobalRealtimeSync() {
                 }
               }
             });
-          } else if (payload.table === 'orders' || (payload.table === 'site_settings' && payload.new?.key === 'sweetos_cloud_orders')) {
+          } else if (payload.table === 'orders' || payload.table === 'profiles' || (payload.table === 'site_settings' && payload.new?.key === 'sweetos_cloud_orders')) {
             debounceRealtimeSync('orders', async () => {
               const updated = await fetchOrdersFromSupabase();
               if (updated) {
-                const prev = sessionStorage.getItem('SWEETOS_all_orders');
-                const curr = JSON.stringify(updated);
-                if (prev !== curr) {
-                  sessionStorage.setItem('SWEETOS_all_orders', curr);
-                  window.dispatchEvent(new CustomEvent('orders:updated', { detail: updated }));
+                saveAllOrdersToStorage(updated);
+                window.dispatchEvent(new CustomEvent('orders:updated', { detail: updated }));
+                const userSessionStr = sessionStorage.getItem('SWEETOS_user_session') || sessionStorage.getItem('SWEETOS_session');
+                if (userSessionStr) {
+                  try {
+                    const u = JSON.parse(userSessionStr);
+                    if (u && u.email) fetchProfileFromSupabase(u.email);
+                  } catch(e) {}
                 }
               }
             });
@@ -1258,19 +1286,55 @@ export async function saveCustomerToSupabase(customerData) {
   try {
     if (!supabase || !customerData || !customerData.email) return;
     const emailLower = customerData.email.trim().toLowerCase();
+    
+    // Fetch existing profile orders from Cloud to protect Admin order status changes
+    let existingOrders = [];
+    try {
+      const { data: existingP } = await supabase.from('profiles').select('orders').eq('email', emailLower).maybeSingle();
+      if (existingP && existingP.orders) {
+        existingOrders = Array.isArray(existingP.orders) ? existingP.orders : (typeof existingP.orders === 'string' ? JSON.parse(existingP.orders) : []);
+      }
+    } catch(e) {}
+
+    let finalOrders = existingOrders;
+    if (customerData.orders && Array.isArray(customerData.orders)) {
+      const orderMap = new Map();
+      customerData.orders.forEach(o => {
+        if (o && (o.id || o.order_number)) {
+          const id = o.id || o.order_number;
+          orderMap.set(id, { ...o, id });
+        }
+      });
+      existingOrders.forEach(o => {
+        if (o && (o.id || o.order_number)) {
+          const id = o.id || o.order_number;
+          const incoming = orderMap.get(id);
+          if (incoming) {
+            orderMap.set(id, {
+              ...incoming,
+              status: o.status || incoming.status,
+              trackingNumber: o.trackingNumber || incoming.trackingNumber,
+              courier: o.courier || incoming.courier
+            });
+          } else {
+            orderMap.set(id, { ...o, id });
+          }
+        }
+      });
+      finalOrders = Array.from(orderMap.values());
+    }
+
     const record = {
       email: emailLower,
       full_name: customerData.name || customerData.fullname || `${customerData.firstName || ''} ${customerData.lastName || ''}`.trim() || 'Client',
       phone: customerData.phone || '',
       badge_type: customerData.badgeType || 'none',
       level: customerData.level || customerData.loyaltyLevel || 'starter',
-      unlocked_badges: customerData.unlockedBadges || []
+      unlocked_badges: customerData.unlockedBadges || [],
+      orders: finalOrders,
+      orders_count: finalOrders.length,
+      total_spent: finalOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0)
     };
-    if (customerData.orders && Array.isArray(customerData.orders)) {
-      record.orders = customerData.orders;
-      record.orders_count = customerData.orders.length;
-      record.total_spent = customerData.orders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
-    }
     if (customerData.addresses && Array.isArray(customerData.addresses)) {
       record.addresses = customerData.addresses;
     }

@@ -912,6 +912,18 @@ class CheckoutModal extends HTMLElement {
         }
         saveAllOrdersToStorage(localOrders);
 
+        // Instant local & cross-tab sync signals for Admin & Storefront
+        window.dispatchEvent(new CustomEvent('orders:updated', { detail: newOrder }));
+        window.dispatchEvent(new CustomEvent('profile:updated'));
+
+        if (typeof BroadcastChannel !== 'undefined') {
+          try {
+            const adminChannel = new BroadcastChannel('SWEETOS_ADMIN_SYNC');
+            adminChannel.postMessage({ type: 'NEW_ORDER', order: newOrder });
+            adminChannel.close();
+          } catch(e) {}
+        }
+
 
         // Deduct coupon usage if applied
         try {

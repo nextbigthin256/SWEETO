@@ -1314,11 +1314,17 @@ function updateOrderStatus(context, orderId, nextStatus, trackingNum, shadow) {
 
   const originalStatus = order.status;
   order.status = nextStatus;
+  order.updatedAt = new Date().toISOString();
   if (trackingNum !== null && trackingNum !== undefined) {
     order.trackingNumber = trackingNum;
   }
 
   context.saveDatabase('orders');
+
+  // Push directly to Supabase Cloud Database to ensure instant persistence
+  import('../../utils/supabase.js').then(({ createOrderInSupabase }) => {
+    createOrderInSupabase(order);
+  }).catch(() => {});
 
   // Customer Notification Sync
   const clientEmail = order.customerEmail || order.email;
@@ -1374,6 +1380,12 @@ function updateOrderStatus(context, orderId, nextStatus, trackingNum, shadow) {
 
   window.dispatchEvent(new CustomEvent('orders:updated'));
   window.dispatchEvent(new CustomEvent('toast:show', { detail: `Order #${order.id} updated to ${nextStatus}` }));
+
+  if (context._adminSyncChannel) {
+    try {
+      context._adminSyncChannel.postMessage({ type: 'ORDER_STATUS_UPDATED', orderId: order.id, status: nextStatus });
+    } catch(e) {}
+  }
 
   context.render();
   context.attachListeners();
