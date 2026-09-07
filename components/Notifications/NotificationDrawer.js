@@ -64,7 +64,35 @@ class NotificationDrawer extends HTMLElement {
   }
 
   loadNotifications() {
-    this.notifications = getNotificationsFromStorage();
+    let email = null;
+    try {
+      const userJson = getStorageItem('SWEETOS_logged_in_user') || sessionStorage.getItem('SWEETOS_logged_in_user');
+      if (userJson) {
+        const u = JSON.parse(userJson);
+        email = u?.email;
+      }
+    } catch(e) {}
+
+    this.notifications = getNotificationsFromStorage(email);
+
+    if (email) {
+      import('../../utils/supabase.js').then(async ({ fetchSiteSettingFromSupabase }) => {
+        const safeKey = String(email).toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+        const cloudNotifs = await fetchSiteSettingFromSupabase(`sweetos_notifications_${safeKey}`);
+        if (Array.isArray(cloudNotifs) && cloudNotifs.length > 0) {
+          const map = new Map();
+          this.notifications.forEach(n => { if (n && n.id) map.set(String(n.id), n); });
+          cloudNotifs.forEach(n => { if (n && n.id) map.set(String(n.id), n); });
+          this.notifications = Array.from(map.values());
+          this.notifications.sort((a, b) => (b.createdAt || b.id || 0) - (a.createdAt || a.id || 0));
+          saveNotificationsToStorage(this.notifications, email);
+          if (this.shadowRoot) {
+            this.render();
+            window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: this.notifications.filter(n => n.unread).length }));
+          }
+        }
+      }).catch(() => {});
+    }
 
     if (!Array.isArray(this.notifications) || this.notifications.length === 0) {
       this.notifications = [
@@ -99,7 +127,6 @@ class NotificationDrawer extends HTMLElement {
       this.saveNotifications();
     }
 
-    // Ensure all existing notifications have a numeric createdAt timestamp
     let needsSave = false;
     this.notifications.forEach(n => {
       if (!n.createdAt) {

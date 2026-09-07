@@ -906,17 +906,27 @@ export function subscribeToGlobalRealtimeSync() {
                 }
               }
             });
-          } else if (payload.table === 'orders' || payload.table === 'profiles' || (payload.table === 'site_settings' && payload.new?.key === 'sweetos_cloud_orders')) {
+          } else if (payload.table === 'orders' || payload.table === 'profiles' || (payload.table === 'site_settings' && (payload.new?.key === 'sweetos_cloud_orders' || (payload.new?.key && payload.new.key.startsWith('sweetos_notifications_'))))) {
             debounceRealtimeSync('orders', async () => {
               const updated = await fetchOrdersFromSupabase();
               if (updated) {
                 saveAllOrdersToStorage(updated);
                 window.dispatchEvent(new CustomEvent('orders:updated', { detail: updated }));
-                const userSessionStr = sessionStorage.getItem('SWEETOS_user_session') || sessionStorage.getItem('SWEETOS_session');
-                if (userSessionStr) {
+                const userJson = sessionStorage.getItem('SWEETOS_logged_in_user') || localStorage.getItem('SWEETOS_logged_in_user') || sessionStorage.getItem('SWEETOS_user_session') || sessionStorage.getItem('SWEETOS_session');
+                if (userJson) {
                   try {
-                    const u = JSON.parse(userSessionStr);
-                    if (u && u.email) fetchProfileFromSupabase(u.email);
+                    const u = JSON.parse(userJson);
+                    const email = u?.email;
+                    if (email) {
+                      fetchProfileFromSupabase(email);
+                      const { saveNotificationsToStorage } = await import('./storage.js');
+                      const safeKey = email.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+                      const cloudNotifs = await fetchSiteSettingFromSupabase(`sweetos_notifications_${safeKey}`);
+                      if (Array.isArray(cloudNotifs) && cloudNotifs.length > 0) {
+                        await saveNotificationsToStorage(cloudNotifs, email);
+                        window.dispatchEvent(new CustomEvent('notifications:updated'));
+                      }
+                    }
                   } catch(e) {}
                 }
               }
