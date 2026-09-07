@@ -74,7 +74,6 @@ export async function registerServiceWorker() {
     console.error('❌ Service Worker registration failed:', error);
     return null;
   }
-  }
 }
 
 // 2. Get current Push Subscription
