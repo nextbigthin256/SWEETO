@@ -114,7 +114,7 @@ body.sidebar-collapsed app-sidebar {
   max-width: 100%;
   box-sizing: border-box;
   overflow-x: hidden;
-  transition: margin-left 0.35s cubic-bezier(0.16, 1, 0.3, 1), margin-right 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: margin-left 0.35s cubic-bezier(0.16, 1, 0.3, 1), margin-right 0.35s cubic-bezier(0.16, 1, 0.3, 1), padding-right 0.35s ease;
 }
 
 body.sidebar-collapsed .main-content {
@@ -123,6 +123,7 @@ body.sidebar-collapsed .main-content {
 
 .main-content.cart-closed {
   margin-right: 0;
+  padding-right: 56px;
 }
 
 cart-drawer, notification-drawer {
@@ -154,7 +155,7 @@ cart-drawer.closed, notification-drawer.closed {
 /* ===== FLOATING CART TOGGLE BUTTON ===== */
 .cart-toggle-float {
   position: fixed;
-  top: 50%;
+  top: 70%;
   right: 0;
   transform: translateY(-50%) translateX(100%);
   z-index: 600;
@@ -162,12 +163,12 @@ cart-drawer.closed, notification-drawer.closed {
   color: white;
   border: none;
   border-radius: 16px 0 0 16px;
-  padding: 20px 12px;
+  padding: 18px 12px;
   cursor: grab;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   box-shadow: -4px 0 20px rgba(0, 82, 204, 0.22);
   transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), background 0.2s ease, box-shadow 0.2s ease;
 }
