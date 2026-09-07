@@ -8211,8 +8211,6 @@ class ProductList extends HTMLElement {
                   })
                 }).catch(() => {});
               }
-                })
-              }).catch(e => console.error('Failed to broadcast received order alert:', e));
             })
             .catch(e => console.error('Failed to sync received order status:', e));
 
