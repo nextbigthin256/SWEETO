@@ -48,48 +48,45 @@ class Hero extends HTMLElement {
     const entranceImg = sessionStorage.getItem('SWEETOS_store_entrance_image') || 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=1200&q=80';
 
     if (!Array.isArray(allProds) || allProds.length === 0) {
-      // 0 Products in store - Clean branded showcase with default entrance banner image
+      // 0 Products in store - Default fallback slide
       this.slides = [
         {
-          tag: `✨ ${storeName.toUpperCase()} OFFICIAL STORE`,
-          title: heroTitle.includes('<br>') ? heroTitle : heroTitle.replace('\n', '<br>'),
-          subtitle: heroSubtitle,
-          bg: "linear-gradient(135deg, rgba(9, 17, 30, 0.85) 0%, rgba(13, 33, 73, 0.75) 50%, rgba(0, 82, 204, 0.65) 100%)",
-          glow1: "rgba(0, 82, 204, 0.4)",
-          glow2: "rgba(0, 180, 216, 0.3)",
-          product: null,
-          bannerImage: entranceImg,
-          perks: ["Authentic Guaranteed", "Fast Delivery", "Official Warranty"],
-          ctaText: "Explore Catalog",
-          actionTarget: "catalog"
+          badgeText: `${storeName.toUpperCase()} • OFFICIAL STORE`,
+          title: heroTitle,
+          desc: heroSubtitle,
+          bgImage: entranceImg,
+          productImage: entranceImg,
+          name: 'Premium Accessories',
+          price: 15000,
+          oldPrice: 18000,
+          rating: '5.0',
+          product: null
         }
       ];
       return;
     }
 
-    // Dynamic slides generated purely from REAL products in catalog
-    const gradients = [
-      { bg: "linear-gradient(135deg, rgba(9, 17, 30, 0.85) 0%, rgba(13, 33, 73, 0.75) 50%, rgba(0, 82, 204, 0.65) 100%)", glow1: "rgba(0, 82, 204, 0.4)", glow2: "rgba(0, 180, 216, 0.3)" },
-      { bg: "linear-gradient(135deg, rgba(11, 15, 25, 0.85) 0%, rgba(23, 23, 44, 0.75) 50%, rgba(49, 16, 78, 0.65) 100%)", glow1: "rgba(147, 51, 234, 0.4)", glow2: "rgba(0, 180, 216, 0.3)" },
-      { bg: "linear-gradient(135deg, rgba(21, 0, 43, 0.85) 0%, rgba(41, 8, 73, 0.75) 50%, rgba(91, 14, 140, 0.65) 100%)", glow1: "rgba(217, 70, 239, 0.4)", glow2: "rgba(99, 102, 241, 0.3)" },
-      { bg: "linear-gradient(135deg, rgba(24, 18, 11, 0.85) 0%, rgba(48, 31, 16, 0.75) 50%, rgba(84, 56, 24, 0.65) 100%)", glow1: "rgba(245, 158, 11, 0.4)", glow2: "rgba(217, 119, 6, 0.3)" }
-    ];
+    // Dynamic slides generated from REAL catalog products
+    this.slides = allProds.slice(0, 5).map((p) => {
+      const pCategory = (p.category || 'COMPUTER & IT').toUpperCase();
+      const pBrand = p.brand ? p.brand.toUpperCase() : 'SWEETOS';
+      const origPrice = p.comparePrice || p.originalPrice || p.original_price || 0;
+      
+      const pDesc = p.description 
+        ? (p.description.length > 150 ? p.description.slice(0, 150) + '...' : p.description) 
+        : `Engineered by ${pBrand}, ${p.name} delivers high-end reliability and refined aesthetics for your setup.`;
 
-    this.slides = allProds.slice(0, 5).map((p, idx) => {
-      const g = gradients[idx % gradients.length];
-      const isFirst = idx === 0;
       return {
-        tag: `✨ ${storeName.toUpperCase()} • ${(p.category || 'FEATURED').toUpperCase()}`,
-        title: isFirst ? (heroTitle.includes('<br>') ? heroTitle : heroTitle.replace('\n', '<br>')) : p.name,
-        subtitle: isFirst ? heroSubtitle : (p.description ? (p.description.length > 130 ? p.description.slice(0, 130) + '...' : p.description) : `Premium quality ${p.name} available now in stock.`),
-        bg: g.bg,
-        glow1: g.glow1,
-        glow2: g.glow2,
-        product: p,
-        bannerImage: p.image || null,
-        perks: ["Authentic Quality", "2-Year Warranty", "Verified In Stock"],
-        ctaText: "Shop Now",
-        actionTarget: "catalog"
+        badgeText: `${storeName.toUpperCase()} • ${pCategory}`,
+        title: p.name,
+        desc: pDesc,
+        bgImage: p.image || entranceImg,
+        productImage: p.image || entranceImg,
+        name: p.name,
+        price: p.price,
+        oldPrice: origPrice > p.price ? origPrice : 0,
+        rating: p.rating ? Number(p.rating).toFixed(1) : '5.0',
+        product: p
       };
     });
   }
@@ -128,112 +125,116 @@ class Hero extends HTMLElement {
 
     this.shadowRoot.innerHTML = `
       <link rel="stylesheet" href="./components/Hero/Hero.css">
-      <section class="hero-carousel" id="hero-carousel-container">
-        <!-- Previous Arrow Button -->
+      <section class="hero-carousel" id="heroBanner">
+        
+        <!-- Left Arrow -->
         ${hasMultipleSlides ? `
-          <button class="hero-nav-arrow prev" id="hero-prev-btn" aria-label="Slide précédente">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"></polyline></svg>
-          </button>
+          <button class="nav-arrow left" id="hero-prev-btn" aria-label="Previous">‹</button>
         ` : ''}
 
         <div class="slides-wrapper">
           ${this.slides.map((slide, idx) => {
             const p = slide.product;
-            const bImg = slide.bannerImage;
+            const pId = p?.id || 1;
             return `
               <div class="slide ${idx === this.currentSlide ? 'active' : ''}" data-index="${idx}">
-                <div class="slide-card" style="background: ${slide.bg};">
-                  <div class="hero-glow-1" style="background: radial-gradient(circle, ${slide.glow1} 0%, rgba(0,0,0,0) 70%);"></div>
-                  <div class="hero-glow-2" style="background: radial-gradient(circle, ${slide.glow2} 0%, rgba(0,0,0,0) 70%);"></div>
+                
+                <!-- Full Background Image -->
+                <img class="hero-bg-image" src="${slide.bgImage}" alt="${slide.name} Background">
+                
+                <!-- Dark Overlay -->
+                <div class="hero-overlay"></div>
 
-                  <!-- Left Content Column -->
-                  <div class="hero-content" style="${!p && !bImg ? 'max-width: 800px;' : ''}">
-                    <span class="hero-tag">${slide.tag}</span>
-                    <h2 class="hero-title">${slide.title}</h2>
-                    <p class="hero-subtitle">${slide.subtitle}</p>
-
-                    <div class="hero-perks-row">
-                      ${(slide.perks || []).map(perk => `
-                        <div class="hero-perk-item">
-                          <span style="color: #38bdf8;">✓</span> ${perk}
-                        </div>
-                      `).join('')}
+                <!-- SLIDE CONTENT GRID -->
+                <div class="slide-content-grid">
+                  
+                  <!-- LEFT CONTENT -->
+                  <div class="hero-left">
+                    <div class="hero-badge">
+                      <span class="sparkle">✨</span>
+                      ${slide.badgeText}
                     </div>
 
-                    <div class="hero-cta-group">
-                      <button class="shop-btn shop-cta" data-target="${slide.actionTarget}" data-id="${p?.id || 1}">
-                        <span>${slide.ctaText}</span>
-                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
-                          <line x1="5" y1="12" x2="19" y2="12"></line>
-                          <polyline points="12 5 19 12 12 19"></polyline>
-                        </svg>
-                      </button>
+                    <h1 class="hero-title">${slide.title}</h1>
 
-                      ${p ? `
-                        <button class="shop-btn-secondary hero-view-details-btn" data-id="${p.id}">
-                          <span>Quick View</span>
-                        </button>
-                      ` : ''}
+                    <p class="hero-description">${slide.desc}</p>
+
+                    <div class="hero-features">
+                      <div class="hero-feature">
+                        <span class="check">✓</span> Authentic Quality
+                      </div>
+                      <div class="hero-feature">
+                        <span class="check">✓</span> 2-Year Warranty
+                      </div>
+                      <div class="hero-feature">
+                        <span class="check">✓</span> Verified In Stock
+                      </div>
+                    </div>
+
+                    <div class="hero-buttons">
+                      <button class="btn-shop shop-cta" data-id="${pId}">
+                        Shop Now <span class="arrow">→</span>
+                      </button>
+                      <button class="btn-quick hero-quick-view-btn" data-id="${pId}">Quick View</button>
                     </div>
                   </div>
 
-                  <!-- Right Showcase Preview Card -->
-                  ${p ? `
-                    <div class="hero-visual">
-                      <div class="hero-card-img-box hero-inspect-trigger" data-id="${p.id}">
-                        <img src="${p.image}" alt="${p.name}" loading="lazy">
-                        <span class="hero-card-badge">
-                          ⭐ ${p.rating ? Number(p.rating).toFixed(1) : '5.0'}
-                        </span>
-                      </div>
+                  <!-- RIGHT PRODUCT CARD -->
+                  <div class="hero-right">
+                    <div class="product-card">
+                      <div class="product-image-wrapper hero-inspect-trigger" data-id="${pId}">
+                        <img src="${slide.productImage}" alt="${slide.name}">
+                        
+                        <div class="feature-icons">
+                          <div class="feature-icon" title="High Precision">📶</div>
+                          <div class="feature-icon" title="Fast Delivery">⚡</div>
+                          <div class="feature-icon" title="Certified">🛡️</div>
+                        </div>
 
-                      <div class="hero-card-meta">
-                        <span class="hero-card-label">FEATURED GEAR</span>
-                        <h4 class="hero-card-title" title="${p.name}">${p.name}</h4>
-                        <div class="hero-card-price-row">
-                          <span class="hero-card-price">${formatPrice(p.price)}</span>
-                          ${p.originalPrice && p.originalPrice > p.price ? `
-                            <span style="font-size: 13px; color: #94a3b8; text-decoration: line-through;">${formatPrice(p.originalPrice)}</span>
-                          ` : ''}
+                        <div class="rating-badge">
+                          <span>★</span> ${slide.rating}
                         </div>
                       </div>
 
-                      <div class="hero-card-actions">
-                        <button class="btn-hero-buy hero-buy-direct" data-id="${p.id}">
-                          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg>
-                          <span>Buy Now</span>
+                      <div class="product-label">FEATURED GEAR</div>
+                      <div class="product-name" title="${slide.name}">${slide.name}</div>
+
+                      <div class="product-price-row">
+                        <span class="product-price">${formatPrice(slide.price)}</span>
+                        ${slide.oldPrice ? `
+                          <span class="product-price-old">${formatPrice(slide.oldPrice)}</span>
+                        ` : ''}
+                      </div>
+
+                      <div class="product-actions">
+                        <button class="btn-buy hero-buy-direct" data-id="${pId}">
+                          Buy Now
                         </button>
-                        <button class="btn-hero-view hero-inspect-trigger" data-id="${p.id}">
-                          Details
-                        </button>
+                        <button class="btn-details hero-inspect-trigger" data-id="${pId}">Details</button>
                       </div>
                     </div>
-                  ` : (bImg ? `
-                    <div class="hero-visual" style="display:flex; align-items:center; justify-content:center;">
-                      <img src="${bImg}" alt="Store Banner" style="max-height: 280px; max-width: 100%; border-radius: 16px; object-fit: cover; box-shadow: 0 10px 30px rgba(0,0,0,0.3);">
-                    </div>
-                  ` : '')}
+                  </div>
+
                 </div>
               </div>
             `;
           }).join('')}
         </div>
 
-        <!-- Next Arrow Button -->
+        <!-- Right Arrow -->
         ${hasMultipleSlides ? `
-          <button class="hero-nav-arrow next" id="hero-next-btn" aria-label="Slide suivante">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
-          </button>
+          <button class="nav-arrow right" id="hero-next-btn" aria-label="Next">›</button>
         ` : ''}
 
         <!-- Capsule Dot Indicators -->
         ${hasMultipleSlides ? `
-          <div class="dot-indicators">
+          <div class="hero-dots" id="heroDots">
             ${this.slides.map((_, idx) => `
-              <button class="dot ${idx === this.currentSlide ? 'active' : ''}" data-index="${idx}" aria-label="Aller à la slide ${idx + 1}"></button>
+              <button class="hero-dot ${idx === this.currentSlide ? 'active' : ''}" data-index="${idx}" aria-label="Go to slide ${idx + 1}"></button>
             `).join('')}
           </div>
         ` : ''}
+
       </section>
     `;
   }
@@ -262,7 +263,7 @@ class Hero extends HTMLElement {
     }
 
     // Dot indicator clicks
-    const dots = shadow.querySelectorAll('.dot');
+    const dots = shadow.querySelectorAll('.hero-dot');
     dots.forEach(dot => {
       dot.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -273,26 +274,48 @@ class Hero extends HTMLElement {
     });
 
     // Pause on hover
-    const carouselContainer = shadow.getElementById('hero-carousel-container');
-    if (carouselContainer) {
-      carouselContainer.addEventListener('mouseenter', () => {
+    const banner = shadow.getElementById('heroBanner');
+    if (banner) {
+      banner.addEventListener('mouseenter', () => {
         this.isHovered = true;
         this.stopAutoSlide();
       });
-      carouselContainer.addEventListener('mouseleave', () => {
+      banner.addEventListener('mouseleave', () => {
         this.isHovered = false;
         this.startAutoSlide();
       });
+
+      // Touch swipe support for mobile
+      let touchStartX = 0;
+      let touchEndX = 0;
+
+      banner.addEventListener('touchstart', (e) => {
+        touchStartX = e.changedTouches[0].screenX;
+      }, { passive: true });
+
+      banner.addEventListener('touchend', (e) => {
+        touchEndX = e.changedTouches[0].screenX;
+        const diff = touchStartX - touchEndX;
+        if (Math.abs(diff) > 40) {
+          if (diff > 0) this.nextSlide();
+          else this.prevSlide();
+          this.resetAutoSlide();
+        }
+      }, { passive: true });
     }
 
-    // CTA & Shop clicks
+    // CTA & Action clicks
     shadow.addEventListener('click', (e) => {
-      const inspectBtn = e.target.closest('.hero-inspect-trigger') || e.target.closest('.hero-view-details-btn');
+      const inspectBtn = e.target.closest('.hero-inspect-trigger') || e.target.closest('.hero-quick-view-btn') || e.target.closest('.btn-details');
       if (inspectBtn) {
         e.stopPropagation();
         const id = parseInt(inspectBtn.getAttribute('data-id'));
         if (id) {
-          window.dispatchEvent(new CustomEvent('product:view', { detail: id }));
+          const allProds = this.getProductsList();
+          const prod = allProds.find(p => p.id === id);
+          if (prod) {
+            window.dispatchEvent(new CustomEvent('product:details-open', { detail: prod }));
+          }
         }
         return;
       }
@@ -304,9 +327,7 @@ class Hero extends HTMLElement {
         const allProds = this.getProductsList();
         const prod = allProds.find(p => p.id === id);
         if (prod) {
-          window.dispatchEvent(new CustomEvent('cart:add', {
-            detail: { productId: prod.id, quantity: 1, color: prod.colors ? prod.colors[0]?.name : '' }
-          }));
+          window.dispatchEvent(new CustomEvent('cart:add', { detail: prod }));
         }
         return;
       }
@@ -314,19 +335,9 @@ class Hero extends HTMLElement {
       const cta = e.target.closest('.shop-cta');
       if (cta) {
         e.stopPropagation();
-        const target = cta.getAttribute('data-target');
-        if (target === 'keyboards') {
-          window.dispatchEvent(new CustomEvent('search:query', { detail: { query: 'Keyboards', category: 'Keyboards' } }));
-        } else if (target === 'audio') {
-          window.dispatchEvent(new CustomEvent('search:query', { detail: { query: 'Audio', category: 'Audio' } }));
-        } else if (target === 'desks') {
-          window.dispatchEvent(new CustomEvent('search:query', { detail: { query: 'Desks', category: 'Desks' } }));
-        } else {
-          // Scroll down smoothly to product list
-          const prodList = document.querySelector('product-list');
-          if (prodList) {
-            prodList.scrollIntoView({ behavior: 'smooth' });
-          }
+        const prodList = document.querySelector('product-list');
+        if (prodList) {
+          prodList.scrollIntoView({ behavior: 'smooth' });
         }
       }
     });
@@ -335,7 +346,7 @@ class Hero extends HTMLElement {
   goToSlide(index) {
     const shadow = this.shadowRoot;
     const slides = shadow.querySelectorAll('.slide');
-    const dots = shadow.querySelectorAll('.dot');
+    const dots = shadow.querySelectorAll('.hero-dot');
     
     if (slides.length === 0) return;
 
