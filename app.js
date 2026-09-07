@@ -1,5 +1,9 @@
-// SPA pathname to hash router redirect fallback
-if (window.location.pathname !== '/' && window.location.pathname !== '/index.html' && window.location.pathname !== '/admin.html') {
+// SPA pathname to hash router & index.html URL cleanup
+if (window.location.pathname.endsWith('/index.html')) {
+  const cleanUrl = window.location.pathname.replace(/\/index\.html$/, '/') + window.location.search + window.location.hash;
+  window.history.replaceState(null, '', cleanUrl);
+}
+if (window.location.pathname !== '/' && !window.location.pathname.endsWith('/index.html') && window.location.pathname !== '/admin.html') {
   const path = window.location.pathname.substring(1);
   if (!path.includes('.') && !path.startsWith('assets/') && !path.startsWith('components/')) {
     window.location.replace('/#/' + path);

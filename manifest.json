@@ -2,7 +2,7 @@
   "name": "SWEETOS | Premium Tech & Workspace Accessories",
   "short_name": "SWEETOS",
   "description": "High-precision minimalist desk accessories, workspace gear, and tech curated for creators.",
-  "start_url": "./index.html",
+  "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "display_override": ["standalone", "minimal-ui"],
@@ -32,21 +32,21 @@
       "name": "Shop Catalog",
       "short_name": "Shop",
       "description": "Explore SWEETOS tech & workspace accessories",
-      "url": "./index.html#/",
+      "url": "./#/",
       "icons": [{ "src": "./assets/sweetos_logo.svg", "sizes": "192x192" }]
     },
     {
       "name": "Today's Deals",
       "short_name": "Deals",
       "description": "View active daily discounts and promo vouchers",
-      "url": "./index.html#/todays-deals",
+      "url": "./#/todays-deals",
       "icons": [{ "src": "./assets/sweetos_logo.svg", "sizes": "192x192" }]
     },
     {
       "name": "Admin Dashboard",
       "short_name": "Admin",
       "description": "Manage products, inventory, and orders",
-      "url": "./index.html#/admin",
+      "url": "./#/admin",
       "icons": [{ "src": "./assets/sweetos_logo.svg", "sizes": "192x192" }]
     }
   ]
