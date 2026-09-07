@@ -684,13 +684,81 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
       const btn = formSignin.querySelector('button[type="submit"]');
       const originalText = btn.innerText;
 
-      // Validate credentials
+      // 1. Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!email || !emailRegex.test(email)) {
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: '❌ Adresse e-mail invalide ! Veuillez saisir une adresse valide.' }));
+        return;
+      }
+
+      // 2. Validate password length
+      if (!password || password.length < 3) {
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: '❌ Veuillez entrer votre mot de passe !' }));
+        return;
+      }
+
+      // 3. Check credentials database & Supabase customers
       const creds = JSON.parse(getStorageItem('SWEETOS_customer_credentials') || '[]');
-      let userMatch = creds.find(u => u.email.toLowerCase() === email);
+      let userMatch = creds.find(u => u.email && u.email.toLowerCase().trim() === email);
 
       if (!userMatch) {
-        // Fallback: allow Supabase password auth login if user exists in Supabase
-        userMatch = { email, name: email.split('@')[0] };
+        try {
+          const customersList = JSON.parse(getStorageItem('SWEETOS_customers') || '[]');
+          const custRecord = customersList.find(c => c.email && c.email.toLowerCase().trim() === email);
+          if (custRecord) {
+            userMatch = { 
+              email: email, 
+              name: custRecord.name || custRecord.fullname || email.split('@')[0], 
+              password: custRecord.password || null 
+            };
+          }
+        } catch(e) {}
+      }
+
+      if (!userMatch) {
+        const safeKey = email.replace(/[^a-zA-Z0-9]/g, '_');
+        const savedProfile = getStorageItem(`SWEETOS_user_profile_${safeKey}`);
+        if (savedProfile) {
+          try {
+            const p = JSON.parse(savedProfile);
+            if (p && p.email && p.email.toLowerCase().trim() === email) {
+              userMatch = { 
+                email: email, 
+                name: `${p.firstName || ''} ${p.lastName || ''}`.trim() || email.split('@')[0], 
+                password: p.password || null 
+              };
+            }
+          } catch(e) {}
+        }
+      }
+
+      // 4. Try Supabase Auth login as fallback for users registered via Supabase Auth
+      if (!userMatch) {
+        try {
+          const { supabase } = await import('../../utils/supabase.js');
+          if (supabase) {
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+            if (!error && data?.user) {
+              userMatch = {
+                email: email,
+                name: data.user.user_metadata?.full_name || email.split('@')[0],
+                password: password
+              };
+            }
+          }
+        } catch(e) {}
+      }
+
+      // If account does NOT exist, reject login!
+      if (!userMatch) {
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: '❌ Aucun compte trouvé avec cet e-mail ! Veuillez d\'abord vous inscrire.' }));
+        return;
+      }
+
+      // 5. Password verification (if password was saved)
+      if (userMatch.password && userMatch.password !== "google_oauth_verified" && userMatch.password !== password) {
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: '❌ Mot de passe incorrect ! Veuillez réessayer.' }));
+        return;
       }
 
       btn.innerText = 'Connexion en cours...';
