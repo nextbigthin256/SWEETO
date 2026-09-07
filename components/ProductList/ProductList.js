@@ -6179,7 +6179,7 @@ class ProductList extends HTMLElement {
       const storePhone = sessionStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23';
       const storeEmail = sessionStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com';
       const storeHours = sessionStorage.getItem('SWEETOS_store_hours') || 'Mon - Fri: 7:00 AM - 8:00 PM | Sun: Closed';
-      const storeEntranceImage = sessionStorage.getItem('SWEETOS_store_entrance_image') || './assets/succes_technology_store_1786799642676.jpg';
+      const storeEntranceImage = sessionStorage.getItem('SWEETOS_store_entrance_image') || './assets/sweetos_share.jpg';
 
       tabArea.innerHTML = `
         <div class="about-contact-tab animate-in" style="display: flex; flex-direction: column; gap: 32px;">

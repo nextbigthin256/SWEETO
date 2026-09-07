@@ -557,7 +557,7 @@ export function renderAdminOrders(context) {
 
               // Products preview thumbs
               const prods = o.products || [];
-              const firstImg = prods[0]?.image || './assets/succes_technology_store.jpg';
+              const firstImg = prods[0]?.image || './assets/sweetos_share.jpg';
 
               const initials = (o.customerName || 'Customer').split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
@@ -864,7 +864,7 @@ export function renderAdminOrderDetails(context) {
             ${(order.products || []).map(p => `
               <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:#f8fafc; border-radius:12px; border:1px solid #f1f5f9;">
                 <div style="display:flex; align-items:center; gap:14px;">
-                  <img src="${p.image || './assets/succes_technology_store.jpg'}" style="width:48px; height:48px; border-radius:10px; object-fit:cover; border:1px solid #e2e8f0;">
+                  <img src="${p.image || './assets/sweetos_share.jpg'}" style="width:48px; height:48px; border-radius:10px; object-fit:cover; border:1px solid #e2e8f0;">
                   <div>
                     <h4 style="margin:0; font-size:14px; font-weight:800; color:#1e293b;">${p.name}</h4>
                     <span style="font-size:12px; color:#64748b;">${formatPrice(p.price)} &times; ${p.quantity}</span>
