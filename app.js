@@ -287,7 +287,9 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (Math.abs(deltaY) > dragThreshold) {
       didDrag = true;
-      e.preventDefault(); // Stop text selections while dragging
+      if (e.cancelable) {
+        e.preventDefault(); // Stop text selections while dragging
+      }
     }
     
     let newTop = initialTop + deltaY;
