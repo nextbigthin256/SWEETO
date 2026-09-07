@@ -541,7 +541,7 @@ export async function createOrderInSupabase(newOrder) {
       await saveSiteSettingInSupabase('sweetos_cloud_orders', sOrders);
     } catch(e) {}
 
-    // 2. Try to upsert into Supabase orders table
+    // 2. Try to upsert into Supabase orders table with conflict target
     try {
       const record = {
         order_number: orderId,
@@ -554,10 +554,10 @@ export async function createOrderInSupabase(newOrder) {
         payment_method: newOrder.paymentMethod || 'cod',
         shipping_notes: newOrder.items || (newOrder.products || []).map(p => `${p.name} (x${p.quantity || 1})`).join(', ') || 'Product Order'
       };
-      await supabase.from('orders').upsert([record]);
+      await supabase.from('orders').upsert([record], { onConflict: 'order_number' });
     } catch(e) {}
 
-    // 3. Upsert order into Supabase profiles table (embedded orders array)
+    // 3. Upsert order profile details
     if (emailLower) {
       const safeKey = emailLower.replace(/[^a-zA-Z0-9]/g, '_');
       const { data: p } = await supabase.from('profiles').select('*').eq('email', emailLower).maybeSingle();
@@ -586,16 +586,18 @@ export async function createOrderInSupabase(newOrder) {
         pOrders.unshift(newOrder);
       }
 
-      const totalSpent = pOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
-      
-      await supabase.from('profiles').upsert([{
-        email: emailLower,
-        full_name: newOrder.customerName || p?.full_name || '',
-        phone: newOrder.customerPhone || p?.phone || '',
-        orders_count: pOrders.length,
-        total_spent: totalSpent,
-        orders: pOrders
-      }], { onConflict: 'email' });
+      // Upsert into profiles using valid columns
+      try {
+        const nameParts = (newOrder.customerName || p?.first_name || 'Client').trim().split(' ');
+        const firstName = nameParts[0] || 'Client';
+        const lastName = nameParts.slice(1).join(' ') || '';
+        await supabase.from('profiles').upsert([{
+          email: emailLower,
+          first_name: firstName,
+          last_name: lastName,
+          phone: newOrder.customerPhone || p?.phone || ''
+        }], { onConflict: 'email' });
+      } catch(e) {}
 
       // Save to sessionStorage user profile so it is available locally immediately
       try {
@@ -1334,24 +1336,19 @@ export async function saveCustomerToSupabase(customerData) {
       finalOrders = Array.from(orderMap.values());
     }
 
-    const record = {
-      email: emailLower,
-      full_name: customerData.name || customerData.fullname || `${customerData.firstName || ''} ${customerData.lastName || ''}`.trim() || 'Client',
-      phone: customerData.phone || '',
-      badge_type: customerData.badgeType || 'none',
-      level: customerData.level || customerData.loyaltyLevel || 'starter',
-      unlocked_badges: customerData.unlockedBadges || [],
-      orders: finalOrders,
-      orders_count: finalOrders.length,
-      total_spent: finalOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0)
-    };
-    if (customerData.addresses && Array.isArray(customerData.addresses)) {
-      record.addresses = customerData.addresses;
-    }
-    
-    // 1. Upsert into profiles table
+    const nameStr = (customerData.name || customerData.fullname || `${customerData.firstName || ''} ${customerData.lastName || ''}`).trim() || 'Client';
+    const nameParts = nameStr.split(' ');
+    const firstName = customerData.firstName || nameParts[0] || 'Client';
+    const lastName = customerData.lastName || nameParts.slice(1).join(' ') || '';
+
+    // 1. Upsert into profiles table using valid columns
     try {
-      await supabase.from('profiles').upsert([record], { onConflict: 'email' });
+      await supabase.from('profiles').upsert([{
+        email: emailLower,
+        first_name: firstName,
+        last_name: lastName,
+        phone: customerData.phone || ''
+      }], { onConflict: 'email' });
     } catch(e) {}
 
     // 2. Persist into site_settings cloud master list under 'sweetos_cloud_customers'
