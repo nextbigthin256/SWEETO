@@ -12,7 +12,23 @@ if (window.location.pathname !== '/' && !window.location.pathname.endsWith('/ind
 
 import { getCartStorageKey, getStorageItem, saveStorageItem, initStorageSync } from './utils/storage.js';
 import { initSupabaseSync } from './utils/supabase.js';
+import { shareProduct, updateProductShareMetaTags } from './utils/share.js';
 import './utils/modal.js';
+
+// Global Product Share Event Listeners
+window.addEventListener('product:share', (e) => {
+  const product = e.detail;
+  if (product) {
+    shareProduct(product);
+  }
+});
+
+window.addEventListener('product:view', (e) => {
+  const product = e.detail;
+  if (product) {
+    updateProductShareMetaTags(product);
+  }
+});
 
 // Import all Web Components to auto-register them
 import './components/Sidebar/Sidebar.js';

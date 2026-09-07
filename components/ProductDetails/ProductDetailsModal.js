@@ -1,5 +1,13 @@
-import { formatPrice } from '../../utils/storage.js';
-import { shareProduct } from '../../utils/share.js';
+import { 
+  formatPrice, 
+  shareProduct, 
+  updateProductShareMetaTags, 
+  getProductShareButtons,
+  shareOnWhatsApp,
+  shareOnFacebook,
+  shareOnTwitter,
+  copyShareLink 
+} from '../../utils/share.js';
 
 class ProductDetailsModal extends HTMLElement {
   constructor() {
@@ -17,6 +25,9 @@ class ProductDetailsModal extends HTMLElement {
   render() {
     if (!this.product) return;
     const p = this.product;
+
+    // Update Open Graph & Twitter Card meta tags for rich social sharing
+    updateProductShareMetaTags(p);
 
     const origPrice = p.comparePrice || p.originalPrice || p.original_price || 0;
     const hasDiscount = Boolean(origPrice > p.price);
@@ -95,7 +106,7 @@ class ProductDetailsModal extends HTMLElement {
                 `}
               </div>
               
-              <div class="actions-row" style="display: flex; gap: 12px; align-items: center; width: 100%;">
+              <div class="actions-row" style="display: flex; gap: 12px; align-items: center; width: 100%; margin-bottom: 12px;">
                 <button class="add-to-cart-btn btn-primary" id="add-btn" style="flex: 1;">
                   Add to Shopping Cart
                   <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 18px; height: 18px; flex-shrink: 0; display: inline-block; margin-left: 4px; vertical-align: middle;">
@@ -104,7 +115,7 @@ class ProductDetailsModal extends HTMLElement {
                     <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
                   </svg>
                 </button>
-                <button class="share-details-btn" id="details-share-btn" style="background: rgba(0, 82, 204, 0.05); color: #0052cc; border: 1.5px solid rgba(0, 82, 204, 0.15); width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" title="Share Product">
+                <button class="share-details-btn" id="details-share-btn" style="background: rgba(0, 82, 204, 0.05); color: #0052cc; border: 1.5px solid rgba(0, 82, 204, 0.15); width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.2s;" title="Share via Device Apps">
                   <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 20px; height: 20px; flex-shrink: 0;">
                     <circle cx="18" cy="5" r="3"></circle>
                     <circle cx="6" cy="12" r="3"></circle>
@@ -113,6 +124,14 @@ class ProductDetailsModal extends HTMLElement {
                     <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
                   </svg>
                 </button>
+              </div>
+
+              <!-- Product Share Section -->
+              <div class="share-section" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(0,0,0,0.08);">
+                <p style="font-size: 12.5px; color: #64748b; font-weight: 700; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">
+                  📤 Partager ce produit
+                </p>
+                ${getProductShareButtons(p)}
               </div>
             </div>
           </div>
@@ -128,6 +147,9 @@ class ProductDetailsModal extends HTMLElement {
       this.product = e.detail;
       this.isOpen = true;
       this.activeTab = 'description';
+      if (this.product) {
+        updateProductShareMetaTags(this.product);
+      }
       this.render();
       this.updateState();
     });
@@ -154,13 +176,48 @@ class ProductDetailsModal extends HTMLElement {
       });
     }
 
-    // Product details share btn
+    // Product details share btn (native)
     const shareBtn = shadow.getElementById('details-share-btn');
     if (shareBtn) {
       shareBtn.addEventListener('click', async () => {
         if (this.product) {
           await shareProduct(this.product);
         }
+      });
+    }
+
+    // Social share buttons (WhatsApp, Facebook, Twitter, Copy)
+    const waBtn = shadow.querySelector('.share-wa-btn');
+    if (waBtn) {
+      waBtn.addEventListener('click', () => {
+        const text = decodeURIComponent(waBtn.getAttribute('data-text') || '');
+        const url = waBtn.getAttribute('data-url') || '';
+        shareOnWhatsApp(text, url);
+      });
+    }
+
+    const fbBtn = shadow.querySelector('.share-fb-btn');
+    if (fbBtn) {
+      fbBtn.addEventListener('click', () => {
+        const url = decodeURIComponent(fbBtn.getAttribute('data-url') || '');
+        shareOnFacebook(url);
+      });
+    }
+
+    const twBtn = shadow.querySelector('.share-tw-btn');
+    if (twBtn) {
+      twBtn.addEventListener('click', () => {
+        const text = decodeURIComponent(twBtn.getAttribute('data-text') || '');
+        const url = decodeURIComponent(twBtn.getAttribute('data-url') || '');
+        shareOnTwitter(text, url);
+      });
+    }
+
+    const copyBtn = shadow.querySelector('.share-copy-btn');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', () => {
+        const url = copyBtn.getAttribute('data-url') || window.location.href;
+        copyShareLink(url);
       });
     }
 
