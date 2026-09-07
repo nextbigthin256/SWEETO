@@ -179,42 +179,6 @@ class Hero extends HTMLElement {
                     </div>
                   </div>
 
-                  <!-- RIGHT PRODUCT CARD -->
-                  <div class="hero-right">
-                    <div class="product-card">
-                      <div class="product-image-wrapper hero-inspect-trigger" data-id="${pId}">
-                        <img src="${slide.productImage}" alt="${slide.name}">
-                        
-                        <div class="feature-icons">
-                          <div class="feature-icon" title="High Precision">📶</div>
-                          <div class="feature-icon" title="Fast Delivery">⚡</div>
-                          <div class="feature-icon" title="Certified">🛡️</div>
-                        </div>
-
-                        <div class="rating-badge">
-                          <span>★</span> ${slide.rating}
-                        </div>
-                      </div>
-
-                      <div class="product-label">FEATURED GEAR</div>
-                      <div class="product-name" title="${slide.name}">${slide.name}</div>
-
-                      <div class="product-price-row">
-                        <span class="product-price">${formatPrice(slide.price)}</span>
-                        ${slide.oldPrice ? `
-                          <span class="product-price-old">${formatPrice(slide.oldPrice)}</span>
-                        ` : ''}
-                      </div>
-
-                      <div class="product-actions">
-                        <button class="btn-buy hero-buy-direct" data-id="${pId}">
-                          Buy Now
-                        </button>
-                        <button class="btn-details hero-inspect-trigger" data-id="${pId}">Details</button>
-                      </div>
-                    </div>
-                  </div>
-
                 </div>
               </div>
             `;
