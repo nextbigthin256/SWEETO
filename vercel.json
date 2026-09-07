@@ -7,7 +7,12 @@
     },
     {
       "src": "/sw.js",
-      "dest": "/sw.js"
+      "dest": "/sw.js",
+      "headers": {
+        "Content-Type": "application/javascript; charset=utf-8",
+        "Service-Worker-Allowed": "/",
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+      }
     },
     {
       "src": "/manifest.json",
@@ -40,38 +45,6 @@
     {
       "src": "/(.*)",
       "dest": "/index.html"
-    }
-  ],
-  "headers": [
-    {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "Access-Control-Allow-Origin",
-          "value": "*"
-        },
-        {
-          "key": "Cross-Origin-Opener-Policy",
-          "value": "same-origin-allow-popups"
-        }
-      ]
-    },
-    {
-      "source": "/sw.js",
-      "headers": [
-        {
-          "key": "Content-Type",
-          "value": "application/javascript; charset=utf-8"
-        },
-        {
-          "key": "Service-Worker-Allowed",
-          "value": "/"
-        },
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate"
-        }
-      ]
     }
   ]
 }
