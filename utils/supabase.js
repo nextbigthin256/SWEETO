@@ -1381,6 +1381,52 @@ export async function checkCustomerAccountValidInSupabase(email) {
   }
 }
 
+export async function checkIsAdminAccountInSupabase(email) {
+  try {
+    if (!email) return false;
+    const cleanEmail = email.trim().toLowerCase();
+
+    // Heuristics
+    if (cleanEmail.includes('admin@') || cleanEmail.endsWith('@store.com') || cleanEmail.endsWith('@sweetos.store')) {
+      return true;
+    }
+
+    if (!supabase) return false;
+
+    // 1. Query Supabase profiles table for role or is_admin flag
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role, is_admin, type')
+      .eq('email', cleanEmail)
+      .maybeSingle();
+
+    if (profile) {
+      if (profile.is_admin === true || (profile.role && String(profile.role).toLowerCase() === 'admin') || (profile.type && String(profile.type).toLowerCase() === 'admin')) {
+        return true;
+      }
+    }
+
+    // 2. Query site_settings table for admin_emails list
+    const { data: adminSetting } = await supabase
+      .from('site_settings')
+      .select('value')
+      .eq('key', 'admin_emails')
+      .maybeSingle();
+
+    if (adminSetting && adminSetting.value) {
+      const list = typeof adminSetting.value === 'string' ? JSON.parse(adminSetting.value) : adminSetting.value;
+      if (Array.isArray(list) && list.some(e => String(e).toLowerCase().trim() === cleanEmail)) {
+        return true;
+      }
+    }
+
+    return false;
+  } catch (err) {
+    console.warn('[Supabase Admin Check Notice]:', err);
+    return false;
+  }
+}
+
 // ==========================================
 // 9. DYNAMIC 3-DIGIT PIN & MULTI-DEVICE SESSION ENGINE
 // ==========================================

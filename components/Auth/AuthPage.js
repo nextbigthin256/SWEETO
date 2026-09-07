@@ -691,7 +691,15 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
         return;
       }
 
-      // 2. Validate password length
+      // 2. Query Supabase to check if account is an Admin account
+      const { checkIsAdminAccountInSupabase } = await import('../../utils/supabase.js');
+      const isAdminAccount = await checkIsAdminAccountInSupabase(email);
+      if (isAdminAccount) {
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: '⛔ Accès refusé ! Les comptes Administrateur ne peuvent pas se connecter sur le site client. Veuillez utiliser le Portail Admin (admin.html).' }));
+        return;
+      }
+
+      // 3. Validate password length
       if (!password || password.length < 3) {
         window.dispatchEvent(new CustomEvent('toast:show', { detail: '❌ Veuillez entrer votre mot de passe !' }));
         return;
