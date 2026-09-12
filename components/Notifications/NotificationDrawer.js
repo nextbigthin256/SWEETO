@@ -160,20 +160,23 @@ class NotificationDrawer extends HTMLElement {
         const daysRemaining = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
         
         if (daysRemaining > 0 && daysRemaining <= 14) {
-          const uniqueId = `reminder-mystery-${card.id}-${daysRemaining}`;
-          if (!this.notifications.some(n => n.uniqueKey === uniqueId)) {
-            this.notifications.unshift({
-              id: Date.now() + Math.floor(Math.random() * 1000),
-              uniqueKey: uniqueId,
-              type: 'promo',
-              icon: '⏰',
-              title: `Rappel: Boîte Mystère expire dans ${daysRemaining} jour${daysRemaining > 1 ? 's' : ''}! 🎁`,
-              desc: `Votre boîte mystère de la commande #${card.orderId} va bientôt expirer. Grattez-la maintenant pour découvrir votre offre !`,
-              createdAt: Date.now(),
-              unread: true
-            });
-            updated = true;
-          }
+          // Remove any existing reminder for this scratchcard first
+          this.notifications = this.notifications.filter(n =>
+            !(n.uniqueKey && n.uniqueKey.startsWith(`reminder-mystery-${card.id}`))
+          );
+
+          const uniqueId = `reminder-mystery-${card.id}`;
+          this.notifications.unshift({
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            uniqueKey: uniqueId,
+            type: 'promo',
+            icon: '⏰',
+            title: `Rappel: Boîte Mystère expire dans ${daysRemaining} jour${daysRemaining > 1 ? 's' : ''}! 🎁`,
+            desc: `Votre boîte mystère de la commande #${card.orderId} va bientôt expirer. Grattez-la maintenant pour découvrir votre offre !`,
+            createdAt: Date.now(),
+            unread: true
+          });
+          updated = true;
         }
       }
     });
@@ -192,20 +195,23 @@ class NotificationDrawer extends HTMLElement {
         const daysRemaining = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
         
         if (daysRemaining > 0 && daysRemaining <= 7) {
-          const uniqueId = `reminder-coupon-${c.code}-${daysRemaining}`;
-          if (!this.notifications.some(n => n.uniqueKey === uniqueId)) {
-            this.notifications.unshift({
-              id: Date.now() + Math.floor(Math.random() * 1000),
-              uniqueKey: uniqueId,
-              type: 'promo',
-              icon: '⏰',
-              title: `Rappel Coupon: ${daysRemaining} jour${daysRemaining > 1 ? 's' : ''} restant${daysRemaining > 1 ? 's' : ''}! 🎟️`,
-              desc: `Votre coupon de réduction exclusif ${c.code} (${c.value}% OFF) expire bientôt. Utilisez-le vite à la caisse !`,
-              createdAt: Date.now(),
-              unread: true
-            });
-            updated = true;
-          }
+          // Remove any existing reminder for this coupon first
+          this.notifications = this.notifications.filter(n =>
+            !(n.uniqueKey && n.uniqueKey.startsWith(`reminder-coupon-${c.code}`))
+          );
+
+          const uniqueId = `reminder-coupon-${c.code}`;
+          this.notifications.unshift({
+            id: Date.now() + Math.floor(Math.random() * 1000),
+            uniqueKey: uniqueId,
+            type: 'promo',
+            icon: '⏰',
+            title: `Rappel Coupon: ${daysRemaining} jour${daysRemaining > 1 ? 's' : ''} restant${daysRemaining > 1 ? 's' : ''}! 🎟️`,
+            desc: `Votre coupon de réduction exclusif ${c.code} (${c.value}% OFF) expire bientôt. Utilisez-le vite à la caisse !`,
+            createdAt: Date.now(),
+            unread: true
+          });
+          updated = true;
         }
       }
     });
@@ -372,7 +378,8 @@ class NotificationDrawer extends HTMLElement {
 
   setupEventListeners() {
     window.addEventListener('notifications:toggle', (e) => {
-      if (e.detail && e.detail.open) {
+      const isExplicitClose = e.detail && e.detail.open === false;
+      if (!isExplicitClose) {
         this.loadNotifications();
         if (this.notifications.some(n => n.unread)) {
           this.notifications.forEach(n => n.unread = false);
@@ -482,8 +489,8 @@ class NotificationDrawer extends HTMLElement {
     shadow.querySelectorAll('.notif-delete-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const id = parseInt(btn.getAttribute('data-id'));
-        this.notifications = this.notifications.filter(n => n.id !== id);
+        const rawId = btn.getAttribute('data-id');
+        this.notifications = this.notifications.filter(n => String(n.id) !== String(rawId));
         this.saveNotifications();
         this.render();
         window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Notification supprimée.' }));
@@ -494,8 +501,8 @@ class NotificationDrawer extends HTMLElement {
     // Click on notification item
     shadow.querySelectorAll('.notif-item').forEach(item => {
       item.addEventListener('click', () => {
-        const id = parseInt(item.getAttribute('data-id'));
-        const target = this.notifications.find(n => n.id === id);
+        const rawId = item.getAttribute('data-id');
+        const target = this.notifications.find(n => String(n.id) === String(rawId));
         if (!target) return;
 
         // 1. Mark as read
@@ -512,16 +519,16 @@ class NotificationDrawer extends HTMLElement {
         // 3. Handle page routing / actions
         let productId = target.productId || (target.data && target.data.productId);
         if (!productId && target.id && String(target.id).startsWith('new-product-')) {
-          const parsedId = parseInt(String(target.id).replace('new-product-', ''));
-          if (!isNaN(parsedId)) productId = parsedId;
+          const rawPId = String(target.id).replace('new-product-', '');
+          productId = isNaN(Number(rawPId)) ? rawPId : Number(rawPId);
         }
         if (!productId && target.url) {
-          const match = String(target.url).match(/product[=/](\d+)/);
-          if (match) productId = parseInt(match[1]);
+          const match = String(target.url).match(/product[=/]([^/&#?]+)/);
+          if (match) productId = isNaN(Number(match[1])) ? match[1] : Number(match[1]);
         }
         if (!productId && target.desc) {
-          const match = String(target.desc).match(/product[=/](\d+)/);
-          if (match) productId = parseInt(match[1]);
+          const match = String(target.desc).match(/product[=/]([^/&#?]+)/);
+          if (match) productId = isNaN(Number(match[1])) ? match[1] : Number(match[1]);
         }
 
         if (productId) {

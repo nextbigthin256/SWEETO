@@ -384,6 +384,7 @@ class AdminPage extends HTMLElement {
     this.editingSection = null;
     
     // Data structures loaded dynamically
+    this._isSelfUpdatingOrders = false;
     this.products = [];
     this.orders = [];
     this.customers = [];
@@ -512,6 +513,13 @@ class AdminPage extends HTMLElement {
 
     // Live order updates across tabs & local checkout actions
     this._ordersUpdatedHandler = async () => {
+      if (this._isSelfUpdatingOrders) {
+        if (['orders', 'dashboard', 'analytics', 'customers', 'loyalty'].includes(this.currentTab)) {
+          this.render(false);
+          this.attachListeners();
+        }
+        return;
+      }
       if (this._isDatabaseLoading) return;
       this._isDatabaseLoading = true;
       try {
@@ -543,6 +551,7 @@ class AdminPage extends HTMLElement {
 
     // Listen to live database sync signals
     this._supabaseListener = async () => {
+      if (this._isSelfUpdatingOrders) return;
       if (this._isDatabaseLoading) return;
       this._isDatabaseLoading = true;
       try {
@@ -561,6 +570,7 @@ class AdminPage extends HTMLElement {
     if (typeof BroadcastChannel !== 'undefined') {
       this._adminSyncChannel = new BroadcastChannel('SWEETOS_ADMIN_SYNC');
       this._adminSyncChannel.onmessage = async () => {
+        if (this._isSelfUpdatingOrders) return;
         if (this._isDatabaseLoading) return;
         this._isDatabaseLoading = true;
         try {
@@ -669,13 +679,41 @@ class AdminPage extends HTMLElement {
         if (storedBrands) try { this.brands = JSON.parse(storedBrands); } catch(e) {}
       }
 
-      // Merge Cloud + Local Storage Orders (Cloud orders override local storage to preserve Admin status changes)
+      // Merge Cloud + Local Storage Orders with timestamp handling to preserve admin status updates
       const cloudOrders = (ords.status === 'fulfilled' && Array.isArray(ords.value)) ? ords.value : [];
       const localOrders = getAllOrdersFromStorage();
       const ordersMap = new Map();
-      localOrders.forEach(o => { if (o && (o.id || o.order_number)) ordersMap.set(o.id || o.order_number, o); });
-      cloudOrders.forEach(o => { if (o && (o.id || o.order_number)) ordersMap.set(o.id || o.order_number, o); });
+
+      localOrders.forEach(o => {
+        if (o && (o.id || o.order_number)) {
+          ordersMap.set(o.id || o.order_number, o);
+        }
+      });
+
+      cloudOrders.forEach(co => {
+        if (co && (co.id || co.order_number)) {
+          const key = co.id || co.order_number;
+          if (!ordersMap.has(key)) {
+            ordersMap.set(key, co);
+          } else {
+            const lo = ordersMap.get(key);
+            const loTime = new Date(lo.updatedAt || lo.createdAt || lo.date || 0).getTime();
+            const coTime = new Date(co.updatedAt || co.createdAt || co.date || 0).getTime();
+            // Merge cloud order if cloud is newer or local lacks updatedAt
+            if (coTime >= loTime || !lo.updatedAt) {
+              ordersMap.set(key, { ...lo, ...co });
+            }
+          }
+        }
+      });
+
       this.orders = Array.from(ordersMap.values());
+      // Sort orders descending by timestamp
+      this.orders.sort((a, b) => {
+        const tA = new Date(a.updatedAt || a.createdAt || a.date || 0).getTime();
+        const tB = new Date(b.updatedAt || b.createdAt || b.date || 0).getTime();
+        return tB - tA;
+      });
       saveAllOrdersToStorage(this.orders);
 
       // Merge Cloud + Local Storage Customers
@@ -828,9 +866,16 @@ class AdminPage extends HTMLElement {
       window.dispatchEvent(new CustomEvent('products:updated', { detail: this.products }));
       syncProductsToSupabase(this.products);
     } else if (type === 'orders') {
-      saveAllOrdersToStorage(this.orders);
-      if (Array.isArray(this.orders)) {
-        this.orders.forEach(o => createOrderInSupabase(o));
+      this._isSelfUpdatingOrders = true;
+      try {
+        saveAllOrdersToStorage(this.orders);
+        if (Array.isArray(this.orders)) {
+          this.orders.forEach(o => createOrderInSupabase(o));
+        }
+      } finally {
+        setTimeout(() => {
+          this._isSelfUpdatingOrders = false;
+        }, 500);
       }
     } else if (type === 'coupons') {
       saveStorageItem('SWEETOS_coupons', this.coupons);

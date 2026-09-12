@@ -1312,106 +1312,121 @@ function updateOrderStatus(context, orderId, nextStatus, trackingNum, shadow) {
   const order = context.orders.find(o => o.id === orderId);
   if (!order) return;
 
-  const originalStatus = order.status;
-  order.status = nextStatus;
-  order.updatedAt = new Date().toISOString();
-  if (trackingNum !== null && trackingNum !== undefined) {
-    order.trackingNumber = trackingNum;
-  }
+  context._isSelfUpdatingOrders = true;
 
-  context.saveDatabase('orders');
-
-  // Push directly to Supabase Cloud Database to ensure instant persistence
-  import('../../utils/supabase.js').then(({ createOrderInSupabase }) => {
-    createOrderInSupabase(order);
-  }).catch(() => {});
-
-  // Customer Notification Sync
-  const clientEmail = order.customerEmail || order.email;
-  if (clientEmail) {
-    let customerNotifs = getNotificationsFromStorage(clientEmail);
-
-    let icon = '📦';
-    let title = `Mise à jour commande #${order.id}`;
-    let desc = `Le statut de votre commande #${order.id} a été mis à jour : ${nextStatus}.`;
-
-    if (nextStatus === 'Shipping' || nextStatus === 'Shipped') {
-      icon = '🚚';
-      title = `Commande #${order.id} expédiée !`;
-      desc = `Votre colis #${order.id} est en cours de livraison. Suivi : ${order.trackingNumber || 'En cours'}`;
-    } else if (['done', 'livré', 'delivered'].includes(nextStatus.toLowerCase())) {
-      icon = '✅';
-      title = `Commande #${order.id} livrée !`;
-      desc = `Votre commande #${order.id} a été livrée avec succès. Merci de votre confiance !`;
-    } else if (nextStatus === 'Cancelled') {
-      icon = '❌';
-      title = `Commande #${order.id} annulée`;
-      desc = `Votre commande #${order.id} a été annulée.`;
+  try {
+    const originalStatus = order.status;
+    order.status = nextStatus;
+    order.updatedAt = new Date().toISOString();
+    if (trackingNum !== null && trackingNum !== undefined) {
+      order.trackingNumber = trackingNum;
     }
 
-    customerNotifs.unshift({
-      id: Date.now(),
-      type: 'shipping',
-      icon: icon,
-      title: title,
-      desc: desc,
-      time: 'Just now',
-      unread: true
-    });
+    context.saveDatabase('orders');
 
-    saveNotificationsToStorage(customerNotifs, clientEmail);
-  }
+    // Push directly to Supabase Cloud Database to ensure instant persistence
+    import('../../utils/supabase.js').then(({ createOrderInSupabase }) => {
+      createOrderInSupabase(order);
+    }).catch(() => {});
 
-  // Restock if Cancelled
-  if (nextStatus === 'Cancelled' && originalStatus !== 'Cancelled') {
-    (order.products || []).forEach(item => {
-      const catalogProd = (context.products || []).find(p => p.id === item.id);
-      if (catalogProd) {
-        catalogProd.stock = (catalogProd.stock || 0) + item.quantity;
+    // Customer Notification Sync
+    const clientEmail = order.customerEmail || order.email;
+    if (clientEmail) {
+      let customerNotifs = getNotificationsFromStorage(clientEmail);
+
+      let icon = '📦';
+      let title = `Mise à jour commande #${order.id}`;
+      let desc = `Le statut de votre commande #${order.id} a été mis à jour : ${nextStatus}.`;
+
+      if (nextStatus === 'Shipping' || nextStatus === 'Shipped') {
+        icon = '🚚';
+        title = `Commande #${order.id} expédiée !`;
+        desc = `Votre colis #${order.id} est en cours de livraison. Suivi : ${order.trackingNumber || 'En cours'}`;
+      } else if (['done', 'livré', 'delivered'].includes(nextStatus.toLowerCase())) {
+        icon = '✅';
+        title = `Commande #${order.id} livrée !`;
+        desc = `Votre commande #${order.id} a été livrée avec succès. Merci de votre confiance !`;
+      } else if (nextStatus === 'Cancelled') {
+        icon = '❌';
+        title = `Commande #${order.id} annulée`;
+        desc = `Votre commande #${order.id} a été annulée.`;
       }
-    });
-    context.saveDatabase('products');
+
+      customerNotifs.unshift({
+        id: Date.now(),
+        type: 'shipping',
+        icon: icon,
+        title: title,
+        desc: desc,
+        time: 'Just now',
+        unread: true
+      });
+
+      saveNotificationsToStorage(customerNotifs, clientEmail);
+    }
+
+    // Restock if Cancelled
+    if (nextStatus === 'Cancelled' && originalStatus !== 'Cancelled') {
+      (order.products || []).forEach(item => {
+        const catalogProd = (context.products || []).find(p => p.id === item.id);
+        if (catalogProd) {
+          catalogProd.stock = (catalogProd.stock || 0) + item.quantity;
+        }
+      });
+      context.saveDatabase('products');
+    }
+
+    // Award Mystery Box if marked Delivered / Done
+    if (['done', 'livré', 'delivered'].includes(nextStatus.toLowerCase())) {
+      awardMysteryBoxForDeliveredOrder(order);
+    }
+
+    window.dispatchEvent(new CustomEvent('toast:show', { detail: `Order #${order.id} updated to ${nextStatus}` }));
+
+    if (context._adminSyncChannel) {
+      try {
+        context._adminSyncChannel.postMessage({ type: 'ORDER_STATUS_UPDATED', orderId: order.id, status: nextStatus });
+      } catch(e) {}
+    }
+
+    context.render();
+    context.attachListeners();
+  } finally {
+    setTimeout(() => {
+      context._isSelfUpdatingOrders = false;
+    }, 500);
   }
-
-  // Award Mystery Box if marked Delivered / Done
-  if (['done', 'livré', 'delivered'].includes(nextStatus.toLowerCase())) {
-    awardMysteryBoxForDeliveredOrder(order);
-  }
-
-  window.dispatchEvent(new CustomEvent('orders:updated'));
-  window.dispatchEvent(new CustomEvent('toast:show', { detail: `Order #${order.id} updated to ${nextStatus}` }));
-
-  if (context._adminSyncChannel) {
-    try {
-      context._adminSyncChannel.postMessage({ type: 'ORDER_STATUS_UPDATED', orderId: order.id, status: nextStatus });
-    } catch(e) {}
-  }
-
-  context.render();
-  context.attachListeners();
 }
 
 // Bulk Status Updates
 function bulkUpdateStatus(context, nextStatus) {
   if (selectedOrderIds.size === 0) return;
 
-  selectedOrderIds.forEach(orderId => {
-    const order = context.orders.find(o => o.id === orderId);
-    if (order) {
-      order.status = nextStatus;
-      if (['done', 'livré', 'delivered'].includes(nextStatus.toLowerCase())) {
-        awardMysteryBoxForDeliveredOrder(order);
+  context._isSelfUpdatingOrders = true;
+
+  try {
+    selectedOrderIds.forEach(orderId => {
+      const order = context.orders.find(o => o.id === orderId);
+      if (order) {
+        order.status = nextStatus;
+        order.updatedAt = new Date().toISOString();
+        if (['done', 'livré', 'delivered'].includes(nextStatus.toLowerCase())) {
+          awardMysteryBoxForDeliveredOrder(order);
+        }
       }
-    }
-  });
+    });
 
-  context.saveDatabase('orders');
-  window.dispatchEvent(new CustomEvent('orders:updated'));
-  window.dispatchEvent(new CustomEvent('toast:show', { detail: `Updated ${selectedOrderIds.size} orders to: ${nextStatus}` }));
+    context.saveDatabase('orders');
+    window.dispatchEvent(new CustomEvent('toast:show', { detail: `Updated ${selectedOrderIds.size} orders to: ${nextStatus}` }));
 
-  selectedOrderIds.clear();
-  context.render();
-  context.attachListeners();
+    selectedOrderIds.clear();
+    context.render();
+    context.attachListeners();
+  } finally {
+    setTimeout(() => {
+      context._isSelfUpdatingOrders = false;
+    }, 500);
+  }
 }
 
 // Export Orders to CSV

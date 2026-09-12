@@ -43,7 +43,30 @@ export async function bootstrapFromSupabase(context) {
     }
 
     if (ords.status === 'fulfilled' && Array.isArray(ords.value) && ords.value.length > 0) {
-      context.orders = ords.value;
+      const localOrds = context.orders || [];
+      const ordersMap = new Map();
+      localOrds.forEach(o => { if (o && (o.id || o.order_number)) ordersMap.set(o.id || o.order_number, o); });
+      ords.value.forEach(co => {
+        if (co && (co.id || co.order_number)) {
+          const key = co.id || co.order_number;
+          if (!ordersMap.has(key)) {
+            ordersMap.set(key, co);
+          } else {
+            const lo = ordersMap.get(key);
+            const loTime = new Date(lo.updatedAt || lo.createdAt || lo.date || 0).getTime();
+            const coTime = new Date(co.updatedAt || co.createdAt || co.date || 0).getTime();
+            if (coTime >= loTime || !lo.updatedAt) {
+              ordersMap.set(key, { ...lo, ...co });
+            }
+          }
+        }
+      });
+      context.orders = Array.from(ordersMap.values());
+      context.orders.sort((a, b) => {
+        const tA = new Date(a.updatedAt || a.createdAt || a.date || 0).getTime();
+        const tB = new Date(b.updatedAt || b.createdAt || b.date || 0).getTime();
+        return tB - tA;
+      });
       console.log('✅ [Supabase Cloud] Orders loaded:', context.orders.length);
       loadedAny = true;
     }
