@@ -292,18 +292,6 @@ class Header extends HTMLElement {
             <span class="nav-btn-label">Favoris</span>
           </button>
           
-          <!-- Notifications -->
-          <button class="nav-btn" id="notification-bell-btn" title="Notifications">
-            <div class="nav-btn-icon-box">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-              </svg>
-              <span class="badge" id="notificationBadge">1</span>
-            </div>
-            <span class="nav-btn-label">Alertes</span>
-          </button>
-
           <!-- Shopping Cart -->
           <button class="nav-btn nav-btn-cart" id="cart-btn" title="Mon Panier">
             <div class="nav-btn-icon-box">
@@ -553,11 +541,6 @@ class Header extends HTMLElement {
           }));
         }, 1800);
       }
-    });
-
-    // Notification bell click
-    shadow.getElementById('notification-bell-btn').addEventListener('click', () => {
-      window.dispatchEvent(new CustomEvent('notifications:toggle'));
     });
 
     // Cart drawer toggle

@@ -588,13 +588,10 @@ export async function createOrderInSupabase(newOrder) {
 
       // Upsert into profiles using valid columns
       try {
-        const nameParts = (newOrder.customerName || p?.first_name || 'Client').trim().split(' ');
-        const firstName = nameParts[0] || 'Client';
-        const lastName = nameParts.slice(1).join(' ') || '';
+        const fullName = (newOrder.customerName || p?.full_name || p?.first_name || 'Client').trim();
         await supabase.from('profiles').upsert([{
           email: emailLower,
-          first_name: firstName,
-          last_name: lastName,
+          full_name: fullName,
           phone: newOrder.customerPhone || p?.phone || ''
         }], { onConflict: 'email' });
       } catch(e) {}
@@ -825,9 +822,19 @@ export async function fetchProfileFromSupabase(email) {
     }
 
     if (pData || formattedOrders.length > 0) {
+      let fName = existing?.firstName || 'Client';
+      let lName = existing?.lastName || '';
+      if (pData?.full_name) {
+        const parts = pData.full_name.trim().split(' ');
+        fName = parts[0] || 'Client';
+        lName = parts.slice(1).join(' ') || '';
+      } else if (pData?.first_name) {
+        fName = pData.first_name;
+        lName = pData.last_name || '';
+      }
       const profile = {
-        firstName: pData?.first_name || existing?.firstName || 'Client',
-        lastName: pData?.last_name || existing?.lastName || '',
+        firstName: fName,
+        lastName: lName,
         email: emailLower,
         phone: pData?.phone || existing?.phone || '',
         avatar: pData?.avatar_url || existing?.avatar || '',
@@ -1041,8 +1048,7 @@ export async function signInWithGoogle() {
               try {
                 await supabase.from('profiles').upsert({
                   email,
-                  first_name: profile.firstName,
-                  last_name: profile.lastName,
+                  full_name: `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Client',
                   avatar_url: avatarUrl,
                   role: 'customer'
                 }, { onConflict: 'email' });
@@ -1135,8 +1141,7 @@ export function initSupabaseAuthListener() {
           await supabase.from('profiles').upsert({
             id: u.id,
             email,
-            first_name: profile.firstName,
-            last_name: profile.lastName,
+            full_name: `${profile.firstName || ''} ${profile.lastName || ''}`.trim() || 'Client',
             phone: profile.phone || '',
             avatar_url: avatarUrl,
             role: 'customer'
@@ -1340,17 +1345,13 @@ export async function saveCustomerToSupabase(customerData) {
       finalOrders = Array.from(orderMap.values());
     }
 
-    const nameStr = (customerData.name || customerData.fullname || `${customerData.firstName || ''} ${customerData.lastName || ''}`).trim() || 'Client';
-    const nameParts = nameStr.split(' ');
-    const firstName = customerData.firstName || nameParts[0] || 'Client';
-    const lastName = customerData.lastName || nameParts.slice(1).join(' ') || '';
+    const fullName = (customerData.name || customerData.fullname || `${customerData.firstName || ''} ${customerData.lastName || ''}`).trim() || 'Client';
 
     // 1. Upsert into profiles table using valid columns
     try {
       await supabase.from('profiles').upsert([{
         email: emailLower,
-        first_name: firstName,
-        last_name: lastName,
+        full_name: fullName,
         phone: customerData.phone || ''
       }], { onConflict: 'email' });
     } catch(e) {}

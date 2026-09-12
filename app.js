@@ -248,6 +248,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const openNotifications = () => {
+    if (!notifEl) return;
     notifEl.classList.remove('closed');
     cartEl.classList.add('closed'); // Close cart when notifications open
     mainContent.classList.remove('cart-closed');
@@ -259,6 +260,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const closeNotifications = () => {
+    if (!notifEl) return;
     notifEl.classList.add('closed');
     if (cartEl.classList.contains('closed')) {
       mainContent.classList.add('cart-closed');
@@ -270,6 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const toggleNotifications = () => {
+    if (!notifEl) return;
     if (notifEl.classList.contains('closed')) {
       openNotifications();
     } else {

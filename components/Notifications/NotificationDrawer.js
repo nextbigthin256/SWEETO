@@ -94,38 +94,6 @@ class NotificationDrawer extends HTMLElement {
       }).catch(() => {});
     }
 
-    if (!Array.isArray(this.notifications) || this.notifications.length === 0) {
-      this.notifications = [
-        {
-          id: `welcome-${Date.now()}`,
-          title: '🎉 Bienvenue sur SWEETOS !',
-          desc: 'Profitez de notre sélection exclusive d\'équipements tech et accessoires d\'espace de travail haut de gamme.',
-          category: 'promos',
-          icon: '🎁',
-          unread: false,
-          createdAt: Date.now() - 3600000
-        },
-        {
-          id: `flash-deals-${Date.now()}`,
-          title: '🔥 Ventes Flash & Offres Spéciales',
-          desc: 'Découvrez nos promotions exclusives sur une sélection de claviers mécaniques et accessoires audio.',
-          category: 'promos',
-          icon: '⚡',
-          unread: false,
-          createdAt: Date.now() - 7200000
-        },
-        {
-          id: `system-delivery-${Date.now()}`,
-          title: '📦 Suivi & Livraison Express',
-          desc: 'Toutes vos commandes bénéficient d\'un suivi en direct et d\'un support client réactif 7j/7.',
-          category: 'orders',
-          icon: '🚚',
-          unread: false,
-          createdAt: Date.now() - 86400000
-        }
-      ];
-      this.saveNotifications(true);
-    }
 
     let needsSave = false;
     this.notifications.forEach(n => {
