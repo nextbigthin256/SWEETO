@@ -7466,6 +7466,28 @@ class ProductList extends HTMLElement {
     const signOutBtn = shadow.getElementById('profile-sign-out-btn');
     if (signOutBtn) {
       signOutBtn.addEventListener('click', () => {
+        // Get user email before clearing to remove their notifications
+        let userEmail = null;
+        try {
+          const userJson = sessionStorage.getItem('SWEETOS_logged_in_user');
+          if (userJson) {
+            const user = JSON.parse(userJson);
+            userEmail = user?.email;
+          }
+        } catch(e) {}
+
+        // Clear user-specific localStorage notifications
+        if (userEmail) {
+          const safeKey = String(userEmail).toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
+          try {
+            localStorage.removeItem(`SWEETOS_notifications_${safeKey}`);
+            localStorage.removeItem(`SWEETOS_cart_${safeKey}`);
+            localStorage.removeItem(`SWEETOS_coupons_${safeKey}`);
+            localStorage.removeItem(`SWEETOS_user_scratchcards_${safeKey}`);
+            localStorage.removeItem(`SWEETOS_user_profile_${safeKey}`);
+          } catch(e) {}
+        }
+
         sessionStorage.removeItem('SWEETOS_logged_in_user');
         sessionStorage.removeItem('SWEETOS_user_profile');
         sessionStorage.clear();

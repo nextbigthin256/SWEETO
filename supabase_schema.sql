@@ -11,6 +11,7 @@ DROP TABLE IF EXISTS public.orders CASCADE;
 DROP TABLE IF EXISTS public.reviews CASCADE;
 DROP TABLE IF EXISTS public.wishlists CASCADE;
 DROP TABLE IF EXISTS public.notifications CASCADE;
+DROP TABLE IF EXISTS public.push_subscriptions CASCADE;
 DROP TABLE IF EXISTS public.coupons CASCADE;
 DROP TABLE IF EXISTS public.products CASCADE;
 DROP TABLE IF EXISTS public.categories CASCADE;
@@ -273,6 +274,28 @@ CREATE INDEX idx_notifications_user ON public.notifications(user_id);
 CREATE INDEX idx_notifications_read ON public.notifications(is_read);
 
 -- ====================================================================
+-- TABLE: PUSH_SUBSCRIPTIONS
+-- ====================================================================
+CREATE TABLE public.push_subscriptions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    endpoint TEXT NOT NULL UNIQUE,
+    keys JSONB NOT NULL,
+    user_id TEXT,
+    user_agent TEXT,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+CREATE INDEX idx_push_subscriptions_endpoint ON public.push_subscriptions(endpoint);
+CREATE INDEX idx_push_subscriptions_user ON public.push_subscriptions(user_id);
+
+CREATE TRIGGER set_push_subscriptions_updated_at
+BEFORE UPDATE ON public.push_subscriptions
+FOR EACH ROW
+EXECUTE FUNCTION update_modified_column();
+
+-- ====================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES - FULL CRUD ACCESS
 -- ====================================================================
 ALTER TABLE public.site_settings ENABLE ROW LEVEL SECURITY;
@@ -287,6 +310,7 @@ ALTER TABLE public.coupons ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.reviews ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.wishlists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notifications ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 
 -- Allow full CRUD for storefront and admin management
 CREATE POLICY "Full Site Settings Access" ON public.site_settings FOR ALL USING (true) WITH CHECK (true);
@@ -300,6 +324,7 @@ CREATE POLICY "Full Reviews Access" ON public.reviews FOR ALL USING (true) WITH 
 CREATE POLICY "Full Coupons Access" ON public.coupons FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Full Wishlists Access" ON public.wishlists FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Full Notifications Access" ON public.notifications FOR ALL USING (true) WITH CHECK (true);
+CREATE POLICY "Full Push Subscriptions Access" ON public.push_subscriptions FOR ALL USING (true) WITH CHECK (true);
 CREATE POLICY "Full Profiles Access" ON public.profiles FOR ALL USING (true) WITH CHECK (true);
 
 -- ====================================================================

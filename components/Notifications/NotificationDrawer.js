@@ -204,6 +204,7 @@ class NotificationDrawer extends HTMLElement {
           this.notifications.unshift({
             id: Date.now() + Math.floor(Math.random() * 1000),
             uniqueKey: uniqueId,
+            couponCode: c.code,
             type: 'promo',
             icon: '⏰',
             title: `Rappel Coupon: ${daysRemaining} jour${daysRemaining > 1 ? 's' : ''} restant${daysRemaining > 1 ? 's' : ''}! 🎟️`,
@@ -255,9 +256,9 @@ class NotificationDrawer extends HTMLElement {
 
     // Filter notifications based on active pill
     const filteredNotifications = this.notifications.filter(n => {
-      if (this.activeFilter === 'orders') return n.type === 'shipping';
-      if (this.activeFilter === 'promos') return n.type === 'promo';
-      if (this.activeFilter === 'messages') return n.type === 'email' || n.type === 'system';
+      if (this.activeFilter === 'orders') return n.type === 'shipping' || n.type === 'order' || n.category === 'orders';
+      if (this.activeFilter === 'promos') return n.type === 'promo' || n.type === 'coupon' || n.category === 'promos';
+      if (this.activeFilter === 'messages') return n.type === 'email' || n.type === 'system' || n.category === 'messages';
       return true;
     });
 
@@ -544,8 +545,18 @@ class NotificationDrawer extends HTMLElement {
           if (target.uniqueKey && target.uniqueKey.startsWith('reminder-')) {
             window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'coupons' } }));
           } else {
-            navigator.clipboard.writeText('WELCOME10').then(() => {
-              window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Code promo WELCOME10 copié ! 🎟️' }));
+            let couponToCopy = target.couponCode || target.code;
+            if (!couponToCopy && (target.desc || target.title)) {
+              const text = `${target.title || ''} ${target.desc || ''}`;
+              const match = text.match(/\b(WELCOME\d*|LOYAL[-_]?\w+|SAVE[-_]?\w+|[A-Z0-9]{4,15})\b/);
+              if (match) {
+                couponToCopy = match[1];
+              }
+            }
+            if (!couponToCopy) couponToCopy = 'WELCOME10';
+
+            navigator.clipboard.writeText(couponToCopy).then(() => {
+              window.dispatchEvent(new CustomEvent('toast:show', { detail: `Code promo ${couponToCopy} copié ! 🎟️` }));
             }).catch(() => {});
             window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'home' } }));
           }

@@ -128,8 +128,7 @@ export async function subscribeToWebPush() {
 
   // Sync to Supabase Cloud push_subscriptions table
   try {
-    const { getSupabaseClient } = await import('./supabase.js');
-    const supabase = getSupabaseClient();
+    const { supabase } = await import('./supabase.js');
     if (supabase) {
       const userStr = getStorageItem('SWEETOS_logged_in_user');
       let userId = null;
@@ -168,8 +167,7 @@ export async function unsubscribeFromWebPush() {
     if (subscription) {
       // Mark inactive in Supabase Cloud
       try {
-        const { getSupabaseClient } = await import('./supabase.js');
-        const supabase = getSupabaseClient();
+        const { supabase } = await import('./supabase.js');
         if (supabase) {
           await supabase.from('push_subscriptions')
             .update({ is_active: false })
