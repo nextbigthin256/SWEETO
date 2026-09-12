@@ -1058,8 +1058,12 @@ export async function signInWithGoogle() {
         }
       });
 
-      client.requestAccessToken({ prompt: 'select_account' });
-      return;
+      try {
+        client.requestAccessToken({ prompt: 'select_account' });
+        return;
+      } catch(reqErr) {
+        console.warn('[GSI Popup Blocked, falling back to OAuth redirect]:', reqErr);
+      }
     } catch(err) {
       console.warn('[Google Token Client Notice]:', err);
     }

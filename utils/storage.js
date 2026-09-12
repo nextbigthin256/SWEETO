@@ -946,6 +946,44 @@ export async function syncCustomersToSupabase(customers) {
 
 const CURRENT_APP_VERSION = 'v1.0.5';
 
+export function clearAllUserSessionData() {
+  const keysToRemove = [
+    'SWEETOS_logged_in_user',
+    'SWEETOS_user_profile',
+    'SWEETOS_auth_token',
+    'SWEETOS_user_session',
+    'SWEETOS_session'
+  ];
+  
+  [localStorage, sessionStorage].forEach(storage => {
+    try {
+      keysToRemove.forEach(k => storage.removeItem(k));
+      for (let i = storage.length - 1; i >= 0; i--) {
+        const key = storage.key(i);
+        if (key && (key.startsWith('SWEETOS_user_profile_') || key.startsWith('SUPABASE_SYNC_'))) {
+          storage.removeItem(key);
+        }
+      }
+    } catch(e) {}
+  });
+}
+
+export function validateAndCleanStaleSession() {
+  const userJson = getStorageItem('SWEETOS_logged_in_user');
+  if (userJson) {
+    try {
+      const parsed = JSON.parse(userJson);
+      if (!parsed || !parsed.email || typeof parsed.email !== 'string') {
+        console.warn('🧹 [Storage] Invalid or corrupted session detected. Auto-cleaning...');
+        clearAllUserSessionData();
+      }
+    } catch(e) {
+      console.warn('🧹 [Storage] Unparseable session JSON detected. Auto-cleaning...');
+      clearAllUserSessionData();
+    }
+  }
+}
+
 export function checkAppVersionAndCleanStorage() {
   try {
     const storedVersion = localStorage.getItem('SWEETOS_APP_VERSION');
@@ -967,6 +1005,7 @@ export function checkAppVersionAndCleanStorage() {
 export async function initStorageSync() {
   console.log('[Storage] Initializing with Supabase sync...');
   checkAppVersionAndCleanStorage();
+  validateAndCleanStaleSession();
   await retryPendingSupabaseSyncs();
   console.log('[Storage] Initialization complete');
 }

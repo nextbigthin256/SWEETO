@@ -1,4 +1,5 @@
 import { getProfileStorageKey, saveStorageItem, getStorageItem, loadUserDataFromSupabase } from '../../utils/storage.js';
+import { signInWithGoogle } from '../../utils/supabase.js';
 
 export function getAuthPageHTML() {
   return `
@@ -470,11 +471,14 @@ export function attachAuthListeners(shadow, onLoginSuccess) {
     if (googleOverlay) googleOverlay.style.display = 'none';
   };
 
-  const handleGoogleClick = async () => {
+  const handleGoogleClick = (e) => {
+    if (e) e.preventDefault();
     try {
-      const { signInWithGoogle } = await import('../../utils/supabase.js');
-      window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Redirection vers Google Auth... 🔒' }));
-      await signInWithGoogle();
+      window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Connexion Google en cours... 🔒' }));
+      signInWithGoogle().catch(err => {
+        console.warn('[Google OAuth Error - Fallback to Modal]:', err);
+        openGoogleOverlay();
+      });
     } catch(err) {
       console.warn('[Google OAuth Error - Fallback to Modal]:', err.message);
       openGoogleOverlay();

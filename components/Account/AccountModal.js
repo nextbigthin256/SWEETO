@@ -1,4 +1,4 @@
-import { getProfileStorageKey, formatPrice, getAllOrdersFromStorage, getStorageItem, saveStorageItem } from '../../utils/storage.js';
+import { getProfileStorageKey, formatPrice, getAllOrdersFromStorage, getStorageItem, saveStorageItem, clearAllUserSessionData } from '../../utils/storage.js';
 
 
 class AccountModal extends HTMLElement {
@@ -262,17 +262,8 @@ class AccountModal extends HTMLElement {
           try { currentEmail = JSON.parse(currentUserStr).email || ''; } catch(e) {}
         }
 
-        // Clear active session and all profile keys
-        try { localStorage.removeItem('SWEETOS_logged_in_user'); } catch(e) {}
-        try { sessionStorage.removeItem('SWEETOS_logged_in_user'); } catch(e) {}
-        try { localStorage.removeItem('SWEETOS_user_profile'); } catch(e) {}
-        try { sessionStorage.removeItem('SWEETOS_user_profile'); } catch(e) {}
-        
-        if (currentEmail) {
-          const safeKey = currentEmail.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
-          try { localStorage.removeItem(`SWEETOS_user_profile_${safeKey}`); } catch(e) {}
-          try { sessionStorage.removeItem(`SWEETOS_user_profile_${safeKey}`); } catch(e) {}
-        }
+        // Thorough auto-cleaning of all user sessions & cached profile data
+        clearAllUserSessionData();
 
         this.user = {
           name: "Guest User",
