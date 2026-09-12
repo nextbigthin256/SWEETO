@@ -224,13 +224,15 @@ export function getNotificationsFromStorage(targetEmail) {
   return Array.isArray(notifs) ? notifs : [];
 }
 
-export async function saveNotificationsToStorage(notifs, targetEmail) {
+export async function saveNotificationsToStorage(notifs, targetEmail, silent = false) {
   if (!Array.isArray(notifs)) return;
   const key = getNotificationsStorageKey(targetEmail);
   const jsonStr = JSON.stringify(notifs);
   try { localStorage.setItem(key, jsonStr); } catch(e) {}
   try { sessionStorage.setItem(key, jsonStr); } catch(e) {}
-  window.dispatchEvent(new CustomEvent('notifications:updated'));
+  if (!silent) {
+    window.dispatchEvent(new CustomEvent('notifications:updated'));
+  }
 
   if (targetEmail) {
     try {

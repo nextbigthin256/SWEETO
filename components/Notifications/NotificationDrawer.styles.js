@@ -2,18 +2,31 @@
 // Constructable Stylesheet CSS string for NotificationDrawer Web Component
 
 export const notificationDrawerCSS = `
+.drawer-container-wrapper {
+  height: 100%;
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
 .notifications-wrapper {
   display: flex;
   flex-direction: column;
   height: 100%;
-  padding: 24px;
+  max-height: 100%;
+  box-sizing: border-box;
+  padding: 20px 24px;
+  overflow: hidden;
 }
 
 .notifications-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-bottom: 16px;
+  flex-shrink: 0;
 }
 
 .notifications-header h3 {
@@ -82,12 +95,14 @@ export const notificationDrawerCSS = `
 /* List items */
 .notifications-list {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  margin-bottom: 20px;
-  padding-right: 4px;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-right: 6px;
+  box-sizing: border-box;
 }
 
 /* Custom Scrollbar for Notifications List */
@@ -256,32 +271,52 @@ export const notificationDrawerCSS = `
     height: 5px;
     background: #cbd5e1;
     border-radius: 9999px;
-    margin: 0 auto 12px auto;
+    margin: 0 auto 10px auto;
     flex-shrink: 0;
   }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 680px) {
+  .notif-push-banner {
+    display: none !important;
+  }
   .notifications-wrapper {
-    padding: 16px 14px;
+    padding: 12px 10px;
+    width: 100%;
+    max-width: 100vw;
+    box-sizing: border-box;
   }
   .notifications-header h3 {
-    font-size: 15px;
+    font-size: 14.5px;
+  }
+  .notif-filter-pills-row {
+    padding: 6px 0 !important;
+    gap: 4px !important;
+    flex-shrink: 0;
+  }
+  .notif-pill {
+    padding: 5px 10px !important;
+    font-size: 11px !important;
+    flex-shrink: 0;
   }
   .notif-item {
-    padding: 12px 10px;
-    gap: 10px;
+    padding: 10px 10px;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
   }
   .notif-icon-circle {
-    width: 30px;
-    height: 30px;
-    font-size: 13px;
+    width: 28px;
+    height: 28px;
+    font-size: 12px;
   }
   .notif-title-row h4 {
-    font-size: 12.5px;
+    font-size: 12px;
   }
   .notif-desc {
     font-size: 11px;
+    word-break: break-word;
+    overflow-wrap: anywhere;
   }
 }
 `;

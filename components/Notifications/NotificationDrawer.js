@@ -124,7 +124,7 @@ class NotificationDrawer extends HTMLElement {
           createdAt: Date.now() - 86400000
         }
       ];
-      this.saveNotifications();
+      this.saveNotifications(true);
     }
 
     let needsSave = false;
@@ -135,7 +135,7 @@ class NotificationDrawer extends HTMLElement {
       }
     });
     if (needsSave) {
-      this.saveNotifications();
+      this.saveNotifications(true);
     }
 
     this.generateExpiringReminders();
@@ -217,12 +217,20 @@ class NotificationDrawer extends HTMLElement {
     });
     
     if (updated) {
-      this.saveNotifications();
+      this.saveNotifications(true);
     }
   }
 
-  saveNotifications() {
-    saveNotificationsToStorage(this.notifications);
+  saveNotifications(silent = false) {
+    let email = null;
+    try {
+      const userJson = getStorageItem('SWEETOS_logged_in_user') || sessionStorage.getItem('SWEETOS_logged_in_user');
+      if (userJson) {
+        const u = JSON.parse(userJson);
+        email = u?.email;
+      }
+    } catch(e) {}
+    saveNotificationsToStorage(this.notifications, email, silent);
   }
 
   render() {
@@ -281,7 +289,7 @@ class NotificationDrawer extends HTMLElement {
         </div>
 
         <!-- Web Push Enable Banner -->
-        <div style="background: linear-gradient(135deg, rgba(0,82,204,0.08) 0%, rgba(0,180,216,0.08) 100%); padding: 12px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px;">
+        <div class="notif-push-banner" style="background: linear-gradient(135deg, rgba(0,82,204,0.08) 0%, rgba(0,180,216,0.08) 100%); padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-shrink: 0;">
           <div style="display: flex; align-items: center; gap: 10px;">
             <div style="font-size: 20px;">🔔</div>
             <div>
@@ -388,11 +396,6 @@ class NotificationDrawer extends HTMLElement {
         this.render();
         window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: 0 }));
       }
-    });
-
-    window.addEventListener('notifications:updated', () => {
-      this.loadNotifications();
-      this.render();
     });
 
     window.addEventListener('auth:changed', () => {
