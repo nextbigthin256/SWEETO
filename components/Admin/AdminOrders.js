@@ -1,19 +1,68 @@
 import { formatPrice, getOrderCategory, getNotificationsFromStorage, saveNotificationsToStorage } from '../../utils/storage.js';
 import { awardMysteryBoxForDeliveredOrder } from '../../utils/todaysDeals.js';
+import { updateOrderInSupabase } from '../../utils/supabase.js';
 
-// Global internal state helpers for filters & selection
-let selectedOrderIds = new Set();
-let dateFilter = 'all';
-let paymentFilter = 'all';
-let sortBy = 'newest';
+/**
+ * Escapes HTML characters to prevent XSS vulnerabilities when rendering user-supplied strings.
+ */
+export function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+/**
+ * Ensures state fields exist on context rather than relying on global module variables.
+ */
+function ensureOrderState(context) {
+  if (!context.selectedOrderIds || !(context.selectedOrderIds instanceof Set)) {
+    context.selectedOrderIds = new Set();
+  }
+  if (!context.dateFilter) context.dateFilter = 'all';
+  if (!context.paymentFilter) context.paymentFilter = 'all';
+  if (!context.sortBy) context.sortBy = 'newest';
+  if (!context.statusFilter) context.statusFilter = 'All';
+}
+
+/**
+ * Returns a reliable numeric timestamp for date sorting and filtering.
+ */
+function getOrderTimestamp(o) {
+  if (!o) return 0;
+  const raw = o.createdAt || o.updatedAt || o.date;
+  if (!raw) return 0;
+  const ts = new Date(raw).getTime();
+  return isNaN(ts) ? 0 : ts;
+}
+
+/**
+ * Helper to retrieve currently selected order from context.
+ */
+export function getSelectedOrder(context) {
+  if (!context || !context.orders || !context.selectedOrderId) return null;
+  return context.orders.find(o => o && (o.id === context.selectedOrderId || o.order_number === context.selectedOrderId)) || null;
+}
 
 export function renderAdminOrders(context) {
+  ensureOrderState(context);
+
   if (context.selectedOrderId) {
     return renderAdminOrderDetails(context);
   }
 
-  // Ensure default orders array
   const rawOrders = context.orders || [];
+
+  // Prune stale selection IDs
+  const validOrderIds = new Set(rawOrders.map(o => o.id));
+  for (const id of context.selectedOrderIds) {
+    if (!validOrderIds.has(id)) {
+      context.selectedOrderIds.delete(id);
+    }
+  }
 
   // 1. Filter out deleted unless filter is specifically 'Deleted'
   let list = [...rawOrders];
@@ -27,12 +76,12 @@ export function renderAdminOrders(context) {
   if (context.searchQuery) {
     const q = context.searchQuery.toLowerCase().trim();
     list = list.filter(o => 
-      (o.id && o.id.toLowerCase().includes(q)) || 
-      (o.customerName && o.customerName.toLowerCase().includes(q)) ||
-      (o.customerEmail && o.customerEmail.toLowerCase().includes(q)) ||
-      (o.customerPhone && o.customerPhone.toLowerCase().includes(q)) ||
-      (o.items && o.items.toLowerCase().includes(q)) ||
-      (o.products && o.products.some(p => p.name && p.name.toLowerCase().includes(q)))
+      (o.id && String(o.id).toLowerCase().includes(q)) || 
+      (o.customerName && String(o.customerName).toLowerCase().includes(q)) ||
+      (o.customerEmail && String(o.customerEmail).toLowerCase().includes(q)) ||
+      (o.customerPhone && String(o.customerPhone).toLowerCase().includes(q)) ||
+      (typeof o.items === 'string' && o.items.toLowerCase().includes(q)) ||
+      (Array.isArray(o.products) && o.products.some(p => p && p.name && String(p.name).toLowerCase().includes(q)))
     );
   }
 
@@ -42,44 +91,42 @@ export function renderAdminOrders(context) {
   }
 
   // 4. Date filter
-  if (dateFilter !== 'all') {
-    const now = new Date();
+  if (context.dateFilter !== 'all') {
+    const now = Date.now();
     list = list.filter(o => {
-      if (!o.date) return true;
-      const orderDate = new Date(o.date);
-      if (isNaN(orderDate.getTime())) return true;
-      
-      const diffDays = (now - orderDate) / (1000 * 60 * 60 * 24);
-      if (dateFilter === 'today') return diffDays <= 1;
-      if (dateFilter === 'week') return diffDays <= 7;
-      if (dateFilter === 'month') return diffDays <= 30;
+      const ts = getOrderTimestamp(o);
+      if (!ts) return true;
+      const diffDays = (now - ts) / (1000 * 60 * 60 * 24);
+      if (context.dateFilter === 'today') return diffDays <= 1;
+      if (context.dateFilter === 'week') return diffDays <= 7;
+      if (context.dateFilter === 'month') return diffDays <= 30;
       return true;
     });
   }
 
   // 5. Payment method filter
-  if (paymentFilter !== 'all') {
+  if (context.paymentFilter !== 'all') {
     list = list.filter(o => {
       const p = (o.paymentMethod || 'cod').toLowerCase();
-      if (paymentFilter === 'cod') return p.includes('cod') || p.includes('livraison') || p.includes('cash');
-      if (paymentFilter === 'momo') return p.includes('momo') || p.includes('wave') || p.includes('orange') || p.includes('mtn');
-      if (paymentFilter === 'card') return p.includes('card') || p.includes('carte') || p.includes('stripe');
+      if (context.paymentFilter === 'cod') return p.includes('cod') || p.includes('livraison') || p.includes('cash');
+      if (context.paymentFilter === 'momo') return p.includes('momo') || p.includes('wave') || p.includes('orange') || p.includes('mtn');
+      if (context.paymentFilter === 'card') return p.includes('card') || p.includes('carte') || p.includes('stripe');
       return true;
     });
   }
 
   // 6. Sorting
   list.sort((a, b) => {
-    if (sortBy === 'newest') {
-      return (new Date(b.date || 0)) - (new Date(a.date || 0));
+    if (context.sortBy === 'newest') {
+      return getOrderTimestamp(b) - getOrderTimestamp(a);
     }
-    if (sortBy === 'oldest') {
-      return (new Date(a.date || 0)) - (new Date(b.date || 0));
+    if (context.sortBy === 'oldest') {
+      return getOrderTimestamp(a) - getOrderTimestamp(b);
     }
-    if (sortBy === 'amount_high') {
+    if (context.sortBy === 'amount_high') {
       return (parseFloat(b.total) || 0) - (parseFloat(a.total) || 0);
     }
-    if (sortBy === 'amount_low') {
+    if (context.sortBy === 'amount_low') {
       return (parseFloat(a.total) || 0) - (parseFloat(b.total) || 0);
     }
     return 0;
@@ -108,7 +155,7 @@ export function renderAdminOrders(context) {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedList = list.slice(startIndex, startIndex + itemsPerPage);
 
-  const allSelected = paginatedList.length > 0 && paginatedList.every(o => selectedOrderIds.has(o.id));
+  const allSelected = paginatedList.length > 0 && paginatedList.every(o => context.selectedOrderIds.has(o.id));
 
   return `
     <style>
@@ -300,233 +347,216 @@ export function renderAdminOrders(context) {
         from { opacity: 0; transform: translateY(-8px); }
         to { opacity: 1; transform: translateY(0); }
       }
-      .bulk-btn {
-        background: rgba(255, 255, 255, 0.12);
-        border: 1px solid rgba(255, 255, 255, 0.2);
-        color: #ffffff;
-        padding: 6px 12px;
+      .status-select-inline {
+        padding: 6px 10px;
         border-radius: 8px;
+        border: 1px solid #cbd5e1;
         font-size: 12px;
         font-weight: 700;
         cursor: pointer;
-        transition: all 0.15s ease;
-        display: flex;
-        align-items: center;
-        gap: 5px;
+        outline: none;
+        font-family: inherit;
+        transition: all 0.2s ease;
       }
-      .bulk-btn:hover {
-        background: rgba(255, 255, 255, 0.22);
-        border-color: rgba(255, 255, 255, 0.35);
-      }
-      .bulk-btn-danger:hover {
-        background: #ef4444;
-        border-color: #ef4444;
-      }
-      .order-table-container {
-        background: rgba(255, 255, 255, 0.85);
-        border: 1px solid rgba(226, 232, 240, 0.9);
-        border-radius: 16px;
-        overflow: hidden;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.03);
-      }
-      .order-row-hover:hover {
-        background-color: rgba(241, 245, 249, 0.6) !important;
-      }
+      .status-select-inline.pending { background: #fef3c7; color: #92400e; border-color: #fcd34d; }
+      .status-select-inline.confirmed { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+      .status-select-inline.processing { background: #e0e7ff; color: #3730a3; border-color: #a5b4fc; }
+      .status-select-inline.shipping { background: #ede9fe; color: #5b21b6; border-color: #c4b5fd; }
+      .status-select-inline.done { background: #dcfce7; color: #166534; border-color: #86efac; }
+      .status-select-inline.cancelled { background: #fee2e2; color: #991b1b; border-color: #fca5a5; }
+
       .customer-avatar-badge {
         width: 32px;
         height: 32px;
         border-radius: 50%;
-        background: #e2e8f0;
-        color: #0052cc;
+        background: linear-gradient(135deg, #0052cc, #2563eb);
+        color: white;
+        font-weight: 800;
+        font-size: 12px;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 12px;
-        font-weight: 800;
         flex-shrink: 0;
       }
-      .status-select-inline {
-        padding: 5px 10px;
-        border-radius: 8px;
-        font-size: 12px;
-        font-weight: 750;
-        border: 1.5px solid transparent;
-        cursor: pointer;
-        outline: none;
-        transition: all 0.2s ease;
-      }
-      .status-select-inline.pending { background: #fef3c7; color: #92400e; border-color: #fde68a; }
-      .status-select-inline.confirmed { background: #dbeafe; color: #1e40af; border-color: #bfdbfe; }
-      .status-select-inline.processing { background: #e0e7ff; color: #3730a3; border-color: #c7d2fe; }
-      .status-select-inline.shipping { background: #ede9fe; color: #5b21b6; border-color: #ddd6fe; }
-      .status-select-inline.done { background: #dcfce7; color: #166534; border-color: #bbf7d0; }
-      .status-select-inline.cancelled { background: #fee2e2; color: #991b1b; border-color: #fecaca; }
-      
       .action-icon-btn {
         width: 32px;
         height: 32px;
         border-radius: 8px;
-        background: #f8fafc;
         border: 1px solid #e2e8f0;
+        background: #ffffff;
+        color: #475569;
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        color: #475569;
         cursor: pointer;
-        transition: all 0.15s ease;
-        text-decoration: none;
+        transition: all 0.2s ease;
       }
       .action-icon-btn:hover {
-        background: #0052cc;
-        color: #ffffff;
-        border-color: #0052cc;
-        transform: translateY(-1px);
+        background: #f8fafc;
+        border-color: #cbd5e1;
+        color: #0052cc;
       }
-      .whatsapp-icon-btn {
-        background: #f0fdf4;
-        border-color: #bbf7d0;
-        color: #15803d;
-      }
-      .whatsapp-icon-btn:hover {
+      .action-icon-btn.whatsapp-icon-btn {
         background: #22c55e;
-        color: #ffffff;
-        border-color: #22c55e;
+        color: white;
+        border: none;
+      }
+      .action-icon-btn.whatsapp-icon-btn:hover {
+        background: #16a34a;
       }
     </style>
 
-    <!-- 1. Orders KPI Summary Bar -->
+    <!-- KPI Summary Grid -->
     <div class="orders-kpi-grid">
       <div class="kpi-card">
-        <div class="kpi-icon-box" style="background: rgba(0, 82, 204, 0.1); color: #0052cc;">📦</div>
+        <div class="kpi-icon-box" style="background:#eff6ff; color:#0052cc;">📦</div>
         <div>
           <span class="kpi-title">Total Orders</span>
-          <span class="kpi-val">${totalCount}</span>
-        </div>
-      </div>
-
-      <div class="kpi-card" style="${pendingCount > 0 ? 'border-color: #f59e0b; background: rgba(254, 243, 199, 0.3);' : ''}">
-        <div class="kpi-icon-box" style="background: rgba(245, 158, 11, 0.12); color: #d97706;">⏳</div>
-        <div>
-          <span class="kpi-title" style="display:flex; align-items:center; gap:6px;">
-            Pending Action ${pendingCount > 0 ? '<span class="pulse-indicator"></span>' : ''}
-          </span>
-          <span class="kpi-val" style="color: #d97706;">${pendingCount}</span>
+          <div class="kpi-val">${totalCount}</div>
         </div>
       </div>
 
       <div class="kpi-card">
-        <div class="kpi-icon-box" style="background: rgba(99, 102, 241, 0.1); color: #6366f1;">🚚</div>
+        <div class="kpi-icon-box" style="background:#fef3c7; color:#d97706;">
+          <span class="pulse-indicator"></span>
+        </div>
         <div>
-          <span class="kpi-title">In Progress / Transit</span>
-          <span class="kpi-val" style="color: #6366f1;">${activeCount}</span>
+          <span class="kpi-title">Pending Orders</span>
+          <div class="kpi-val">${pendingCount}</div>
         </div>
       </div>
 
       <div class="kpi-card">
-        <div class="kpi-icon-box" style="background: rgba(34, 197, 94, 0.1); color: #16a34a;">✅</div>
+        <div class="kpi-icon-box" style="background:#ede9fe; color:#7c3aed;">🚚</div>
         <div>
-          <span class="kpi-title">Delivered & Closed</span>
-          <span class="kpi-val" style="color: #16a34a;">${completedCount}</span>
+          <span class="kpi-title">In Progress</span>
+          <div class="kpi-val">${activeCount}</div>
         </div>
       </div>
 
       <div class="kpi-card">
-        <div class="kpi-icon-box" style="background: rgba(14, 165, 233, 0.1); color: #0284c7;">💰</div>
+        <div class="kpi-icon-box" style="background:#dcfce7; color:#16a34a;">💰</div>
         <div>
-          <span class="kpi-title">Total Net Sales</span>
-          <span class="kpi-val" style="font-size: 19px; color: #0284c7;">${formatPrice(totalRevenue)}</span>
+          <span class="kpi-title">Total Sales</span>
+          <div class="kpi-val">${formatPrice(totalRevenue)}</div>
         </div>
       </div>
     </div>
 
-    <!-- 2. Status Pill Filters Row -->
+    <!-- Status Tabs -->
     <div class="status-pill-list">
-      ${[
-        { key: 'All', label: 'All Orders', count: rawOrders.filter(o => getOrderCategory(o.status) !== 'Deleted').length },
-        { key: 'Placed', label: 'Pending', count: rawOrders.filter(o => getOrderCategory(o.status) === 'Placed').length },
-        { key: 'Confirm', label: 'Confirmed', count: rawOrders.filter(o => getOrderCategory(o.status) === 'Confirm').length },
-        { key: 'Processing', label: 'Processing', count: rawOrders.filter(o => getOrderCategory(o.status) === 'Processing').length },
-        { key: 'Shipping', label: 'Shipping', count: rawOrders.filter(o => getOrderCategory(o.status) === 'Shipping').length },
-        { key: 'Done', label: 'Delivered', count: rawOrders.filter(o => getOrderCategory(o.status) === 'Done').length },
-        { key: 'Cancelled', label: 'Cancelled', count: rawOrders.filter(o => getOrderCategory(o.status) === 'Cancelled').length }
-      ].map(tab => `
-        <button class="status-pill-tab ${context.statusFilter === tab.key ? 'active' : ''}" data-status="${tab.key}">
-          <span>${tab.label}</span>
-          <span class="status-pill-badge">${tab.count}</span>
-        </button>
-      `).join('')}
+      <button class="status-pill-tab ${(!context.statusFilter || context.statusFilter === 'All') ? 'active' : ''}" data-status="All">
+        <span>All Orders</span>
+        <span class="status-pill-badge">${activeOrdersList.length}</span>
+      </button>
+
+      <button class="status-pill-tab ${context.statusFilter === 'Placed' ? 'active' : ''}" data-status="Placed">
+        <span>⏳ Pending</span>
+        <span class="status-pill-badge">${pendingCount}</span>
+      </button>
+
+      <button class="status-pill-tab ${context.statusFilter === 'Confirm' ? 'active' : ''}" data-status="Confirm">
+        <span>👍 Confirmed</span>
+        <span class="status-pill-badge">${activeOrdersList.filter(o => getOrderCategory(o.status) === 'Confirm').length}</span>
+      </button>
+
+      <button class="status-pill-tab ${context.statusFilter === 'Processing' ? 'active' : ''}" data-status="Processing">
+        <span>⚙️ Processing</span>
+        <span class="status-pill-badge">${activeOrdersList.filter(o => getOrderCategory(o.status) === 'Processing').length}</span>
+      </button>
+
+      <button class="status-pill-tab ${context.statusFilter === 'Shipping' ? 'active' : ''}" data-status="Shipping">
+        <span>🚚 Shipping</span>
+        <span class="status-pill-badge">${activeOrdersList.filter(o => getOrderCategory(o.status) === 'Shipping').length}</span>
+      </button>
+
+      <button class="status-pill-tab ${context.statusFilter === 'Done' ? 'active' : ''}" data-status="Done">
+        <span>✅ Delivered</span>
+        <span class="status-pill-badge">${completedCount}</span>
+      </button>
+
+      <button class="status-pill-tab ${context.statusFilter === 'Cancelled' ? 'active' : ''}" data-status="Cancelled">
+        <span>✕ Cancelled</span>
+        <span class="status-pill-badge">${activeOrdersList.filter(o => getOrderCategory(o.status) === 'Cancelled').length}</span>
+      </button>
+
+      <button class="status-pill-tab ${context.statusFilter === 'Deleted' ? 'active' : ''}" data-status="Deleted">
+        <span>🗑️ Deleted</span>
+        <span class="status-pill-badge">${rawOrders.filter(o => (o.status || '').toLowerCase() === 'deleted').length}</span>
+      </button>
     </div>
 
-    <!-- 3. Toolbar & Multi-Filters -->
+    <!-- Filter & Search Toolbar -->
     <div class="order-toolbar">
       <div class="filter-controls-group">
-        <!-- Live Search -->
+        <!-- Search Box -->
         <div class="clean-search-box">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="search" role="searchbox" aria-label="Search" id="order-search-input" name="q_search_no_credentials" placeholder="Search by ID, customer name, phone, item..." value="${context.searchQuery || ''}" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false">
+          <input type="text" id="order-search-input" autocomplete="off" placeholder="Search ID, customer, email, phone or product..." value="${escapeHtml(context.searchQuery || '')}">
         </div>
 
         <!-- Date Range Filter -->
-        <select class="select-filter-btn" id="order-date-filter" title="Filter by date range">
-          <option value="all" ${dateFilter === 'all' ? 'selected' : ''}>📅 All Dates</option>
-          <option value="today" ${dateFilter === 'today' ? 'selected' : ''}>📅 Today</option>
-          <option value="week" ${dateFilter === 'week' ? 'selected' : ''}>📅 Last 7 Days</option>
-          <option value="month" ${dateFilter === 'month' ? 'selected' : ''}>📅 Last 30 Days</option>
+        <select class="select-filter-btn" id="order-date-filter">
+          <option value="all" ${context.dateFilter === 'all' ? 'selected' : ''}>📅 All Dates</option>
+          <option value="today" ${context.dateFilter === 'today' ? 'selected' : ''}>Today</option>
+          <option value="week" ${context.dateFilter === 'week' ? 'selected' : ''}>Last 7 Days</option>
+          <option value="month" ${context.dateFilter === 'month' ? 'selected' : ''}>Last 30 Days</option>
         </select>
 
         <!-- Payment Method Filter -->
-        <select class="select-filter-btn" id="order-payment-filter" title="Filter by payment method">
-          <option value="all" ${paymentFilter === 'all' ? 'selected' : ''}>💳 All Payments</option>
-          <option value="cod" ${paymentFilter === 'cod' ? 'selected' : ''}>💵 Cash on Delivery (COD)</option>
-          <option value="momo" ${paymentFilter === 'momo' ? 'selected' : ''}>📱 Mobile Money (Wave/Orange/MTN)</option>
-          <option value="card" ${paymentFilter === 'card' ? 'selected' : ''}>💳 Credit Card</option>
+        <select class="select-filter-btn" id="order-payment-filter">
+          <option value="all" ${context.paymentFilter === 'all' ? 'selected' : ''}>💳 All Payments</option>
+          <option value="cod" ${context.paymentFilter === 'cod' ? 'selected' : ''}>Cash on Delivery (COD)</option>
+          <option value="momo" ${context.paymentFilter === 'momo' ? 'selected' : ''}>Mobile Money (Wave/MTN)</option>
+          <option value="card" ${context.paymentFilter === 'card' ? 'selected' : ''}>Bank Card</option>
         </select>
 
-        <!-- Sorting -->
-        <select class="select-filter-btn" id="order-sort-by" title="Sort orders">
-          <option value="newest" ${sortBy === 'newest' ? 'selected' : ''}>⚡ Newest First</option>
-          <option value="oldest" ${sortBy === 'oldest' ? 'selected' : ''}>⏳ Oldest First</option>
-          <option value="amount_high" ${sortBy === 'amount_high' ? 'selected' : ''}>💰 Amount: High to Low</option>
-          <option value="amount_low" ${sortBy === 'amount_low' ? 'selected' : ''}>💵 Amount: Low to High</option>
+        <!-- Sort By Dropdown -->
+        <select class="select-filter-btn" id="order-sort-by">
+          <option value="newest" ${context.sortBy === 'newest' ? 'selected' : ''}>⬇️ Newest First</option>
+          <option value="oldest" ${context.sortBy === 'oldest' ? 'selected' : ''}>⬆️ Oldest First</option>
+          <option value="amount_high" ${context.sortBy === 'amount_high' ? 'selected' : ''}>💰 Amount: High to Low</option>
+          <option value="amount_low" ${context.sortBy === 'amount_low' ? 'selected' : ''}>💸 Amount: Low to High</option>
         </select>
       </div>
 
-      <!-- Export CSV Action -->
-      <button class="select-filter-btn" id="export-orders-csv-btn" style="background:#f8fafc; display:flex; align-items:center; gap:6px;">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+      <!-- Export CSV Button -->
+      <button class="admin-btn admin-btn-secondary" id="export-orders-csv-btn" style="padding:9px 14px; font-size:13px; display:flex; align-items:center; gap:6px;">
+        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
         <span>Export CSV</span>
       </button>
     </div>
 
-    <!-- 4. Bulk Actions Bar (conditionally shown when items selected) -->
-    ${selectedOrderIds.size > 0 ? `
+    <!-- Floating Bulk Selection Bar -->
+    ${context.selectedOrderIds.size > 0 ? `
       <div class="bulk-action-bar">
         <div style="display:flex; align-items:center; gap:10px;">
-          <span style="font-weight:800; font-size:13.5px;">✓ ${selectedOrderIds.size} order${selectedOrderIds.size > 1 ? 's' : ''} selected</span>
-          <button class="bulk-btn" id="bulk-deselect-btn" style="background:transparent; border:none; text-decoration:underline; font-size:12px; cursor:pointer;">Clear</button>
+          <strong style="font-size:13.5px;">${context.selectedOrderIds.size} order${context.selectedOrderIds.size > 1 ? 's' : ''} selected</strong>
+          <button class="admin-btn" id="clear-selected-orders-btn" style="background:rgba(255,255,255,0.15); color:white; border:none; padding:4px 10px; font-size:11.5px;">Deselect All</button>
         </div>
+
         <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
-          <button class="bulk-btn" id="bulk-confirm-btn">✓ Mark Confirmed</button>
-          <button class="bulk-btn" id="bulk-shipping-btn">🚚 Mark Shipping</button>
-          <button class="bulk-btn" id="bulk-delivered-btn">✅ Mark Delivered</button>
-          <button class="bulk-btn" id="bulk-print-invoices-btn">📄 Print Invoices</button>
-          <button class="bulk-btn bulk-btn-danger" id="bulk-cancel-btn">✕ Cancel</button>
+          <button class="admin-btn bulk-status-change-btn" data-status="Confirm" style="background:#2563eb; color:white; border:none; font-size:12px; padding:6px 12px;">Confirm Selected</button>
+          <button class="admin-btn bulk-status-change-btn" data-status="Shipping" style="background:#7c3aed; color:white; border:none; font-size:12px; padding:6px 12px;">Ship Selected</button>
+          <button class="admin-btn bulk-status-change-btn" data-status="Done" style="background:#16a34a; color:white; border:none; font-size:12px; padding:6px 12px;">Mark Delivered</button>
+          <button class="admin-btn bulk-status-change-btn" data-status="Cancelled" style="background:#dc2626; color:white; border:none; font-size:12px; padding:6px 12px;">Cancel Selected</button>
+          <button class="admin-btn" id="bulk-print-invoices-btn" style="background:#ffffff; color:#0f172a; border:none; font-size:12px; padding:6px 12px;">🖨️ Print Receipts</button>
         </div>
       </div>
     ` : ''}
 
-    <!-- 5. Orders Table -->
-    <div class="order-table-container">
-      <div class="table-wrapper">
-        <table style="width:100%; border-collapse:collapse; text-align:left;">
+    <!-- Main Orders Data Table -->
+    <div class="glass-panel" style="background:rgba(255, 255, 255, 0.85); border-radius:18px; padding:0; overflow:hidden; border:1px solid #e2e8f0; box-shadow:0 4px 20px rgba(0,0,0,0.03);">
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; text-align:left; font-family:inherit;">
           <thead>
-            <tr style="background:#f8fafc; border-bottom:1.5px solid #e2e8f0;">
+            <tr style="background:#f8fafc; border-bottom:1.5px solid #cbd5e1;">
               <th style="padding:12px 16px; width:36px; text-align:center;">
                 <input type="checkbox" id="select-all-orders-cb" ${allSelected ? 'checked' : ''} style="cursor:pointer; width:16px; height:16px; accent-color:#0052cc;">
               </th>
               <th style="padding:12px 16px; font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Order ID & Date</th>
               <th style="padding:12px 16px; font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Customer</th>
-              <th style="padding:12px 16px; font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Items Summary</th>
+              <th style="padding:12px 16px; font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Products / Items</th>
               <th style="padding:12px 16px; font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Total</th>
               <th style="padding:12px 16px; font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Payment</th>
               <th style="padding:12px 16px; font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Quick Status</th>
@@ -543,7 +573,7 @@ export function renderAdminOrders(context) {
                 </td>
               </tr>
             ` : paginatedList.map(o => {
-              const isChecked = selectedOrderIds.has(o.id);
+              const isChecked = context.selectedOrderIds.has(o.id);
               const sLower = (o.status || 'placed').toLowerCase();
               let statusClass = 'pending';
               if (sLower.includes('confirm')) statusClass = 'confirmed';
@@ -555,7 +585,6 @@ export function renderAdminOrders(context) {
               const phoneClean = (o.customerPhone || o.phone || '').replace(/[^0-9]/g, '');
               const waUrl = phoneClean ? `https://wa.me/${phoneClean}?text=${encodeURIComponent(`Bonjour ${o.customerName || 'client'} ! Nous vous contactons au sujet de votre commande #${o.id} chez SWEETOS.`)}` : null;
 
-              // Products preview thumbs
               const prods = o.products || [];
               const firstImg = prods[0]?.image || './assets/sweetos_share.jpg';
 
@@ -565,32 +594,32 @@ export function renderAdminOrders(context) {
                 <tr class="order-row-hover" style="border-bottom:1px solid #e2e8f0; transition:all 0.15s ease; ${isChecked ? 'background:#eff6ff;' : ''}">
                   <!-- Checkbox -->
                   <td style="padding:14px 16px; text-align:center;">
-                    <input type="checkbox" class="order-select-cb" data-order-id="${o.id}" ${isChecked ? 'checked' : ''} style="cursor:pointer; width:16px; height:16px; accent-color:#0052cc;">
+                    <input type="checkbox" class="order-select-cb" data-order-id="${escapeHtml(o.id)}" ${isChecked ? 'checked' : ''} style="cursor:pointer; width:16px; height:16px; accent-color:#0052cc;">
                   </td>
 
                   <!-- Order ID & Date -->
                   <td style="padding:14px 16px;">
                     <div style="display:flex; flex-direction:column; gap:2px;">
                       <div style="display:flex; align-items:center; gap:6px;">
-                        <a href="#" class="view-order-link" data-order-id="${o.id}" style="color:#0052cc; font-weight:800; font-size:13.5px; text-decoration:none;">
-                          #${o.id}
+                        <a href="#" class="view-order-link" data-order-id="${escapeHtml(o.id)}" style="color:#0052cc; font-weight:800; font-size:13.5px; text-decoration:none;">
+                          #${escapeHtml(o.id)}
                         </a>
-                        <button class="copy-order-id-btn" data-id="${o.id}" title="Copy Order ID" style="background:transparent; border:none; color:#94a3b8; cursor:pointer; padding:2px; font-size:11px;">📋</button>
+                        <button class="copy-order-id-btn" data-id="${escapeHtml(o.id)}" title="Copy Order ID" style="background:transparent; border:none; color:#94a3b8; cursor:pointer; padding:2px; font-size:11px;">📋</button>
                       </div>
-                      <small style="color:#64748b; font-size:11.5px;">${o.date || 'Recent'}</small>
+                      <small style="color:#64748b; font-size:11.5px;">${escapeHtml(o.date || 'Recent')}</small>
                     </div>
                   </td>
 
                   <!-- Customer -->
                   <td style="padding:14px 16px;">
                     <div style="display:flex; align-items:center; gap:10px;">
-                      <div class="customer-avatar-badge">${initials}</div>
+                      <div class="customer-avatar-badge">${escapeHtml(initials)}</div>
                       <div style="display:flex; flex-direction:column; max-width:180px;">
                         <strong style="color:#1e293b; font-size:13px; font-weight:750; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                          ${o.customerName || 'Guest User'}
+                          ${escapeHtml(o.customerName || 'Guest User')}
                         </strong>
                         <small style="color:#64748b; font-size:11.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
-                          ${o.customerPhone || o.customerEmail || 'No contact'}
+                          ${escapeHtml(o.customerPhone || o.customerEmail || 'No contact')}
                         </small>
                       </div>
                     </div>
@@ -599,10 +628,10 @@ export function renderAdminOrders(context) {
                   <!-- Items Summary with Thumbnail -->
                   <td style="padding:14px 16px;">
                     <div style="display:flex; align-items:center; gap:10px;">
-                      <img src="${firstImg}" alt="Product" style="width:34px; height:34px; border-radius:8px; object-fit:cover; border:1px solid #e2e8f0; flex-shrink:0;">
+                      <img src="${escapeHtml(firstImg)}" alt="Product" style="width:34px; height:34px; border-radius:8px; object-fit:cover; border:1px solid #e2e8f0; flex-shrink:0;">
                       <div style="display:flex; flex-direction:column; max-width:200px;">
-                        <span style="font-size:12.5px; font-weight:600; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${o.items || ''}">
-                          ${o.items || (prods.length + ' items')}
+                        <span style="font-size:12.5px; font-weight:600; color:#334155; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;" title="${escapeHtml(typeof o.items === 'string' ? o.items : '')}">
+                          ${escapeHtml(typeof o.items === 'string' ? o.items : (prods.length + ' items'))}
                         </span>
                         <small style="color:#94a3b8; font-size:11px;">${prods.length || 1} product${(prods.length || 1) > 1 ? 's' : ''}</small>
                       </div>
@@ -619,13 +648,13 @@ export function renderAdminOrders(context) {
                   <!-- Payment Method -->
                   <td style="padding:14px 16px;">
                     <span style="display:inline-block; font-size:11px; font-weight:800; text-transform:uppercase; background:#f1f5f9; color:#475569; padding:3px 8px; border-radius:6px; border:1px solid #e2e8f0;">
-                      ${(o.paymentMethod || 'cod').toUpperCase()}
+                      ${escapeHtml((o.paymentMethod || 'cod').toUpperCase())}
                     </span>
                   </td>
 
                   <!-- Quick Inline Status Switcher -->
                   <td style="padding:14px 16px;">
-                    <select class="status-select-inline ${statusClass}" data-order-id="${o.id}">
+                    <select class="status-select-inline ${statusClass}" data-order-id="${escapeHtml(o.id)}">
                       <option value="Placed" ${sLower === 'placed' || sLower === 'pending' ? 'selected' : ''}>⏳ Pending</option>
                       <option value="Confirm" ${sLower === 'confirm' || sLower === 'confirmé' || sLower === 'confirmed' ? 'selected' : ''}>👍 Confirmed</option>
                       <option value="Processing" ${sLower === 'processing' || sLower === 'en cours' ? 'selected' : ''}>⚙️ Processing</option>
@@ -639,17 +668,17 @@ export function renderAdminOrders(context) {
                   <td style="padding:14px 16px; text-align:right;">
                     <div style="display:inline-flex; align-items:center; gap:6px;">
                       ${waUrl ? `
-                        <a href="${waUrl}" target="_blank" class="action-icon-btn whatsapp-icon-btn" title="Chat on WhatsApp">
+                        <a href="${escapeHtml(waUrl)}" target="_blank" rel="noopener" class="action-icon-btn whatsapp-icon-btn" title="Chat on WhatsApp">
                           <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
                         </a>
                       ` : ''}
 
-                      <button class="action-icon-btn print-single-invoice-btn" data-order-id="${o.id}" title="Print Invoice">
+                      <button class="action-icon-btn print-single-invoice-btn" data-order-id="${escapeHtml(o.id)}" title="Print Invoice">
                         <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
                       </button>
 
-                      <button class="action-icon-btn view-order-details-btn" data-order-id="${o.id}" title="View Full Details">
-                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                      <button class="action-icon-btn view-order-details-btn" data-order-id="${escapeHtml(o.id)}" title="View Full Details">
+                        <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="1"></circle><circle cx="19" cy="12" r="1"></circle><circle cx="5" cy="12" r="1"></circle></svg>
                       </button>
                     </div>
                   </td>
@@ -660,42 +689,43 @@ export function renderAdminOrders(context) {
         </table>
       </div>
 
-      <!-- 6. Pagination Footer -->
-      <div class="pagination-footer" style="padding:14px 20px; background:#f8fafc; border-top:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px;">
-        <span class="pagination-info" style="font-size:13px; color:#64748b; font-weight:600;">
-          Showing <strong>${totalItems === 0 ? 0 : startIndex + 1}</strong> to <strong>${Math.min(startIndex + itemsPerPage, totalItems)}</strong> of <strong>${totalItems}</strong> orders
+      <!-- Pagination Footer -->
+      <div style="padding:16px 20px; border-top:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:12px; background:#f8fafc;">
+        <span style="font-size:13px; color:#64748b;">
+          Showing <strong>${startIndex + 1}-${Math.min(startIndex + itemsPerPage, totalItems)}</strong> of <strong>${totalItems}</strong> orders
         </span>
-        <div class="pagination-buttons" style="display:flex; align-items:center; gap:8px;">
-          <button class="pag-btn" id="prev-order-page" ${currentPage <= 1 ? 'disabled' : ''} style="padding:6px 14px; border-radius:8px; border:1px solid #cbd5e1; background:#ffffff; font-size:12.5px; font-weight:700; cursor:pointer;">Previous</button>
-          <span style="font-size:13px; font-weight:750; color:#334155; padding:0 6px;">${currentPage} / ${totalPages}</span>
-          <button class="pag-btn" id="next-order-page" ${currentPage >= totalPages ? 'disabled' : ''} style="padding:6px 14px; border-radius:8px; border:1px solid #cbd5e1; background:#ffffff; font-size:12.5px; font-weight:700; cursor:pointer;">Next</button>
+
+        <div style="display:flex; align-items:center; gap:8px;">
+          <button class="admin-btn admin-btn-secondary" id="prev-order-page" ${currentPage <= 1 ? 'disabled' : ''} style="padding:6px 12px; font-size:12.5px;">Previous</button>
+          <span style="font-size:12.5px; font-weight:700; color:#334155;">Page ${currentPage} of ${totalPages}</span>
+          <button class="admin-btn admin-btn-secondary" id="next-order-page" ${currentPage >= totalPages ? 'disabled' : ''} style="padding:6px 12px; font-size:12.5px;">Next</button>
         </div>
       </div>
     </div>
   `;
 }
 
-// Modern, Simplified & Advanced Order Details View
 export function renderAdminOrderDetails(context) {
-  const order = context.orders.find(o => o.id === context.selectedOrderId);
+  ensureOrderState(context);
+  const order = getSelectedOrder(context);
+
   if (!order) {
     return `
-      <div style="padding: 40px; text-align: center;">
+      <div style="padding:40px; text-align:center;">
         <h3>Order not found.</h3>
-        <button class="admin-btn admin-btn-primary" id="back-to-orders-list-btn">Back to list</button>
+        <button class="admin-btn" id="back-to-orders-list-btn">Back to Orders</button>
       </div>
     `;
   }
 
   const sLower = (order.status || 'placed').toLowerCase();
-  
-  // Pipeline Step calculation
+
   const steps = [
-    { key: 'placed', label: 'Order Placed', icon: '📝', targetStatus: 'Placed' },
-    { key: 'confirm', label: 'Confirmed', icon: '👍', targetStatus: 'Confirm' },
-    { key: 'processing', label: 'In Preparation', icon: '⚙️', targetStatus: 'Processing' },
-    { key: 'shipping', label: 'Dispatched (In Transit)', icon: '🚚', targetStatus: 'Shipping' },
-    { key: 'done', label: 'Delivered', icon: '✅', targetStatus: 'Done' }
+    { label: 'Placed', icon: '⏳', targetStatus: 'Placed' },
+    { label: 'Confirmed', icon: '👍', targetStatus: 'Confirm' },
+    { label: 'Processing', icon: '⚙️', targetStatus: 'Processing' },
+    { label: 'Shipping', icon: '🚚', targetStatus: 'Shipping' },
+    { label: 'Delivered', icon: '✅', targetStatus: 'Done' }
   ];
 
   let currentStepIdx = 0;
@@ -707,6 +737,10 @@ export function renderAdminOrderDetails(context) {
 
   const phoneClean = (order.customerPhone || order.phone || '').replace(/[^0-9]/g, '');
   const waUrl = phoneClean ? `https://wa.me/${phoneClean}?text=${encodeURIComponent(`Bonjour ${order.customerName || 'client'} ! Votre commande #${order.id} sur SWEETOS est actuellement : ${order.status}. N'hésitez pas si vous avez des questions !`)}` : null;
+
+  const stepPercentage = currentStepIdx >= 0 ? (currentStepIdx / (steps.length - 1)) * 100 : 0;
+  const stepOffset = currentStepIdx >= 0 ? (60 * currentStepIdx / (steps.length - 1)) : 0;
+  const trackFillStyle = `width: calc(${stepPercentage}% - ${stepOffset}px);`;
 
   return `
     <style>
@@ -794,7 +828,7 @@ export function renderAdminOrderDetails(context) {
         </button>
         <div>
           <h2 style="margin:0; font-size:20px; font-weight:850; color:#0f172a; display:flex; align-items:center; gap:10px;">
-            Order #${order.id}
+            Order #${escapeHtml(order.id)}
             <span style="font-size:12px; font-weight:800; padding:4px 10px; border-radius:8px; ${
               sLower.includes('done') ? 'background:#dcfce7; color:#166534;' :
               sLower.includes('shipping') ? 'background:#ede9fe; color:#5b21b6;' :
@@ -802,10 +836,10 @@ export function renderAdminOrderDetails(context) {
               sLower.includes('cancel') ? 'background:#fee2e2; color:#991b1b;' :
               'background:#fef3c7; color:#92400e;'
             }">
-              ${order.status}
+              ${escapeHtml(order.status)}
             </span>
           </h2>
-          <small style="color:#64748b;">Placed on ${order.date || 'N/A'}</small>
+          <small style="color:#64748b;">Placed on ${escapeHtml(order.date || 'N/A')}</small>
         </div>
       </div>
 
@@ -816,7 +850,7 @@ export function renderAdminOrderDetails(context) {
         </button>
 
         ${waUrl ? `
-          <a href="${waUrl}" target="_blank" class="admin-btn" style="background:#22c55e; color:white; border:none; display:flex; align-items:center; gap:6px; text-decoration:none;">
+          <a href="${escapeHtml(waUrl)}" target="_blank" rel="noopener" class="admin-btn" style="background:#22c55e; color:white; border:none; display:flex; align-items:center; gap:6px; text-decoration:none;">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
             <span>WhatsApp Client</span>
           </a>
@@ -833,13 +867,13 @@ export function renderAdminOrderDetails(context) {
 
       <div class="order-step-pipeline">
         <div class="pipeline-track-bg"></div>
-        <div class="pipeline-track-fill" style="width: ${currentStepIdx >= 0 ? (currentStepIdx / (steps.length - 1)) * 100 : 0}%;"></div>
+        <div class="pipeline-track-fill" style="${trackFillStyle}"></div>
 
         ${steps.map((step, idx) => {
           const isCompleted = currentStepIdx >= idx;
           const isCurrent = currentStepIdx === idx;
           return `
-            <button class="pipeline-step-node ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''} quick-step-jump-btn" data-target-status="${step.targetStatus}">
+            <button class="pipeline-step-node ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''} quick-step-jump-btn" data-target-status="${escapeHtml(step.targetStatus)}">
               <div class="step-circle">${step.icon}</div>
               <span class="step-label">${step.label}</span>
             </button>
@@ -860,153 +894,130 @@ export function renderAdminOrderDetails(context) {
             <span>Ordered Items (${(order.products || []).length})</span>
           </h3>
 
-          <div style="display:flex; flex-direction:column; gap:12px;">
-            ${(order.products || []).map(p => `
-              <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 14px; background:#f8fafc; border-radius:12px; border:1px solid #f1f5f9;">
-                <div style="display:flex; align-items:center; gap:14px;">
-                  <img src="${p.image || './assets/sweetos_share.jpg'}" style="width:48px; height:48px; border-radius:10px; object-fit:cover; border:1px solid #e2e8f0;">
-                  <div>
-                    <h4 style="margin:0; font-size:14px; font-weight:800; color:#1e293b;">${p.name}</h4>
-                    <span style="font-size:12px; color:#64748b;">${formatPrice(p.price)} &times; ${p.quantity}</span>
+          <div style="display:flex; flex-direction:column; gap:14px;">
+            ${(order.products || []).map(p => {
+              const pQty = parseFloat(p.quantity) || 1;
+              const pPrice = parseFloat(p.price) || 0;
+              return `
+                <div style="display:flex; align-items:center; justify-content:space-between; padding-bottom:14px; border-bottom:1px solid #f1f5f9;">
+                  <div style="display:flex; align-items:center; gap:12px;">
+                    <img src="${escapeHtml(p.image || './assets/sweetos_share.jpg')}" alt="${escapeHtml(p.name)}" style="width:44px; height:44px; border-radius:10px; object-fit:cover; border:1px solid #e2e8f0;">
+                    <div>
+                      <strong style="font-size:13.5px; color:#1e293b; display:block;">${escapeHtml(p.name)}</strong>
+                      <small style="color:#64748b;">${formatPrice(pPrice)} x ${pQty}</small>
+                    </div>
                   </div>
+                  <strong style="font-size:14px; color:#0f172a;">${formatPrice(pPrice * pQty)}</strong>
                 </div>
-                <strong style="font-size:14px; font-weight:850; color:#0052cc;">
-                  ${formatPrice(p.price * p.quantity)}
-                </strong>
-              </div>
-            `).join('')}
+              `;
+            }).join('')}
           </div>
 
-          <!-- Cost Breakdown -->
-          <div style="margin-top:20px; padding-top:16px; border-top:1.5px dashed #e2e8f0; display:flex; flex-direction:column; gap:8px;">
-            <div style="display:flex; justify-content:space-between; font-size:13.5px; color:#64748b;">
-              <span>Items Subtotal</span>
-              <span>${formatPrice(Math.max(0, order.total - 2000))}</span>
+          <!-- Total Calculation Summary -->
+          <div style="margin-top:18px; padding-top:14px; border-top:1.5px solid #e2e8f0; display:flex; flex-direction:column; gap:8px;">
+            <div style="display:flex; justify-content:space-between; font-size:13px; color:#64748b;">
+              <span>Subtotal:</span>
+              <span>${formatPrice((order.products || []).reduce((sum, p) => sum + (parseFloat(p.price) || 0) * (parseFloat(p.quantity) || 1), 0))}</span>
             </div>
-            <div style="display:flex; justify-content:space-between; font-size:13.5px; color:#64748b;">
-              <span>Delivery Fee</span>
-              <span>2,000 CFA</span>
+            <div style="display:flex; justify-content:space-between; font-size:13px; color:#64748b;">
+              <span>Delivery Fee:</span>
+              <span>${(parseFloat(order.total) || 0) > (order.products || []).reduce((sum, p) => sum + (parseFloat(p.price) || 0) * (parseFloat(p.quantity) || 1), 0) ? formatPrice((parseFloat(order.total) || 0) - (order.products || []).reduce((sum, p) => sum + (parseFloat(p.price) || 0) * (parseFloat(p.quantity) || 1), 0)) : 'Gratuit'}</span>
             </div>
-            <div style="display:flex; justify-content:space-between; font-size:16px; font-weight:850; color:#0f172a; margin-top:8px; padding-top:10px; border-top:1.5px solid #e2e8f0;">
-              <span>Grand Total</span>
-              <span style="color:#0052cc;">${formatPrice(order.total)}</span>
+            <div style="display:flex; justify-content:space-between; font-size:16px; font-weight:900; color:#0052cc; margin-top:6px; padding-top:8px; border-top:1px solid #f1f5f9;">
+              <span>Total Amount:</span>
+              <span>${formatPrice(order.total)}</span>
             </div>
           </div>
         </div>
 
-        <!-- Internal Admin Notes -->
+        <!-- Notes & Internal Remarks -->
         <div class="glass-panel" style="background:rgba(255,255,255,0.85); border-radius:18px; padding:24px; border:1px solid #e2e8f0;">
-          <h3 style="margin:0 0 12px 0; font-size:16px; font-weight:850; color:#0f172a;">📝 Internal Staff Notes</h3>
-          <p style="font-size:12.5px; color:#64748b; margin:0 0 14px 0;">Record delivery notes, customer call agreements, or dispatch updates (visible to admins only).</p>
-          
-          <textarea id="order-internal-notes" class="admin-input" rows="3" placeholder="e.g. Client confirmed via phone, preferred delivery before 2 PM...">${order.notes || ''}</textarea>
-          
-          <button class="admin-btn admin-btn-primary" id="save-order-notes-btn" style="margin-top:10px;">Save Notes</button>
+          <h3 style="margin:0 0 12px 0; font-size:15px; font-weight:800; color:#0f172a;">📝 Internal Notes & Logistics</h3>
+          <textarea id="order-internal-notes" style="width:100%; height:80px; border-radius:10px; border:1px solid #cbd5e1; padding:10px; font-family:inherit; font-size:13px; box-sizing:border-box; outline:none; resize:none;" placeholder="Add internal remarks about this customer or delivery instructions...">${escapeHtml(order.notes || '')}</textarea>
+          <div style="text-align:right; margin-top:10px;">
+            <button class="admin-btn" id="save-order-notes-btn" style="padding:6px 14px; font-size:12.5px;">Save Notes</button>
+          </div>
         </div>
-
       </div>
 
-      <!-- RIGHT COLUMN: Customer Details & Fulfillment Management -->
+      <!-- RIGHT COLUMN: Customer Details & Fulfillment Form -->
       <div style="display:flex; flex-direction:column; gap:24px;">
         
-        <!-- Customer Info Card -->
+        <!-- Customer Details Card -->
         <div class="glass-panel" style="background:rgba(255,255,255,0.85); border-radius:18px; padding:24px; border:1px solid #e2e8f0;">
-          <h3 style="margin:0 0 16px 0; font-size:16px; font-weight:850; color:#0f172a;">👤 Customer Contact</h3>
-          
-          <div style="display:flex; flex-direction:column; gap:12px;">
-            <div style="display:flex; justify-content:space-between; font-size:13px;">
-              <span style="color:#64748b; font-weight:600;">Full Name:</span>
-              <strong style="color:#1e293b;">${order.customerName || 'Guest User'}</strong>
+          <h3 style="margin:0 0 16px 0; font-size:15px; font-weight:800; color:#0f172a;">👤 Customer Information</h3>
+          <div style="display:flex; flex-direction:column; gap:12px; font-size:13px;">
+            <div>
+              <span style="color:#64748b; font-size:11.5px; font-weight:700; text-transform:uppercase; display:block;">Customer Name</span>
+              <strong style="color:#1e293b; font-size:14px;">${escapeHtml(order.customerName || 'Guest Client')}</strong>
+            </div>
+            <div>
+              <span style="color:#64748b; font-size:11.5px; font-weight:700; text-transform:uppercase; display:block;">Phone Number</span>
+              <span style="color:#1e293b;">${escapeHtml(order.customerPhone || 'N/A')}</span>
+            </div>
+            <div>
+              <span style="color:#64748b; font-size:11.5px; font-weight:700; text-transform:uppercase; display:block;">Email Address</span>
+              <span style="color:#1e293b;">${escapeHtml(order.customerEmail || 'N/A')}</span>
+            </div>
+            <div>
+              <span style="color:#64748b; font-size:11.5px; font-weight:700; text-transform:uppercase; display:block;">Delivery Address</span>
+              <span style="color:#1e293b; line-height:1.4;">${escapeHtml(typeof order.customerAddress === 'string' ? order.customerAddress : (order.customerAddress?.street || 'Abidjan, Ivory Coast'))}</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Fulfillment Actions Form -->
+        <div class="glass-panel" style="background:rgba(255,255,255,0.85); border-radius:18px; padding:24px; border:1px solid #e2e8f0;">
+          <h3 style="margin:0 0 16px 0; font-size:15px; font-weight:800; color:#0f172a;">🚚 Shipping & Fulfillment</h3>
+
+          <div style="display:flex; flex-direction:column; gap:14px;">
+            <div>
+              <label style="font-size:12px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Order Status</label>
+              <select id="order-status-dropdown" style="width:100%; padding:9px 12px; border-radius:10px; border:1px solid #cbd5e1; font-family:inherit; font-size:13px; font-weight:700;">
+                <option value="Placed" ${sLower === 'placed' || sLower === 'pending' ? 'selected' : ''}>⏳ Pending</option>
+                <option value="Confirm" ${sLower === 'confirm' || sLower === 'confirmé' || sLower === 'confirmed' ? 'selected' : ''}>👍 Confirmed</option>
+                <option value="Processing" ${sLower === 'processing' || sLower === 'en cours' ? 'selected' : ''}>⚙️ Processing</option>
+                <option value="Shipping" ${sLower === 'shipping' || sLower === 'shipped' ? 'selected' : ''}>🚚 Shipping</option>
+                <option value="Done" ${sLower === 'done' || sLower === 'livré' || sLower === 'delivered' ? 'selected' : ''}>✅ Delivered</option>
+                <option value="Cancelled" ${sLower === 'cancelled' || sLower === 'annulé' ? 'selected' : ''}>✕ Cancelled</option>
+              </select>
             </div>
 
-            <div style="display:flex; justify-content:space-between; font-size:13px; align-items:center;">
-              <span style="color:#64748b; font-weight:600;">Phone:</span>
-              <div style="display:flex; align-items:center; gap:6px;">
-                <a href="tel:${order.customerPhone || ''}" style="color:#0052cc; font-weight:700; text-decoration:none;">${order.customerPhone || 'N/A'}</a>
+            <div>
+              <label style="font-size:12px; font-weight:700; color:#475569; display:block; margin-bottom:4px;">Courier Service</label>
+              <select id="order-courier-select" style="width:100%; padding:9px 12px; border-radius:10px; border:1px solid #cbd5e1; font-family:inherit; font-size:13px;">
+                <option value="Yango Delivery" ${(order.courier || '').includes('Yango') ? 'selected' : ''}>Yango Delivery</option>
+                <option value="La Poste CI" ${(order.courier || '').includes('Poste') ? 'selected' : ''}>La Poste CI</option>
+                <option value="Livraison Express" ${(order.courier || '').includes('Express') ? 'selected' : ''}>Livraison Express Abidjan</option>
+                <option value="Retrait Magasin" ${(order.courier || '').includes('Retrait') ? 'selected' : ''}>Retrait en Magasin</option>
+              </select>
+            </div>
+
+            <div>
+              <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <label style="font-size:12px; font-weight:700; color:#475569;">Tracking Number</label>
+                <button type="button" id="generate-tracking-btn" style="background:none; border:none; color:#0052cc; font-size:11.5px; font-weight:700; cursor:pointer;">Generate Code</button>
               </div>
+              <input type="text" id="order-tracking-num" style="width:100%; padding:9px 12px; border-radius:10px; border:1px solid #cbd5e1; font-family:inherit; font-size:13px; box-sizing:border-box;" placeholder="e.g. WV-ABJ-920412" value="${escapeHtml(order.trackingNumber || '')}">
             </div>
 
-            <div style="display:flex; justify-content:space-between; font-size:13px; align-items:center;">
-              <span style="color:#64748b; font-weight:600;">Email:</span>
-              <a href="mailto:${order.customerEmail || ''}" style="color:#0052cc; font-weight:600; text-decoration:none;">${order.customerEmail || 'N/A'}</a>
-            </div>
-
-            <div style="display:flex; justify-content:space-between; font-size:13px;">
-              <span style="color:#64748b; font-weight:600;">Address:</span>
-              <span style="color:#1e293b; text-align:right; max-width:200px;">${order.customerAddress || 'Ivory Coast'}</span>
-            </div>
-
-            <div style="display:flex; justify-content:space-between; font-size:13px;">
-              <span style="color:#64748b; font-weight:600;">Payment:</span>
-              <span style="text-transform:uppercase; font-weight:800; color:#0052cc;">${order.paymentMethod || 'COD'}</span>
-            </div>
-          </div>
-        </div>
-
-        <!-- Fulfillment Management Card -->
-        <div class="glass-panel" style="background:rgba(255,255,255,0.85); border-radius:18px; padding:24px; border:1px solid #e2e8f0;">
-          <h3 style="margin:0 0 16px 0; font-size:16px; font-weight:850; color:#0f172a;">🚚 Fulfillment Settings</h3>
-          
-          <div class="form-group-modern" style="margin-bottom:14px;">
-            <label style="font-size:11.5px; font-weight:750; color:#64748b; text-transform:uppercase; margin-bottom:6px; display:block;">Update Status</label>
-            <select id="order-status-dropdown" class="select-filter-btn" style="width:100%;">
-              <option value="Placed" ${sLower === 'placed' || sLower === 'pending' ? 'selected' : ''}>⏳ Placed (Pending Confirmation)</option>
-              <option value="Confirm" ${sLower === 'confirm' || sLower === 'confirmé' || sLower === 'confirmed' ? 'selected' : ''}>👍 Confirm</option>
-              <option value="Processing" ${sLower === 'processing' || sLower === 'en cours' ? 'selected' : ''}>⚙️ Processing (In Preparation)</option>
-              <option value="Shipping" ${sLower === 'shipping' || sLower === 'shipped' ? 'selected' : ''}>🚚 Shipping (In Transit)</option>
-              <option value="Done" ${sLower === 'done' || sLower === 'livré' || sLower === 'delivered' ? 'selected' : ''}>✅ Delivered (Completed)</option>
-              <option value="Cancelled" ${sLower === 'cancelled' || sLower === 'annulé' ? 'selected' : ''}>✕ Cancelled</option>
-            </select>
+            <button class="admin-btn" id="save-order-status-btn" style="width:100%; padding:10px; font-size:13.5px; margin-top:6px;">Update Order Status</button>
           </div>
 
-          <div class="form-group-modern" style="margin-bottom:14px;">
-            <label style="font-size:11.5px; font-weight:750; color:#64748b; text-transform:uppercase; margin-bottom:6px; display:block;">Assigned Courier</label>
-            <select id="order-courier-select" class="select-filter-btn" style="width:100%;">
-              <option value="Yango Delivery" ${order.courier === 'Yango Delivery' ? 'selected' : ''}>Yango Delivery</option>
-              <option value="Express Abidjan" ${order.courier === 'Express Abidjan' ? 'selected' : ''}>Express Abidjan</option>
-              <option value="DHL Express" ${order.courier === 'DHL Express' ? 'selected' : ''}>DHL Express</option>
-              <option value="In-house Courier" ${order.courier === 'In-house Courier' ? 'selected' : ''}>In-house Courier</option>
-            </select>
+          <div style="margin-top:20px; padding-top:16px; border-top:1px solid #fee2e2;">
+            <button class="admin-btn" id="danger-cancel-order-btn" style="width:100%; padding:8px; font-size:12.5px; background:#fee2e2; color:#dc2626; border:1px solid #fca5a5;">Cancel Order & Restock</button>
           </div>
-
-          <div class="form-group-modern" id="tracking-num-group" style="margin-bottom:16px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
-              <label style="font-size:11.5px; font-weight:750; color:#64748b; text-transform:uppercase; margin:0;">Tracking Number</label>
-              <button id="generate-tracking-btn" style="background:transparent; border:none; color:#0052cc; font-size:11.5px; font-weight:750; cursor:pointer;">Generate ID ⚡</button>
-            </div>
-            <input type="text" id="order-tracking-num" name="order_tracking_num_no_autofill" class="admin-input" placeholder="e.g. WV-ABJ-89234" value="${order.trackingNumber || ''}" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-autocomplete="none" style="width:100%;">
-          </div>
-
-          <button class="admin-btn admin-btn-success" id="save-order-status-btn" style="width:100%; padding:12px; font-size:14px;">
-            Save Fulfillment Changes
-          </button>
-        </div>
-
-        <!-- Danger Zone -->
-        <div class="glass-panel" style="background:rgba(254,242,242,0.6); border-radius:18px; padding:20px; border:1px solid #fecaca;">
-          <h4 style="margin:0 0 8px 0; font-size:13.5px; font-weight:850; color:#991b1b;">⚠️ Danger Zone</h4>
-          <p style="font-size:12px; color:#7f1d1d; margin:0 0 12px 0;">Cancelling an order automatically restocks the reserved products back to the inventory.</p>
-          <button class="admin-btn" id="danger-cancel-order-btn" style="background:#ef4444; color:white; border:none; width:100%; font-size:13px;">Cancel & Restock Order</button>
         </div>
 
       </div>
-
     </div>
   `;
 }
 
-export function attachAdminOrdersListeners(context, shadow) {
-  // 1. Navigation to details
-  shadow.querySelectorAll('.view-order-details-btn, .view-order-link').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      context.selectedOrderId = btn.getAttribute('data-order-id');
-      context.render();
-      context.attachListeners();
-    });
-  });
+export function attachAdminOrdersListeners(shadow, context) {
+  ensureOrderState(context);
 
-  // 2. Back to list button
+  // 1. Return to list button
   const backBtn = shadow.getElementById('back-to-orders-list-btn');
   if (backBtn) {
     backBtn.addEventListener('click', () => {
@@ -1016,39 +1027,7 @@ export function attachAdminOrdersListeners(context, shadow) {
     });
   }
 
-  // 3. Search input with debounce / reactive re-render
-  const searchInput = shadow.getElementById('order-search-input');
-  if (searchInput) {
-    if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
-      searchInput.value = '';
-      context.searchQuery = '';
-    }
-    searchInput.addEventListener('focus', () => {
-      if (context.isAutofilledCredential && context.isAutofilledCredential(searchInput.value)) {
-        searchInput.value = '';
-        context.searchQuery = '';
-      }
-    });
-
-    searchInput.addEventListener('input', (e) => {
-      let val = e.target.value;
-      if (context.isAutofilledCredential && context.isAutofilledCredential(val)) {
-        e.target.value = '';
-        val = '';
-      }
-      context.searchQuery = val;
-      context.currentPageIndex = 1;
-      context.render();
-      context.attachListeners();
-      const sRef = shadow.getElementById('order-search-input');
-      if (sRef) {
-        sRef.focus();
-        sRef.setSelectionRange(sRef.value.length, sRef.value.length);
-      }
-    });
-  }
-
-  // 4. Status pill filter tabs
+  // 2. Tab filtering
   shadow.querySelectorAll('.status-pill-tab').forEach(tab => {
     tab.addEventListener('click', () => {
       context.statusFilter = tab.getAttribute('data-status');
@@ -1058,132 +1037,154 @@ export function attachAdminOrdersListeners(context, shadow) {
     });
   });
 
-  // 5. Date Filter
+  // 3. Search input filtering with focus preservation
+  const searchInput = shadow.getElementById('order-search-input');
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      context.searchQuery = e.target.value;
+      context.currentPageIndex = 1;
+      context.render();
+      context.attachListeners();
+
+      const newSearchRef = shadow.getElementById('order-search-input');
+      if (newSearchRef) {
+        newSearchRef.focus();
+        newSearchRef.setSelectionRange(newSearchRef.value.length, newSearchRef.value.length);
+      }
+    });
+  }
+
+  // 4. Date filter dropdown
   const dateSelect = shadow.getElementById('order-date-filter');
   if (dateSelect) {
     dateSelect.addEventListener('change', (e) => {
-      dateFilter = e.target.value;
+      context.dateFilter = e.target.value;
       context.currentPageIndex = 1;
       context.render();
       context.attachListeners();
     });
   }
 
-  // 6. Payment Filter
-  const paymentSelect = shadow.getElementById('order-payment-filter');
-  if (paymentSelect) {
-    paymentSelect.addEventListener('change', (e) => {
-      paymentFilter = e.target.value;
+  // 5. Payment filter dropdown
+  const paySelect = shadow.getElementById('order-payment-filter');
+  if (paySelect) {
+    paySelect.addEventListener('change', (e) => {
+      context.paymentFilter = e.target.value;
       context.currentPageIndex = 1;
       context.render();
       context.attachListeners();
     });
   }
 
-  // 7. Sort by
+  // 6. Sort by dropdown
   const sortSelect = shadow.getElementById('order-sort-by');
   if (sortSelect) {
     sortSelect.addEventListener('change', (e) => {
-      sortBy = e.target.value;
+      context.sortBy = e.target.value;
       context.render();
       context.attachListeners();
     });
   }
 
-  // 8. Copy Order ID
-  shadow.querySelectorAll('.copy-order-id-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.stopPropagation();
-      const id = btn.getAttribute('data-id');
-      navigator.clipboard?.writeText(id).then(() => {
-        window.dispatchEvent(new CustomEvent('toast:show', { detail: `Copied #${id} to clipboard!` }));
-      });
-    });
-  });
-
-  // 9. Inline Status Selector
-  shadow.querySelectorAll('.status-select-inline').forEach(select => {
-    select.addEventListener('change', (e) => {
-      const orderId = select.getAttribute('data-order-id');
-      const newStatus = select.value;
-      updateOrderStatus(context, orderId, newStatus, null, shadow);
-    });
-  });
-
-  // 10. Checkboxes & Bulk Selection
+  // 7. Select All Checkbox
   const selectAllCb = shadow.getElementById('select-all-orders-cb');
   if (selectAllCb) {
     selectAllCb.addEventListener('change', (e) => {
       const isChecked = e.target.checked;
       shadow.querySelectorAll('.order-select-cb').forEach(cb => {
         const id = cb.getAttribute('data-order-id');
-        if (isChecked) selectedOrderIds.add(id);
-        else selectedOrderIds.delete(id);
+        if (id) {
+          if (isChecked) context.selectedOrderIds.add(id);
+          else context.selectedOrderIds.delete(id);
+        }
       });
       context.render();
       context.attachListeners();
     });
   }
 
+  // 8. Individual Row Selection Checkbox
   shadow.querySelectorAll('.order-select-cb').forEach(cb => {
     cb.addEventListener('change', (e) => {
       const id = cb.getAttribute('data-order-id');
-      if (e.target.checked) selectedOrderIds.add(id);
-      else selectedOrderIds.delete(id);
-      context.render();
-      context.attachListeners();
+      if (id) {
+        if (e.target.checked) context.selectedOrderIds.add(id);
+        else context.selectedOrderIds.delete(id);
+        context.render();
+        context.attachListeners();
+      }
     });
   });
 
-  const deselectBtn = shadow.getElementById('bulk-deselect-btn');
-  if (deselectBtn) {
-    deselectBtn.addEventListener('click', () => {
-      selectedOrderIds.clear();
+  // 9. Clear Selection Button
+  const clearSelBtn = shadow.getElementById('clear-selected-orders-btn');
+  if (clearSelBtn) {
+    clearSelBtn.addEventListener('click', () => {
+      context.selectedOrderIds.clear();
       context.render();
       context.attachListeners();
     });
   }
 
-  // 11. Bulk Actions Handlers
-  const bulkConfirm = shadow.getElementById('bulk-confirm-btn');
-  if (bulkConfirm) {
-    bulkConfirm.addEventListener('click', () => {
-      bulkUpdateStatus(context, 'Confirm');
+  // 10. View Detail View Links & Buttons
+  shadow.querySelectorAll('.view-order-link, .view-order-details-btn').forEach(elem => {
+    elem.addEventListener('click', (e) => {
+      e.preventDefault();
+      const id = elem.getAttribute('data-order-id');
+      if (id) {
+        context.selectedOrderId = id;
+        context.render();
+        context.attachListeners();
+      }
     });
-  }
+  });
 
-  const bulkShipping = shadow.getElementById('bulk-shipping-btn');
-  if (bulkShipping) {
-    bulkShipping.addEventListener('click', () => {
-      bulkUpdateStatus(context, 'Shipping');
+  // 11. Quick Inline Status Change
+  shadow.querySelectorAll('.status-select-inline').forEach(select => {
+    select.addEventListener('change', (e) => {
+      const id = select.getAttribute('data-order-id');
+      const nextStatus = e.target.value;
+      if (id) {
+        updateOrderStatus(context, id, nextStatus, null, shadow);
+      }
     });
-  }
+  });
 
-  const bulkDelivered = shadow.getElementById('bulk-delivered-btn');
-  if (bulkDelivered) {
-    bulkDelivered.addEventListener('click', () => {
-      bulkUpdateStatus(context, 'Done');
+  // 12. Copy Order ID Button
+  shadow.querySelectorAll('.copy-order-id-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const id = btn.getAttribute('data-id');
+      if (id) {
+        navigator.clipboard.writeText(id).then(() => {
+          window.dispatchEvent(new CustomEvent('toast:show', { detail: `Copied #${id}!` }));
+        }).catch(() => {});
+      }
     });
-  }
+  });
 
-  const bulkCancel = shadow.getElementById('bulk-cancel-btn');
-  if (bulkCancel) {
-    bulkCancel.addEventListener('click', () => {
-      bulkUpdateStatus(context, 'Cancelled');
+  // 13. Bulk Status Action Buttons
+  shadow.querySelectorAll('.bulk-status-change-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const nextStatus = btn.getAttribute('data-status');
+      if (nextStatus) {
+        bulkUpdateStatus(context, nextStatus);
+      }
     });
-  }
+  });
 
-  const bulkPrint = shadow.getElementById('bulk-print-invoices-btn');
-  if (bulkPrint) {
-    bulkPrint.addEventListener('click', () => {
-      const ordersToPrint = context.orders.filter(o => selectedOrderIds.has(o.id));
+  // 14. Bulk Print Invoices
+  const bulkPrintBtn = shadow.getElementById('bulk-print-invoices-btn');
+  if (bulkPrintBtn) {
+    bulkPrintBtn.addEventListener('click', () => {
+      const ordersToPrint = context.orders.filter(o => context.selectedOrderIds.has(o.id));
       if (ordersToPrint.length > 0) {
         printMultipleOrderReceipts(ordersToPrint);
       }
     });
   }
 
-  // 12. Export to CSV
+  // 15. Export to CSV
   const exportBtn = shadow.getElementById('export-orders-csv-btn');
   if (exportBtn) {
     exportBtn.addEventListener('click', () => {
@@ -1191,7 +1192,7 @@ export function attachAdminOrdersListeners(context, shadow) {
     });
   }
 
-  // 13. Pagination Controls
+  // 16. Pagination Controls
   const prevBtn = shadow.getElementById('prev-order-page');
   if (prevBtn) {
     prevBtn.addEventListener('click', () => {
@@ -1212,7 +1213,7 @@ export function attachAdminOrdersListeners(context, shadow) {
     });
   }
 
-  // 14. Single Invoice Print
+  // 17. Single Invoice Print
   shadow.querySelectorAll('.print-single-invoice-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -1225,12 +1226,12 @@ export function attachAdminOrdersListeners(context, shadow) {
   const printDetailBtn = shadow.getElementById('print-order-invoice-btn');
   if (printDetailBtn) {
     printDetailBtn.addEventListener('click', () => {
-      const o = context.orders.find(ord => ord.id === context.selectedOrderId);
+      const o = getSelectedOrder(context);
       if (o) printOrderReceipt(o);
     });
   }
 
-  // 15. Quick Step Jump in Pipeline
+  // 18. Quick Step Jump in Pipeline
   shadow.querySelectorAll('.quick-step-jump-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const targetStatus = btn.getAttribute('data-target-status');
@@ -1240,7 +1241,7 @@ export function attachAdminOrdersListeners(context, shadow) {
     });
   });
 
-  // 16. Generate Tracking Number Button
+  // 19. Generate Tracking Number Button
   const genTrackBtn = shadow.getElementById('generate-tracking-btn');
   if (genTrackBtn) {
     genTrackBtn.addEventListener('click', () => {
@@ -1253,7 +1254,7 @@ export function attachAdminOrdersListeners(context, shadow) {
     });
   }
 
-  // 17. Save Fulfillment Settings
+  // 20. Save Fulfillment Settings
   const saveStatusBtn = shadow.getElementById('save-order-status-btn');
   if (saveStatusBtn) {
     saveStatusBtn.addEventListener('click', () => {
@@ -1265,7 +1266,7 @@ export function attachAdminOrdersListeners(context, shadow) {
       const tracking = trackInput ? trackInput.value.trim() : '';
       const courier = courierSelect ? courierSelect.value : 'Yango Delivery';
 
-      const order = context.orders.find(o => o.id === context.selectedOrderId);
+      const order = getSelectedOrder(context);
       if (order) {
         order.courier = courier;
         updateOrderStatus(context, order.id, nextStatus, tracking, shadow);
@@ -1273,12 +1274,12 @@ export function attachAdminOrdersListeners(context, shadow) {
     });
   }
 
-  // 18. Save Notes
+  // 21. Save Notes
   const saveNotesBtn = shadow.getElementById('save-order-notes-btn');
   if (saveNotesBtn) {
     saveNotesBtn.addEventListener('click', () => {
       const notesInput = shadow.getElementById('order-internal-notes');
-      const order = context.orders.find(o => o.id === context.selectedOrderId);
+      const order = getSelectedOrder(context);
       if (order && notesInput) {
         order.notes = notesInput.value.trim();
         context.saveDatabase('orders');
@@ -1287,7 +1288,7 @@ export function attachAdminOrdersListeners(context, shadow) {
     });
   }
 
-  // 19. Danger Cancel Button
+  // 22. Danger Cancel Button
   const dangerCancel = shadow.getElementById('danger-cancel-order-btn');
   if (dangerCancel) {
     dangerCancel.addEventListener('click', async () => {
@@ -1300,7 +1301,7 @@ export function attachAdminOrdersListeners(context, shadow) {
         icon: '🛑'
       }) : Promise.resolve(confirm('Are you sure you want to cancel this order and restock the products?')));
 
-      if (confirmed) {
+      if (confirmed && context.selectedOrderId) {
         updateOrderStatus(context, context.selectedOrderId, 'Cancelled', null, shadow);
       }
     });
@@ -1309,13 +1310,17 @@ export function attachAdminOrdersListeners(context, shadow) {
 
 // Reusable Order Status Update Logic
 function updateOrderStatus(context, orderId, nextStatus, trackingNum, shadow) {
-  const order = context.orders.find(o => o.id === orderId);
+  const order = context.orders.find(o => o.id === orderId || o.order_number === orderId);
   if (!order) return;
+
+  const originalStatus = order.status;
+  if (originalStatus === nextStatus && (trackingNum === null || trackingNum === undefined || trackingNum === order.trackingNumber)) {
+    return;
+  }
 
   context._isSelfUpdatingOrders = true;
 
   try {
-    const originalStatus = order.status;
     order.status = nextStatus;
     order.updatedAt = new Date().toISOString();
     if (trackingNum !== null && trackingNum !== undefined) {
@@ -1324,60 +1329,70 @@ function updateOrderStatus(context, orderId, nextStatus, trackingNum, shadow) {
 
     context.saveDatabase('orders');
 
-    // Push directly to Supabase Cloud Database to ensure instant persistence
-    import('../../utils/supabase.js').then(({ createOrderInSupabase }) => {
-      createOrderInSupabase(order);
-    }).catch(() => {});
+    // Targeted cloud update
+    updateOrderInSupabase(order.id, {
+      status: nextStatus,
+      trackingNumber: order.trackingNumber,
+      courier: order.courier
+    }).catch(err => console.warn('[Supabase Cloud Update Notice]:', err));
 
-    // Customer Notification Sync
-    const clientEmail = order.customerEmail || order.email;
-    if (clientEmail) {
-      let customerNotifs = getNotificationsFromStorage(clientEmail);
+    // Customer Notification Sync (Only if status actually changed)
+    if (originalStatus !== nextStatus) {
+      const clientEmail = order.customerEmail || order.email;
+      if (clientEmail) {
+        let customerNotifs = getNotificationsFromStorage(clientEmail);
 
-      let icon = '📦';
-      let title = `Mise à jour commande #${order.id}`;
-      let desc = `Le statut de votre commande #${order.id} a été mis à jour : ${nextStatus}.`;
+        let icon = '📦';
+        let title = `Mise à jour commande #${order.id}`;
+        let desc = `Le statut de votre commande #${order.id} a été mis à jour : ${nextStatus}.`;
 
-      if (nextStatus === 'Shipping' || nextStatus === 'Shipped') {
-        icon = '🚚';
-        title = `Commande #${order.id} expédiée !`;
-        desc = `Votre colis #${order.id} est en cours de livraison. Suivi : ${order.trackingNumber || 'En cours'}`;
-      } else if (['done', 'livré', 'delivered'].includes(nextStatus.toLowerCase())) {
-        icon = '✅';
-        title = `Commande #${order.id} livrée !`;
-        desc = `Votre commande #${order.id} a été livrée avec succès. Merci de votre confiance !`;
-      } else if (nextStatus === 'Cancelled') {
-        icon = '❌';
-        title = `Commande #${order.id} annulée`;
-        desc = `Votre commande #${order.id} a été annulée.`;
+        if (nextStatus === 'Shipping' || nextStatus === 'Shipped') {
+          icon = '🚚';
+          title = `Commande #${order.id} expédiée !`;
+          desc = `Votre colis #${order.id} est en cours de livraison. Suivi : ${order.trackingNumber || 'En cours'}`;
+        } else if (['done', 'livré', 'delivered'].includes(nextStatus.toLowerCase())) {
+          icon = '✅';
+          title = `Commande #${order.id} livrée !`;
+          desc = `Votre commande #${order.id} a été livrée avec succès. Merci de votre confiance !`;
+        } else if (nextStatus === 'Cancelled') {
+          icon = '❌';
+          title = `Commande #${order.id} annulée`;
+          desc = `Votre commande #${order.id} a été annulée.`;
+        }
+
+        const notifId = `${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+        customerNotifs.unshift({
+          id: notifId,
+          type: 'shipping',
+          icon: icon,
+          title: title,
+          desc: desc,
+          time: 'Just now',
+          unread: true
+        });
+
+        saveNotificationsToStorage(customerNotifs, clientEmail);
       }
-
-      customerNotifs.unshift({
-        id: Date.now(),
-        type: 'shipping',
-        icon: icon,
-        title: title,
-        desc: desc,
-        time: 'Just now',
-        unread: true
-      });
-
-      saveNotificationsToStorage(customerNotifs, clientEmail);
     }
 
     // Restock if Cancelled
     if (nextStatus === 'Cancelled' && originalStatus !== 'Cancelled') {
+      let restockedAny = false;
       (order.products || []).forEach(item => {
+        const qty = parseFloat(item.quantity) || 1;
         const catalogProd = (context.products || []).find(p => p.id === item.id);
         if (catalogProd) {
-          catalogProd.stock = (catalogProd.stock || 0) + item.quantity;
+          catalogProd.stock = (parseFloat(catalogProd.stock) || 0) + qty;
+          restockedAny = true;
         }
       });
-      context.saveDatabase('products');
+      if (restockedAny) {
+        context.saveDatabase('products');
+      }
     }
 
     // Award Mystery Box if marked Delivered / Done
-    if (['done', 'livré', 'delivered'].includes(nextStatus.toLowerCase())) {
+    if (['done', 'livré', 'delivered'].includes(nextStatus.toLowerCase()) && !['done', 'livré', 'delivered'].includes((originalStatus || '').toLowerCase())) {
       awardMysteryBoxForDeliveredOrder(order);
     }
 
@@ -1400,26 +1415,55 @@ function updateOrderStatus(context, orderId, nextStatus, trackingNum, shadow) {
 
 // Bulk Status Updates
 function bulkUpdateStatus(context, nextStatus) {
-  if (selectedOrderIds.size === 0) return;
+  ensureOrderState(context);
+  if (context.selectedOrderIds.size === 0) return;
 
   context._isSelfUpdatingOrders = true;
 
   try {
-    selectedOrderIds.forEach(orderId => {
+    let updatedCount = 0;
+    let restockedAny = false;
+
+    context.selectedOrderIds.forEach(orderId => {
       const order = context.orders.find(o => o.id === orderId);
       if (order) {
+        const originalStatus = order.status;
+        if (originalStatus === nextStatus) return;
+
         order.status = nextStatus;
         order.updatedAt = new Date().toISOString();
-        if (['done', 'livré', 'delivered'].includes(nextStatus.toLowerCase())) {
+        updatedCount++;
+
+        // Targeted Cloud Update
+        updateOrderInSupabase(order.id, { status: nextStatus })
+          .catch(err => console.warn('[Supabase Bulk Cloud Update Notice]:', err));
+
+        // Restock on Bulk Cancel
+        if (nextStatus === 'Cancelled' && originalStatus !== 'Cancelled') {
+          (order.products || []).forEach(item => {
+            const qty = parseFloat(item.quantity) || 1;
+            const catalogProd = (context.products || []).find(p => p.id === item.id);
+            if (catalogProd) {
+              catalogProd.stock = (parseFloat(catalogProd.stock) || 0) + qty;
+              restockedAny = true;
+            }
+          });
+        }
+
+        // Mystery box award on delivery
+        if (['done', 'livré', 'delivered'].includes(nextStatus.toLowerCase()) && !['done', 'livré', 'delivered'].includes((originalStatus || '').toLowerCase())) {
           awardMysteryBoxForDeliveredOrder(order);
         }
       }
     });
 
-    context.saveDatabase('orders');
-    window.dispatchEvent(new CustomEvent('toast:show', { detail: `Updated ${selectedOrderIds.size} orders to: ${nextStatus}` }));
+    if (updatedCount > 0) {
+      context.saveDatabase('orders');
+      if (restockedAny) context.saveDatabase('products');
+      window.dispatchEvent(new CustomEvent('toast:show', { detail: `Updated ${updatedCount} orders to: ${nextStatus}` }));
+    }
 
-    selectedOrderIds.clear();
+    context.selectedOrderIds.clear();
     context.render();
     context.attachListeners();
   } finally {
@@ -1436,61 +1480,75 @@ function exportOrdersToCSV(orders) {
     return;
   }
 
+  const cleanCell = (val) => {
+    if (val === null || val === undefined) return '""';
+    const str = String(val).replace(/"/g, '""').replace(/[\r\n]+/g, ' ');
+    return `"${str}"`;
+  };
+
   const headers = ['Order ID', 'Date', 'Customer Name', 'Customer Email', 'Customer Phone', 'Address', 'Items', 'Total (CFA)', 'Status', 'Payment Method', 'Tracking Number'];
   const rows = orders.map(o => [
-    `"${o.id || ''}"`,
-    `"${o.date || ''}"`,
-    `"${(o.customerName || '').replace(/"/g, '""')}"`,
-    `"${o.customerEmail || ''}"`,
-    `"${o.customerPhone || ''}"`,
-    `"${(o.customerAddress || '').replace(/"/g, '""')}"`,
-    `"${(o.items || '').replace(/"/g, '""')}"`,
-    `"${o.total || 0}"`,
-    `"${o.status || ''}"`,
-    `"${o.paymentMethod || 'COD'}"`,
-    `"${o.trackingNumber || ''}"`
+    cleanCell(o.id || o.order_number),
+    cleanCell(o.date),
+    cleanCell(o.customerName),
+    cleanCell(o.customerEmail || o.email),
+    cleanCell(o.customerPhone),
+    cleanCell(typeof o.customerAddress === 'string' ? o.customerAddress : (o.customerAddress?.street || '')),
+    cleanCell(typeof o.items === 'string' ? o.items : (o.products || []).map(p => `${p.name} (x${p.quantity || 1})`).join(', ')),
+    cleanCell(o.total || 0),
+    cleanCell(o.status),
+    cleanCell(o.paymentMethod || 'COD'),
+    cleanCell(o.trackingNumber)
   ]);
 
-  const csvContent = 'data:text/csv;charset=utf-8,' + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-  const encodedUri = encodeURI(csvContent);
+  const csvText = [headers.join(','), ...rows.map(r => r.join(','))].join('\r\n');
+  const blob = new Blob(['\uFEFF' + csvText], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+
   const link = document.createElement('a');
-  link.setAttribute('href', encodedUri);
+  link.setAttribute('href', url);
   link.setAttribute('download', `SWEETOS_Orders_Export_${new Date().toISOString().slice(0, 10)}.csv`);
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
 }
 
 // Global Receipt & Invoice Generator
 function printOrderReceipt(order) {
-  const printWindow = window.open('', '_blank', 'width=800,height=900');
+  const printWindow = window.open('', '_blank', 'width=800,height=900,noopener=false');
   if (!printWindow) return;
 
-  const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
-  const storePhone = sessionStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23';
-  const storeEmail = sessionStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com';
-  const storeAddress = sessionStorage.getItem('SWEETOS_store_addr') || 'Abidjan, Cocody Mermoz';
+  const storeName = escapeHtml(sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS');
+  const storePhone = escapeHtml(sessionStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23');
+  const storeEmail = escapeHtml(sessionStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com');
+  const storeAddress = escapeHtml(sessionStorage.getItem('SWEETOS_store_addr') || 'Abidjan, Cocody Mermoz');
 
   const prods = order.products || [];
   let subtotal = 0;
   let itemsHtml = prods.map(p => {
-    const itemTotal = p.price * p.quantity;
+    const pQty = parseFloat(p.quantity) || 1;
+    const pPrice = parseFloat(p.price) || 0;
+    const itemTotal = pPrice * pQty;
     subtotal += itemTotal;
     return `
       <tr>
-        <td style="padding:12px; border-bottom:1px solid #e2e8f0; font-size:13px; font-weight:700; color:#1e293b;">${p.name}</td>
-        <td style="padding:12px; border-bottom:1px solid #e2e8f0; text-align:center; color:#64748b;">${formatPrice(p.price)}</td>
-        <td style="padding:12px; border-bottom:1px solid #e2e8f0; text-align:center; color:#64748b;">${p.quantity}</td>
+        <td style="padding:12px; border-bottom:1px solid #e2e8f0; font-size:13px; font-weight:700; color:#1e293b;">${escapeHtml(p.name)}</td>
+        <td style="padding:12px; border-bottom:1px solid #e2e8f0; text-align:center; color:#64748b;">${formatPrice(pPrice)}</td>
+        <td style="padding:12px; border-bottom:1px solid #e2e8f0; text-align:center; color:#64748b;">${pQty}</td>
         <td style="padding:12px; border-bottom:1px solid #e2e8f0; text-align:right; font-weight:800; color:#0052cc;">${formatPrice(itemTotal)}</td>
       </tr>
     `;
   }).join('');
 
+  const orderTotal = parseFloat(order.total) || 0;
+  const deliveryFee = orderTotal - subtotal > 0 ? formatPrice(orderTotal - subtotal) : 'Gratuit';
+
   printWindow.document.write(`
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Facture Commande #${order.id}</title>
+      <title>Facture Commande #${escapeHtml(order.id)}</title>
       <meta charset="utf-8">
       <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap');
@@ -1508,27 +1566,27 @@ function printOrderReceipt(order) {
           </div>
           <div style="text-align:right;">
             <span style="font-size:18px; font-weight:850; color:#0f172a; display:block;">COMMERCIAL INVOICE</span>
-            <strong style="color:#0052cc; font-size:15px;">#${order.id}</strong>
-            <small style="display:block; color:#64748b; font-size:11.5px; margin-top:2px;">Date: ${order.date || 'N/A'}</small>
+            <strong style="color:#0052cc; font-size:15px;">#${escapeHtml(order.id)}</strong>
+            <small style="display:block; color:#64748b; font-size:11.5px; margin-top:2px;">Date: ${escapeHtml(order.date || 'N/A')}</small>
           </div>
         </div>
 
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:28px; background:#f8fafc; padding:18px; border-radius:14px; border:1px solid #f1f5f9;">
           <div>
             <span style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Facturé à / Customer</span>
-            <h4 style="margin:4px 0; font-size:14px; color:#0f172a;">${order.customerName || 'Client Invité'}</h4>
+            <h4 style="margin:4px 0; font-size:14px; color:#0f172a;">${escapeHtml(order.customerName || 'Client Invité')}</h4>
             <p style="margin:0; font-size:12.5px; color:#64748b; line-height:1.4;">
-              Tél: ${order.customerPhone || 'N/A'}<br>
-              Email: ${order.customerEmail || 'N/A'}<br>
-              Adresse: ${order.customerAddress || 'Ivory Coast'}
+              Tél: ${escapeHtml(order.customerPhone || 'N/A')}<br>
+              Email: ${escapeHtml(order.customerEmail || 'N/A')}<br>
+              Adresse: ${escapeHtml(typeof order.customerAddress === 'string' ? order.customerAddress : (order.customerAddress?.street || 'Ivory Coast'))}
             </p>
           </div>
           <div>
             <span style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Fulfillment Details</span>
             <p style="margin:4px 0 0 0; font-size:12.5px; color:#64748b; line-height:1.5;">
-              Mode de paiement: <strong style="color:#0f172a; text-transform:uppercase;">${order.paymentMethod || 'COD'}</strong><br>
-              Statut: <strong style="color:#0052cc;">${order.status}</strong><br>
-              Suivi #: <strong>${order.trackingNumber || 'En attente'}</strong>
+              Mode de paiement: <strong style="color:#0f172a; text-transform:uppercase;">${escapeHtml(order.paymentMethod || 'COD')}</strong><br>
+              Statut: <strong style="color:#0052cc;">${escapeHtml(order.status)}</strong><br>
+              Suivi #: <strong>${escapeHtml(order.trackingNumber || 'En attente')}</strong>
             </p>
           </div>
         </div>
@@ -1554,11 +1612,11 @@ function printOrderReceipt(order) {
           </div>
           <div style="display:flex; justify-content:space-between; font-size:13px; color:#64748b;">
             <span>Livraison:</span>
-            <strong>${order.total - subtotal > 0 ? formatPrice(order.total - subtotal) : 'Gratuit'}</strong>
+            <strong>${deliveryFee}</strong>
           </div>
           <div style="display:flex; justify-content:space-between; font-size:16px; font-weight:900; color:#0052cc; border-top:1.5px solid #e2e8f0; padding-top:8px; margin-top:4px;">
             <span>Total Général:</span>
-            <span>${formatPrice(order.total)}</span>
+            <span>${formatPrice(orderTotal)}</span>
           </div>
         </div>
 
@@ -1576,5 +1634,133 @@ function printOrderReceipt(order) {
 }
 
 function printMultipleOrderReceipts(orders) {
-  orders.forEach(o => printOrderReceipt(o));
+  if (!orders || orders.length === 0) return;
+  const printWindow = window.open('', '_blank', 'width=800,height=900,noopener=false');
+  if (!printWindow) return;
+
+  const storeName = escapeHtml(sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS');
+  const storePhone = escapeHtml(sessionStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23');
+  const storeEmail = escapeHtml(sessionStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com');
+  const storeAddress = escapeHtml(sessionStorage.getItem('SWEETOS_store_addr') || 'Abidjan, Cocody Mermoz');
+
+  const invoicesHtml = orders.map((order, idx) => {
+    const prods = order.products || [];
+    let subtotal = 0;
+    let itemsHtml = prods.map(p => {
+      const pQty = parseFloat(p.quantity) || 1;
+      const pPrice = parseFloat(p.price) || 0;
+      const itemTotal = pPrice * pQty;
+      subtotal += itemTotal;
+      return `
+        <tr>
+          <td style="padding:12px; border-bottom:1px solid #e2e8f0; font-size:13px; font-weight:700; color:#1e293b;">${escapeHtml(p.name)}</td>
+          <td style="padding:12px; border-bottom:1px solid #e2e8f0; text-align:center; color:#64748b;">${formatPrice(pPrice)}</td>
+          <td style="padding:12px; border-bottom:1px solid #e2e8f0; text-align:center; color:#64748b;">${pQty}</td>
+          <td style="padding:12px; border-bottom:1px solid #e2e8f0; text-align:right; font-weight:800; color:#0052cc;">${formatPrice(itemTotal)}</td>
+        </tr>
+      `;
+    }).join('');
+
+    const orderTotal = parseFloat(order.total) || 0;
+    const deliveryFee = orderTotal - subtotal > 0 ? formatPrice(orderTotal - subtotal) : 'Gratuit';
+    const isLast = idx === orders.length - 1;
+    const pageBreak = isLast ? '' : '<div class="page-break" style="page-break-after: always; height: 0;"></div>';
+
+    return `
+      <div class="receipt-card">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:30px; border-bottom:1.5px solid #f1f5f9; padding-bottom:20px;">
+          <div>
+            <h1 style="margin:0; font-size:26px; color:#0052cc; font-weight:900;">${storeName}</h1>
+            <p style="margin:4px 0 0 0; font-size:12.5px; color:#64748b; line-height:1.4;">${storeAddress}<br>Tél: ${storePhone} | Email: ${storeEmail}</p>
+          </div>
+          <div style="text-align:right;">
+            <span style="font-size:18px; font-weight:850; color:#0f172a; display:block;">COMMERCIAL INVOICE</span>
+            <strong style="color:#0052cc; font-size:15px;">#${escapeHtml(order.id)}</strong>
+            <small style="display:block; color:#64748b; font-size:11.5px; margin-top:2px;">Date: ${escapeHtml(order.date || 'N/A')}</small>
+          </div>
+        </div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:28px; background:#f8fafc; padding:18px; border-radius:14px; border:1px solid #f1f5f9;">
+          <div>
+            <span style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Facturé à / Customer</span>
+            <h4 style="margin:4px 0; font-size:14px; color:#0f172a;">${escapeHtml(order.customerName || 'Client Invité')}</h4>
+            <p style="margin:0; font-size:12.5px; color:#64748b; line-height:1.4;">
+              Tél: ${escapeHtml(order.customerPhone || 'N/A')}<br>
+              Email: ${escapeHtml(order.customerEmail || 'N/A')}<br>
+              Adresse: ${escapeHtml(typeof order.customerAddress === 'string' ? order.customerAddress : (order.customerAddress?.street || 'Ivory Coast'))}
+            </p>
+          </div>
+          <div>
+            <span style="font-size:11px; font-weight:800; color:#64748b; text-transform:uppercase;">Fulfillment Details</span>
+            <p style="margin:4px 0 0 0; font-size:12.5px; color:#64748b; line-height:1.5;">
+              Mode de paiement: <strong style="color:#0f172a; text-transform:uppercase;">${escapeHtml(order.paymentMethod || 'COD')}</strong><br>
+              Statut: <strong style="color:#0052cc;">${escapeHtml(order.status)}</strong><br>
+              Suivi #: <strong>${escapeHtml(order.trackingNumber || 'En attente')}</strong>
+            </p>
+          </div>
+        </div>
+
+        <table style="width:100%; border-collapse:collapse; margin-bottom:24px;">
+          <thead>
+            <tr style="background:#f1f5f9; border-bottom:1.5px solid #cbd5e1;">
+              <th align="left" style="padding:10px 12px; font-size:11px; font-weight:800; color:#475569; text-transform:uppercase;">Désignation</th>
+              <th align="center" style="padding:10px 12px; font-size:11px; font-weight:800; color:#475569; text-transform:uppercase;">Prix</th>
+              <th align="center" style="padding:10px 12px; font-size:11px; font-weight:800; color:#475569; text-transform:uppercase;">Qté</th>
+              <th align="right" style="padding:10px 12px; font-size:11px; font-weight:800; color:#475569; text-transform:uppercase;">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${itemsHtml}
+          </tbody>
+        </table>
+
+        <div style="max-width:280px; margin-left:auto; display:flex; flex-direction:column; gap:8px; margin-bottom:30px;">
+          <div style="display:flex; justify-content:space-between; font-size:13px; color:#64748b;">
+            <span>Sous-total:</span>
+            <strong>${formatPrice(subtotal)}</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:13px; color:#64748b;">
+            <span>Livraison:</span>
+            <strong>${deliveryFee}</strong>
+          </div>
+          <div style="display:flex; justify-content:space-between; font-size:16px; font-weight:900; color:#0052cc; border-top:1.5px solid #e2e8f0; padding-top:8px; margin-top:4px;">
+            <span>Total Général:</span>
+            <span>${formatPrice(orderTotal)}</span>
+          </div>
+        </div>
+
+        <div style="text-align:center; font-size:12px; color:#94a3b8; border-top:1px solid #e2e8f0; padding-top:16px;">
+          Merci pour votre confiance chez <strong>${storeName}</strong> !
+        </div>
+      </div>
+      ${pageBreak}
+    `;
+  }).join('');
+
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <title>Factures Commandes (${orders.length})</title>
+      <meta charset="utf-8">
+      <style>
+        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800;900&display=swap');
+        body { font-family: 'Outfit', sans-serif; margin: 0; padding: 40px; color: #1e293b; }
+        .receipt-card { max-width: 680px; margin: 0 auto 30px auto; border: 1.5px solid #e2e8f0; border-radius: 20px; padding: 32px; }
+        @media print {
+          body { padding: 0; }
+          .receipt-card { border: none; padding: 0; margin-bottom: 0; }
+          .page-break { page-break-after: always; height: 0; }
+        }
+      </style>
+    </head>
+    <body>
+      ${invoicesHtml}
+      <script>
+        window.onload = function() { setTimeout(function() { window.print(); }, 250); };
+      </script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
 }

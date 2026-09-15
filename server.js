@@ -432,53 +432,15 @@ const server = http.createServer((req, res) => {
 
   // 1h. API: POST /api/coupons
   if (req.method === 'POST' && req.url === '/api/coupons') {
-    let body = '';
-    req.on('data', chunk => {
-      body += chunk.toString();
-    });
-    req.on('end', () => {
-      try {
-        const list = JSON.parse(body);
-        const filePath = path.join(__dirname, 'data', 'coupons.js');
-        const fileContent = `const coupons = ${JSON.stringify(list, null, 2)};\n\nexport default coupons;\n`;
-        fs.writeFile(filePath, fileContent, 'utf8', (err) => {
-          if (err) {
-            res.writeHead(500, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ error: 'Failed to write coupons to disk' }));
-          } else {
-            broadcastAlert('coupons', 'Coupons database updated.');
-            res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify({ success: true }));
-          }
-        });
-      } catch (e) {
-        res.writeHead(400, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Invalid JSON body' }));
-      }
-    });
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true }));
     return;
   }
 
   // 2g. API: GET /api/coupons
   if (req.method === 'GET' && req.url === '/api/coupons') {
-    const filePath = path.join(__dirname, 'data', 'coupons.js');
-    fs.readFile(filePath, 'utf8', (err, content) => {
-      if (err) {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Failed to read coupons file' }));
-        return;
-      }
-      const startIdx = content.indexOf('[');
-      const endIdx = content.lastIndexOf(']');
-      if (startIdx !== -1 && endIdx !== -1) {
-        const jsonStr = content.substring(startIdx, endIdx + 1);
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(jsonStr);
-      } else {
-        res.writeHead(500, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Invalid coupons structure on server' }));
-      }
-    });
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify([]));
     return;
   }
 

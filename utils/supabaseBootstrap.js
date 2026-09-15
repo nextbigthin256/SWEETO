@@ -4,7 +4,6 @@ import {
   fetchBrandsFromSupabase, 
   fetchOrdersFromSupabase, 
   fetchCustomersFromSupabase,
-  fetchCouponsFromSupabase,
   fetchSectionsFromSupabase
 } from './supabase.js';
 
@@ -12,13 +11,12 @@ export async function bootstrapFromSupabase(context) {
   console.log('🚀 [Supabase Cloud] Bootstrapping complete store database from Cloud...');
 
   try {
-    const [prods, cats, brands, ords, custs, cpps, secs] = await Promise.allSettled([
+    const [prods, cats, brands, ords, custs, secs] = await Promise.allSettled([
       fetchProductsFromSupabase(),
       fetchCategoriesFromSupabase(),
       fetchBrandsFromSupabase(),
       fetchOrdersFromSupabase(),
       fetchCustomersFromSupabase(),
-      fetchCouponsFromSupabase(),
       fetchSectionsFromSupabase()
     ]);
 
@@ -74,12 +72,6 @@ export async function bootstrapFromSupabase(context) {
     if (custs.status === 'fulfilled' && Array.isArray(custs.value) && custs.value.length > 0) {
       context.customers = custs.value;
       console.log('✅ [Supabase Cloud] Customers loaded:', context.customers.length);
-      loadedAny = true;
-    }
-
-    if (cpps.status === 'fulfilled' && Array.isArray(cpps.value) && cpps.value.length > 0) {
-      context.coupons = cpps.value;
-      console.log('✅ [Supabase Cloud] Coupons loaded:', context.coupons.length);
       loadedAny = true;
     }
 

@@ -1,6 +1,6 @@
 // Supabase Client & Backend Synchronization Engine
 import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
-import { getAllOrdersFromStorage, saveAllOrdersToStorage, getStorageItem, saveStorageItem } from './storage.js';
+import { getAllOrdersFromStorage, saveAllOrdersToStorage, getStorageItem, saveStorageItem, userKey } from './storage.js';
 
 
 export const SUPABASE_URL = 'https://euuzsxjsmsktegilbqpv.supabase.co';
@@ -118,9 +118,7 @@ export async function syncProductsToSupabase(productsList) {
     await saveSiteSettingInSupabase('sweetos_cloud_products', processedProducts);
 
     if (processedProducts.length === 0) {
-      // Hard purge all products from database table when array is empty
-      await supabase.from('products').delete().neq('name', '___NON_EXISTENT___');
-      console.log('[Supabase Cloud] All products purged from database table.');
+      console.warn('[Supabase Cloud] syncProducts received empty array. Skipping destructive deletion.');
       return true;
     }
 
@@ -166,7 +164,7 @@ export async function syncProductsToSupabase(productsList) {
     // Purge any products from DB table that were deleted in frontend
     const keepLegacyIds = records.map(r => r.legacy_id).filter(Boolean);
     if (keepLegacyIds.length > 0) {
-      await supabase.from('products').delete().not('legacy_id', 'in', `(${keepLegacyIds.join(',')})`);
+      await supabase.from('products').delete().not('legacy_id', 'in', keepLegacyIds);
     }
 
     if (!error) {
@@ -559,7 +557,7 @@ export async function createOrderInSupabase(newOrder) {
 
     // 3. Upsert order profile details
     if (emailLower) {
-      const safeKey = emailLower.replace(/[^a-zA-Z0-9]/g, '_');
+      const pKey = userKey('SWEETOS_user_profile', emailLower);
       const { data: p } = await supabase.from('profiles').select('*').eq('email', emailLower).maybeSingle();
       
       let pOrders = [];
@@ -569,7 +567,7 @@ export async function createOrderInSupabase(newOrder) {
       
       // Merge with any session profile orders
       try {
-        const localProf = JSON.parse(sessionStorage.getItem(`SWEETOS_user_profile_${safeKey}`) || sessionStorage.getItem('SWEETOS_user_profile') || '{}');
+        const localProf = JSON.parse(sessionStorage.getItem(pKey) || sessionStorage.getItem('SWEETOS_user_profile') || '{}');
         if (localProf && Array.isArray(localProf.orders)) {
           localProf.orders.forEach(lo => {
             if (lo && lo.id && !pOrders.some(o => o.id === lo.id)) {
@@ -598,7 +596,6 @@ export async function createOrderInSupabase(newOrder) {
 
       // Save to sessionStorage user profile so it is available locally immediately
       try {
-        const pKey = `SWEETOS_user_profile_${safeKey}`;
         let profObj = JSON.parse(sessionStorage.getItem(pKey) || sessionStorage.getItem('SWEETOS_user_profile') || '{}');
         profObj.orders = pOrders;
         sessionStorage.setItem(pKey, JSON.stringify(profObj));
@@ -626,6 +623,45 @@ export async function createOrderInSupabase(newOrder) {
   } catch (err) {
     console.error('[Supabase Cloud] createOrder error:', err);
     return null;
+  }
+}
+
+export async function updateOrderInSupabase(orderId, patch) {
+  if (!orderId || !patch) return false;
+  try {
+    const updatedAt = new Date().toISOString();
+    const updateData = { updated_at: updatedAt };
+
+    if (patch.status !== undefined) updateData.status = patch.status;
+    if (patch.trackingNumber !== undefined) updateData.tracking_number = patch.trackingNumber;
+    if (patch.paymentMethod !== undefined) updateData.payment_method = patch.paymentMethod;
+    if (patch.total !== undefined) updateData.total_amount = parseFloat(patch.total) || 0;
+    if (patch.customerAddress !== undefined) {
+      updateData.customer_address = typeof patch.customerAddress === 'string' ? patch.customerAddress : (patch.customerAddress?.street || '');
+    }
+
+    if (supabase) {
+      await supabase
+        .from('orders')
+        .update(updateData)
+        .or(`order_number.eq.${orderId},id.eq.${orderId}`);
+    }
+
+    try {
+      const allOrders = getAllOrdersFromStorage();
+      if (Array.isArray(allOrders)) {
+        const idx = allOrders.findIndex(o => o && (o.id === orderId || o.order_number === orderId));
+        if (idx > -1) {
+          allOrders[idx] = { ...allOrders[idx], ...patch, updatedAt };
+          saveAllOrdersToStorage(allOrders);
+        }
+      }
+    } catch(e) {}
+
+    return true;
+  } catch (err) {
+    console.error('[Supabase Cloud] updateOrderInSupabase error:', err);
+    return false;
   }
 }
 
@@ -778,10 +814,10 @@ export async function fetchProfileFromSupabase(email) {
       fetchOrdersFromSupabase(emailLower)
     ]);
 
-    const safeKey = emailLower.replace(/[^a-zA-Z0-9]/g, '_');
+    const pKey = userKey('SWEETOS_user_profile', emailLower);
     let existing = null;
     try {
-      existing = JSON.parse(sessionStorage.getItem(`SWEETOS_user_profile_${safeKey}`) || sessionStorage.getItem('SWEETOS_user_profile') || 'null');
+      existing = JSON.parse(sessionStorage.getItem(pKey) || sessionStorage.getItem('SWEETOS_user_profile') || 'null');
     } catch(e) {}
 
     let formattedOrders = existing?.orders || [];
@@ -844,7 +880,7 @@ export async function fetchProfileFromSupabase(email) {
         orders: formattedOrders
       };
       sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
-      sessionStorage.setItem(`SWEETOS_user_profile_${safeKey}`, JSON.stringify(profile));
+      sessionStorage.setItem(pKey, JSON.stringify(profile));
       window.dispatchEvent(new CustomEvent('profile:updated', { detail: profile }));
       window.dispatchEvent(new CustomEvent('orders:updated', { detail: formattedOrders }));
       return profile;
@@ -929,8 +965,8 @@ export function subscribeToGlobalRealtimeSync() {
                     if (email) {
                       fetchProfileFromSupabase(email);
                       const { saveNotificationsToStorage } = await import('./storage.js');
-                      const safeKey = email.toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
-                      const cloudNotifs = await fetchSiteSettingFromSupabase(`sweetos_notifications_${safeKey}`);
+                      const notifKey = userKey('sweetos_notifications', email);
+                      const cloudNotifs = await fetchSiteSettingFromSupabase(notifKey);
                       if (Array.isArray(cloudNotifs) && cloudNotifs.length > 0) {
                         await saveNotificationsToStorage(cloudNotifs, email);
                         window.dispatchEvent(new CustomEvent('notifications:updated'));
@@ -1015,8 +1051,8 @@ export async function signInWithGoogle() {
               const lastName = u.family_name || u.name?.split(' ').slice(1).join(' ') || '';
               const avatarUrl = u.picture || '';
 
-              const safeKey = email.replace(/[^a-zA-Z0-9]/g, '_');
-              const existingProfileStr = sessionStorage.getItem(`SWEETOS_user_profile_${safeKey}`) || sessionStorage.getItem('SWEETOS_user_profile');
+              const pKey = userKey('SWEETOS_user_profile', email);
+              const existingProfileStr = sessionStorage.getItem(pKey) || sessionStorage.getItem('SWEETOS_user_profile');
               let profile = null;
               if (existingProfileStr) {
                 try { profile = JSON.parse(existingProfileStr); } catch(e) {}
@@ -1040,7 +1076,7 @@ export async function signInWithGoogle() {
               }
 
               saveStorageItem('SWEETOS_user_profile', JSON.stringify(profile));
-              saveStorageItem(`SWEETOS_user_profile_${safeKey}`, JSON.stringify(profile));
+              saveStorageItem(pKey, JSON.stringify(profile));
               saveStorageItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
               saveStorageItem('SWEETOS_auth_token', tokenResponse.access_token);
 
@@ -1105,8 +1141,8 @@ export function initSupabaseAuthListener() {
         const firstName = parts[0] || 'Client';
         const lastName = parts.slice(1).join(' ') || '';
 
-        const safeKey = email.replace(/[^a-zA-Z0-9]/g, '_');
-        const existingProfileStr = sessionStorage.getItem(`SWEETOS_user_profile_${safeKey}`) || sessionStorage.getItem('SWEETOS_user_profile');
+        const pKey = userKey('SWEETOS_user_profile', email);
+        const existingProfileStr = sessionStorage.getItem(pKey) || sessionStorage.getItem('SWEETOS_user_profile');
         let profile = null;
         if (existingProfileStr) {
           try { profile = JSON.parse(existingProfileStr); } catch(e) {}
@@ -1130,7 +1166,7 @@ export function initSupabaseAuthListener() {
         }
 
         saveStorageItem('SWEETOS_user_profile', JSON.stringify(profile));
-        saveStorageItem(`SWEETOS_user_profile_${safeKey}`, JSON.stringify(profile));
+        saveStorageItem(pKey, JSON.stringify(profile));
         saveStorageItem('SWEETOS_logged_in_user', JSON.stringify({ email }));
         if (session.access_token) {
           saveStorageItem('SWEETOS_auth_token', session.access_token);
@@ -1264,33 +1300,39 @@ export async function fetchCustomersFromSupabase() {
     try {
       const cloudOrders = await fetchOrdersFromSupabase();
       if (Array.isArray(cloudOrders)) {
-        cloudOrders.forEach(order => {
-          if (order && order.customerEmail) {
-            const emailLower = order.customerEmail.trim().toLowerCase();
-            const matchingOrders = cloudOrders.filter(o => o && String(o.customerEmail || '').trim().toLowerCase() === emailLower);
-            const totalSpent = matchingOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+        const ordersByEmail = new Map();
+        cloudOrders.forEach(o => {
+          if (o && o.customerEmail) {
+            const em = o.customerEmail.trim().toLowerCase();
+            if (!ordersByEmail.has(em)) ordersByEmail.set(em, []);
+            ordersByEmail.get(em).push(o);
+          }
+        });
 
-            if (allCustomersMap.has(emailLower)) {
-              const existing = allCustomersMap.get(emailLower);
-              existing.ordersCount = Math.max(existing.ordersCount || 0, matchingOrders.length);
-              existing.totalSpent = Math.max(existing.totalSpent || 0, totalSpent);
-              if (order.customerName && (!existing.name || existing.name === 'Guest User' || existing.name === 'Client')) {
-                existing.name = order.customerName;
-              }
-              if (order.customerPhone && !existing.phone) {
-                existing.phone = order.customerPhone;
-              }
-            } else {
-              allCustomersMap.set(emailLower, {
-                name: order.customerName || 'Client',
-                email: order.customerEmail,
-                phone: order.customerPhone || '',
-                ordersCount: matchingOrders.length,
-                totalSpent: totalSpent,
-                registrationDate: order.date || '2026',
-                addresses: order.customerAddress ? [order.customerAddress] : []
-              });
+        ordersByEmail.forEach((matchingOrders, emailLower) => {
+          const totalSpent = matchingOrders.reduce((sum, o) => sum + (parseFloat(o.total) || 0), 0);
+          const firstOrder = matchingOrders[0];
+
+          if (allCustomersMap.has(emailLower)) {
+            const existing = allCustomersMap.get(emailLower);
+            existing.ordersCount = Math.max(existing.ordersCount || 0, matchingOrders.length);
+            existing.totalSpent = Math.max(existing.totalSpent || 0, totalSpent);
+            if (firstOrder.customerName && (!existing.name || existing.name === 'Guest User' || existing.name === 'Client')) {
+              existing.name = firstOrder.customerName;
             }
+            if (firstOrder.customerPhone && !existing.phone) {
+              existing.phone = firstOrder.customerPhone;
+            }
+          } else {
+            allCustomersMap.set(emailLower, {
+              name: firstOrder.customerName || 'Client',
+              email: emailLower,
+              phone: firstOrder.customerPhone || '',
+              ordersCount: matchingOrders.length,
+              totalSpent: totalSpent,
+              registrationDate: firstOrder.date || '2026',
+              addresses: firstOrder.customerAddress ? [firstOrder.customerAddress] : []
+            });
           }
         });
       }
@@ -1370,16 +1412,16 @@ export async function saveCustomerToSupabase(customerData) {
       const map = new Map(cloudCusts.map(c => [c.email.trim().toLowerCase(), c]));
       const existing = map.get(emailLower) || {};
       map.set(emailLower, {
-        name: record.full_name || existing.name || 'Client',
+        name: fullName || existing.name || 'Client',
         email: emailLower,
-        phone: record.phone || existing.phone || '',
-        addresses: record.addresses || existing.addresses || [],
-        ordersCount: record.orders_count || existing.ordersCount || 0,
-        totalSpent: record.total_spent || existing.totalSpent || 0,
+        phone: customerData.phone || existing.phone || '',
+        addresses: customerData.addresses || existing.addresses || (customerData.address ? [customerData.address] : []),
+        ordersCount: (finalOrders && finalOrders.length) || customerData.ordersCount || existing.ordersCount || 0,
+        totalSpent: customerData.totalSpent || existing.totalSpent || 0,
         registrationDate: existing.registrationDate || new Date().toLocaleDateString('fr-FR'),
-        badgeType: record.badge_type || existing.badgeType || 'none',
-        level: record.level || existing.level || 'starter',
-        unlockedBadges: record.unlocked_badges || existing.unlockedBadges || []
+        badgeType: customerData.badgeType || existing.badgeType || 'none',
+        level: customerData.level || existing.level || 'starter',
+        unlockedBadges: customerData.unlockedBadges || existing.unlockedBadges || []
       });
       await saveSiteSettingInSupabase('sweetos_cloud_customers', Array.from(map.values()));
     } catch(e) {}
@@ -1461,11 +1503,6 @@ export async function checkIsAdminAccountInSupabase(email) {
   try {
     if (!email) return false;
     const cleanEmail = email.trim().toLowerCase();
-
-    // Heuristics
-    if (cleanEmail.includes('admin@') || cleanEmail.endsWith('@store.com') || cleanEmail.endsWith('@sweetos.store')) {
-      return true;
-    }
 
     if (!supabase) return false;
 
@@ -1660,16 +1697,8 @@ export async function uploadBase64OrFileToSupabase(input, fileName = null) {
     }
     if (input.startsWith('data:')) {
       try {
-        const arr = input.split(',');
-        const mimeMatch = arr[0].match(/:(.*?);/);
-        const mime = mimeMatch ? mimeMatch[1] : 'image/png';
-        const bstr = atob(arr[1]);
-        let n = bstr.length;
-        const u8arr = new Uint8Array(n);
-        while (n--) {
-          u8arr[n] = bstr.charCodeAt(n);
-        }
-        const blob = new Blob([u8arr], { type: mime });
+        const res = await fetch(input);
+        const blob = await res.blob();
         const uploadedUrl = await uploadFileToSupabaseStorage(blob, fileName);
         if (uploadedUrl) return uploadedUrl;
       } catch (e) {
@@ -1733,43 +1762,10 @@ export async function fetchSectionsFromSupabase() {
   return fetchSiteSettingFromSupabase('homepage_sections');
 }
 
-export async function syncCouponsToSupabase(coupons) {
-  try {
-    saveSiteSettingInSupabase('coupons', coupons);
-    if (supabase && Array.isArray(coupons)) {
-      const records = coupons.map(c => ({
-        code: c.code,
-        discount_type: c.type || 'percentage',
-        discount_value: parseFloat(c.value) || 0,
-        min_order_amount: parseFloat(c.minOrder) || 0,
-        usage_limit: c.limit ? parseInt(c.limit) : 50,
-        used_count: c.used ? parseInt(c.used) : 0,
-        expires_at: c.expiry || null,
-        status: c.status || 'active'
-      }));
-      await supabase.from('coupons').upsert(records, { onConflict: 'code' }).catch(() => {});
-    }
-  } catch(e) {}
-}
+export async function syncCouponsToSupabase() {}
 
 export async function fetchCouponsFromSupabase() {
-  try {
-    if (!supabase) return null;
-    const { data, error } = await supabase.from('coupons').select('*');
-    if (!error && Array.isArray(data) && data.length > 0) {
-      return data.map(c => ({
-        code: c.code,
-        type: c.discount_type || 'percentage',
-        value: parseFloat(c.discount_value) || 0,
-        minOrder: parseFloat(c.min_order_amount) || 0,
-        limit: c.usage_limit || 50,
-        used: c.used_count || 0,
-        expiry: c.expires_at || '2026-12-31',
-        status: c.status || 'active'
-      }));
-    }
-  } catch(e) {}
-  return fetchSiteSettingFromSupabase('coupons');
+  return [];
 }
 
 export async function syncReviewsToSupabase(reviews) {

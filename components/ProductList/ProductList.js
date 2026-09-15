@@ -1417,12 +1417,7 @@ class ProductList extends HTMLElement {
                         ${homeDealsConfig.subtitle || "Sélection exclusive limitée avec compte à rebours — Jusqu'à 50% de réduction !"}
                       </p>
 
-                      <!-- First-Come Limited Coupon Bounty Badge -->
-                      <div class="deals-bounty-badge">
-                        <span style="font-size: 16px;">🎁</span>
-                        <span><strong>${pool.totalCoupons} Coupons 5% OFF</strong> offerts aux <strong>${pool.totalCoupons} premiers acheteurs</strong> !</span>
-                        <span class="bounty-rem-pill" style="background: ${theme.accentColor};">${pool.remainingCoupons} RESTANTS</span>
-                      </div>
+
 
                       <!-- Countdown Timer Glass Panels -->
                       <div class="deals-countdown-row">

@@ -1,5 +1,4 @@
 import { getCartStorageKey, getScratchcardsStorageKey, formatPrice, getStorageItem, saveStorageItem } from '../../utils/storage.js';
-import { getBadgeRewardCoupon } from '../../utils/badges.js';
 
 class CartDrawer extends HTMLElement {
   constructor() {
@@ -65,69 +64,7 @@ class CartDrawer extends HTMLElement {
     const progressPercent = Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100));
     const amountToFreeShipping = Math.max(0, freeShippingThreshold - subtotal);
 
-    let discount = 0;
-    let appliedCoupon = null;
-    try {
-      const savedCoupon = sessionStorage.getItem('SWEETOS_applied_coupon');
-      if (savedCoupon) {
-        appliedCoupon = JSON.parse(savedCoupon);
-        if (appliedCoupon.minOrder && subtotal < appliedCoupon.minOrder) {
-          sessionStorage.removeItem('SWEETOS_applied_coupon');
-          appliedCoupon = null;
-        } else {
-          if (appliedCoupon.type === 'percentage') {
-            discount = subtotal * (appliedCoupon.value / 100);
-          } else {
-            discount = appliedCoupon.value;
-          }
-        }
-      }
-    } catch(e) {}
-
-    const total = Math.max(0, subtotal - discount);
-
-    // Only load customer's personally earned/unlocked coupons if SCRATCHED (no unscratched coupons, no generic coupons)
-    let activeCoupons = [];
-    try {
-      const loggedUser = JSON.parse(getStorageItem('SWEETOS_logged_in_user') || '{}');
-      const userProfile = JSON.parse(getStorageItem('SWEETOS_user_profile') || '{}');
-      const curEmail = (loggedUser.email || userProfile.email || '').toLowerCase();
-      if (curEmail) {
-        // 1. Scratched Badge Rewards
-        const badgeReward = getBadgeRewardCoupon(curEmail);
-        if (badgeReward && badgeReward.scratched === true && badgeReward.remainingUses > 0) {
-          activeCoupons.push({
-            code: badgeReward.code,
-            type: 'percentage',
-            value: 5,
-            badgeCoupon: true,
-            totalUses: badgeReward.totalUses,
-            remainingUses: badgeReward.remainingUses,
-            status: 'active'
-          });
-        }
-
-        // 2. Scratched Mystery Box Level Coupons
-        const scratchKey = getScratchcardsStorageKey();
-        const scratchcards = JSON.parse(sessionStorage.getItem(scratchKey) || '[]');
-        scratchcards.forEach(sc => {
-          if (sc.email && sc.email.toLowerCase() === curEmail && sc.scratched === true && sc.couponWon && sc.couponWon !== 'lost') {
-            const cw = sc.couponWon;
-            if (!activeCoupons.some(c => c.code === cw.code)) {
-              activeCoupons.push({
-                code: cw.code,
-                type: cw.type || 'percentage',
-                value: cw.value || 5,
-                minOrder: cw.minOrder || 0,
-                badgeCoupon: Boolean(cw.badgeCoupon),
-                status: 'active',
-                expiry: cw.expiry || null
-              });
-            }
-          }
-        });
-      }
-    } catch(e) {}
+    const total = subtotal;
 
     container.innerHTML = `
       <div class="cart-wrapper">
@@ -239,74 +176,7 @@ class CartDrawer extends HTMLElement {
               <span>Livraison (Côte d'Ivoire)</span>
               <span class="val-cyan">${subtotal >= freeShippingThreshold ? 'Gratuite ✓' : '2 000 FCFA'}</span>
             </div>
-            ${discount > 0 ? `
-              <div class="totals-row discount-row">
-                <span>Réduction Coupon</span>
-                <span class="val-magenta">-${formatPrice(discount)}</span>
-              </div>
-            ` : ''}
-            <div class="totals-row total-line">
-              <span class="total-label">Total à payer</span>
-              <span class="total-val">${formatPrice(total + (subtotal >= freeShippingThreshold || subtotal === 0 ? 0 : 2000))}</span>
-            </div>
-          </div>
 
-          <!-- Applied Coupon Info -->
-          ${appliedCoupon ? `
-            <div class="applied-coupon-badge" style="display: flex; align-items: center; justify-content: space-between; background: rgba(0,82,204,0.08); border: 1.5px solid var(--primary); padding: 8px 12px; border-radius: 12px; margin-bottom: 12px; font-size: 12.5px;">
-              <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                <span style="font-size: 15px;">🎟️</span>
-                <span style="font-weight: 800; color: var(--primary);">${appliedCoupon.code}</span>
-                <span style="font-size: 11px; color: #059669; font-weight: 700;">(-${discount > 0 ? formatPrice(discount) : `${appliedCoupon.value}%`})</span>
-                ${appliedCoupon.badgeCoupon || (appliedCoupon.code && appliedCoupon.code.startsWith('BADGE5')) ? `
-                  <span style="font-size: 10px; font-weight: 850; background: #0066ff; color: white; padding: 2px 8px; border-radius: 12px; display: inline-flex; align-items: center; gap: 3px;">
-                    🔄 ${appliedCoupon.remainingUses !== undefined ? appliedCoupon.remainingUses : 5}/${appliedCoupon.totalUses || 5} restantes
-                  </span>
-                ` : ''}
-              </div>
-              <button id="removeCouponBtn" style="background: none; border: none; font-size: 20px; font-weight: bold; cursor: pointer; color: var(--red); padding: 0 4px; line-height: 1;">&times;</button>
-            </div>
-          ` : ''}
-
-          <!-- Promo Code Input -->
-          <div class="promo-apply-row">
-            <input type="text" placeholder="Code promo (ex: WELCOME10)" id="promoInput">
-            <button id="promoApply">Appliquer</button>
-          </div>
-
-          <!-- Active Unlocked Badge Reward Coupons only -->
-          ${activeCoupons.length > 0 ? `
-            <div class="available-coupons-section" style="margin-top: 14px; margin-bottom: 14px;">
-              <span style="font-size: 11px; font-weight: 800; color: var(--text-light); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">🎖️ Votre Récompense de Badge Débloquée</span>
-              <div style="display: flex; flex-direction: column; gap: 8px;">
-                ${activeCoupons.map(c => {
-                  const remaining = c.remainingUses !== undefined ? c.remainingUses : 5;
-                  const totalAllowed = c.totalUses || 5;
-                  const discountText = c.badgeCoupon 
-                    ? `✨ 5% OFF (Badge Récompense) • ${remaining}/${totalAllowed} utilisations restantes • Sans expiration`
-                    : `✨ ${c.value}% OFF (Récompense Unique - 1 utilisation)`;
-                  return `
-                    <div class="coupon-item-card" style="display: flex; align-items: center; justify-content: space-between; background: rgba(0, 102, 255, 0.05); border: 1.5px dashed #0066ff; padding: 8px 12px; border-radius: 12px; font-size: 12px;">
-                      <div style="display: flex; flex-direction: column; gap: 2px;">
-                        <div style="display: flex; align-items: center; gap: 6px;">
-                          <code style="font-weight: 800; font-size: 12.5px; color: #0066ff;">${c.code}</code>
-                          ${c.badgeCoupon ? `
-                            <span style="font-size: 9.5px; font-weight: 850; background: #0066ff; color: white; padding: 1px 6px; border-radius: 8px;">
-                              ${remaining}/${totalAllowed} restantes
-                            </span>
-                          ` : ''}
-                        </div>
-                        <span style="font-size: 10px; color: var(--text-gray); font-weight: 600;">${discountText}</span>
-                      </div>
-                      <button class="apply-available-coupon-btn" data-coupon-code="${c.code}" style="background: #0066ff; color: white; border: none; font-weight: 800; font-size: 11px; padding: 6px 12px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
-                        Appliquer
-                      </button>
-                    </div>
-                  `;
-                }).join('')}
-              </div>
-            </div>
-          ` : ''}
 
           <!-- Checkout Button -->
           <button id="checkoutBtn" class="checkout-submit-btn" ${this.cart.length === 0 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
@@ -429,142 +299,7 @@ class CartDrawer extends HTMLElement {
       });
     });
 
-    // Promo apply button
-    const promoApplyBtn = shadow.getElementById('promoApply');
-    if (promoApplyBtn) {
-      promoApplyBtn.addEventListener('click', () => {
-        const code = (shadow.getElementById('promoInput')?.value || '').trim().toUpperCase();
-        if (code) {
-          if (code === 'WELCOME10') {
-            const welcomeCoupon = {
-              code: 'WELCOME10',
-              type: 'percentage',
-              value: 10,
-              minOrder: 0,
-              status: 'active'
-            };
-            sessionStorage.setItem('SWEETOS_applied_coupon', JSON.stringify(welcomeCoupon));
-            window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Code WELCOME10 appliqué (-10%) ! 🎉' }));
-            this.render();
-            return;
-          }
 
-          const loggedUser = JSON.parse(getStorageItem('SWEETOS_logged_in_user') || '{}');
-          const userProfile = JSON.parse(getStorageItem('SWEETOS_user_profile') || '{}');
-          const curEmail = (loggedUser.email || userProfile.email || '').toLowerCase();
-
-          // 1. Check Badge Rewards
-          let badgeReward = null;
-          if (curEmail) {
-            badgeReward = getBadgeRewardCoupon(curEmail);
-          }
-          if (badgeReward && (badgeReward.code || '').toUpperCase() === code) {
-            if (badgeReward.scratched !== true) {
-              window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Veuillez d\'abord gratter votre boîte mystère dans la page Coupons pour activer cette récompense ! 🎁' }));
-              return;
-            }
-            if (badgeReward.remainingUses <= 0 || badgeReward.status === 'exhausted') {
-              window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Ce coupon de badge a déjà épuisé toutes ses utilisations.' }));
-              return;
-            }
-            const couponObj = {
-              code: badgeReward.code,
-              type: 'percentage',
-              value: 5,
-              badgeCoupon: true,
-              totalUses: badgeReward.totalUses,
-              remainingUses: badgeReward.remainingUses,
-              status: 'active'
-            };
-            sessionStorage.setItem('SWEETOS_applied_coupon', JSON.stringify(couponObj));
-            window.dispatchEvent(new CustomEvent('toast:show', { detail: `Coupon Récompense "${badgeReward.code}" appliqué (-5%) ! 🎉` }));
-            this.render();
-            return;
-          }
-
-          // 2. Check Scratched Mystery Boxes
-          const scratchKey = getScratchcardsStorageKey();
-          let scratchcards = [];
-          try {
-            scratchcards = JSON.parse(sessionStorage.getItem(scratchKey) || '[]');
-          } catch(e) {}
-          const userCard = scratchcards.find(sc => 
-            (sc.rewardCode && sc.rewardCode.toUpperCase() === code) || 
-            (sc.couponWon && sc.couponWon.code && sc.couponWon.code.toUpperCase() === code)
-          );
-          if (userCard) {
-            if (userCard.scratched !== true) {
-              window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Veuillez d\'abord gratter votre boîte mystère dans la page Coupons pour activer cette récompense ! 🎁' }));
-              return;
-            }
-            if (userCard.couponWon === 'lost') {
-              window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Ce coupon n\'est pas valide.' }));
-              return;
-            }
-            const couponObj = userCard.couponWon || {
-              code: userCard.rewardCode || code,
-              type: 'percentage',
-              value: 5,
-              status: 'active'
-            };
-            sessionStorage.setItem('SWEETOS_applied_coupon', JSON.stringify(couponObj));
-            window.dispatchEvent(new CustomEvent('toast:show', { detail: `Coupon "${couponObj.code}" appliqué avec succès (-${couponObj.value}%) ! 🎉` }));
-            this.render();
-            return;
-          }
-
-          // 3. Check General Admin Coupons
-          let coupons = [];
-          try {
-            const stored = sessionStorage.getItem('SWEETOS_coupons');
-            coupons = stored ? JSON.parse(stored) : [];
-          } catch(e) {}
-
-          const coupon = coupons.find(c => c.code.toUpperCase() === code);
-          if (!coupon) {
-            window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Code promo invalide.' }));
-            return;
-          }
-
-          if (coupon.scratched === false || coupon.status === 'unscratched') {
-            window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Veuillez d\'abord gratter votre boîte mystère dans la page Coupons pour activer cette récompense ! 🎁' }));
-            return;
-          }
-
-          if (coupon.expiry && new Date(coupon.expiry) < new Date(new Date().setHours(0,0,0,0))) {
-            window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Ce coupon a expiré et n\'est plus valide.' }));
-            return;
-          }
-
-          if (coupon.status !== 'active' || (coupon.stock !== undefined && coupon.stock <= 0) || (coupon.limit !== undefined && (coupon.used || 0) >= coupon.limit) || (coupon.remainingUses !== undefined && coupon.remainingUses <= 0)) {
-            window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Ce coupon a déjà été utilisé ou est désactivé.' }));
-            return;
-          }
-
-          const subtotal = this.cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-          if (coupon.minOrder && subtotal < coupon.minOrder) {
-            window.dispatchEvent(new CustomEvent('toast:show', { detail: `Montant minimum requis : ${formatPrice(coupon.minOrder)}` }));
-            return;
-          }
-
-          sessionStorage.setItem('SWEETOS_applied_coupon', JSON.stringify(coupon));
-          window.dispatchEvent(new CustomEvent('toast:show', { detail: `Coupon "${coupon.code}" appliqué avec succès ! 🎉` }));
-          this.render();
-        } else {
-          window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Veuillez saisir un code promo.' }));
-        }
-      });
-    }
-
-    // Remove coupon
-    const removeBtn = shadow.getElementById('removeCouponBtn');
-    if (removeBtn) {
-      removeBtn.addEventListener('click', () => {
-        sessionStorage.removeItem('SWEETOS_applied_coupon');
-        window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Coupon retiré.' }));
-        this.render();
-      });
-    }
 
     // Checkout button
     const checkoutBtn = shadow.getElementById('checkoutBtn');
@@ -578,17 +313,6 @@ class CartDrawer extends HTMLElement {
       });
     }
 
-    // Available coupons clicks
-    shadow.querySelectorAll('.apply-available-coupon-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const code = btn.getAttribute('data-coupon-code');
-        const input = shadow.getElementById('promoInput');
-        if (input) {
-          input.value = code;
-          shadow.getElementById('promoApply')?.click();
-        }
-      });
-    });
   }
 }
 

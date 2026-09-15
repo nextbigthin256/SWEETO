@@ -217,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 2. Cart & Notification Panel Drawer Toggle Handlers
   const openCart = () => {
     cartEl.classList.remove('closed');
-    notifEl.classList.add('closed'); // Close notifications when cart opens
+    if (notifEl) notifEl.classList.add('closed'); // Close notifications when cart opens
     mainContent.classList.remove('cart-closed');
     floatBtn.classList.remove('visible');
     overlay.classList.remove('show');
@@ -225,7 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const closeCart = () => {
     cartEl.classList.add('closed');
-    if (notifEl.classList.contains('closed')) {
+    if (!notifEl || notifEl.classList.contains('closed')) {
       mainContent.classList.add('cart-closed');
     }
     floatBtn.classList.add('visible');
@@ -362,12 +362,12 @@ document.addEventListener('DOMContentLoaded', () => {
     overlay.classList.add('show');
     document.body.classList.add('sidebar-open');
     cartEl.classList.add('closed');
-    notifEl.classList.add('closed');
+    if (notifEl) notifEl.classList.add('closed');
   };
 
   const closeSidebarMobile = () => {
     sidebarEl.classList.remove('open');
-    if (cartEl.classList.contains('closed') && notifEl.classList.contains('closed')) {
+    if (cartEl.classList.contains('closed') && (!notifEl || notifEl.classList.contains('closed'))) {
       overlay.classList.remove('show');
     }
     document.body.classList.remove('sidebar-open');
@@ -449,7 +449,7 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (!cartEl.classList.contains('closed')) closeCart();
-      if (!notifEl.classList.contains('closed')) closeNotifications();
+      if (notifEl && !notifEl.classList.contains('closed')) closeNotifications();
     }
   });
 
@@ -517,7 +517,7 @@ document.addEventListener('DOMContentLoaded', () => {
         mainContent.classList.remove('cart-closed');
       }
     } else {
-      if (!cartEl.classList.contains('closed') || !notifEl.classList.contains('closed')) {
+      if (!cartEl.classList.contains('closed') || (notifEl && !notifEl.classList.contains('closed'))) {
         overlay.classList.add('show');
       }
     }
@@ -727,54 +727,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1000);
   }
 
-  // 2. Coupon / Mystery Box Reminder on load
-  if (loggedInUserStr) {
-    const couponReminderDismissed = sessionStorage.getItem('SWEETOS_coupon_reminder_dismissed');
-    if (!couponReminderDismissed) {
-      sessionStorage.setItem('SWEETOS_coupon_reminder_dismissed', 'true');
-      
-      let scratchcards = [];
-      try {
-        scratchcards = JSON.parse(getStorageItem('SWEETOS_user_scratchcards') || '[]');
-      } catch(e) {}
-      
-      let coupons = [];
-      try {
-        coupons = JSON.parse(getStorageItem('SWEETOS_coupons') || '[]');
-      } catch(e) {}
-      
-      const hasUnscratched = scratchcards.some(card => !card.scratched);
-      const activeWonCoupons = coupons.filter(c => 
-        (c.code.startsWith('LOYAL') || c.code.startsWith('SAVE')) && 
-        c.status === 'active'
-      );
-      
-      if (hasUnscratched || activeWonCoupons.length > 0) {
-        let discountPercent = 5;
-        if (activeWonCoupons.length > 0) {
-          discountPercent = Math.max(...activeWonCoupons.map(c => c.value));
-        } else {
-          const maxAmount = scratchcards.filter(c => !c.scratched).reduce((max, c) => Math.max(max, c.amount), 0);
-          if (maxAmount >= 50000) {
-            discountPercent = 10;
-          }
-        }
-        
-        setTimeout(() => {
-          showCustomScreenModal({
-            icon: '🎁',
-            title: 'Exclusive Rewards Awaiting!',
-            message: `Shop now to get ${discountPercent}% off depending on the coupon you have!`,
-            okLabel: 'Shop Now',
-            cancelLabel: 'Cancel',
-            onOk: () => {
-              window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'catalog' } }));
-            }
-          });
-        }, 1500);
-      }
-    }
-  }
+
 
   // 3. Cart Threshold Upsell Dialog on adding product
   window.addEventListener('cart:add', (e) => {
@@ -821,7 +774,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  bindSwipeToClose(cartEl, closeCart, 'right');
-  bindSwipeToClose(notifEl, closeNotifications, 'right');
-  bindSwipeToClose(sidebarEl, closeSidebarMobile, 'left');
+  if (cartEl) bindSwipeToClose(cartEl, closeCart, 'right');
+  if (notifEl) bindSwipeToClose(notifEl, closeNotifications, 'right');
+  if (sidebarEl) bindSwipeToClose(sidebarEl, closeSidebarMobile, 'left');
 });

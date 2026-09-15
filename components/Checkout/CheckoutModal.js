@@ -523,21 +523,7 @@ class CheckoutModal extends HTMLElement {
     const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
     const shippingFee = this.getShippingFee(subtotal);
 
-    let discount = 0;
-    let appliedCoupon = null;
-    try {
-      const savedCoupon = sessionStorage.getItem('SWEETOS_applied_coupon');
-      if (savedCoupon) {
-        appliedCoupon = JSON.parse(savedCoupon);
-        if (!appliedCoupon.minOrder || subtotal >= appliedCoupon.minOrder) {
-          discount = appliedCoupon.type === 'percentage' ? subtotal * (appliedCoupon.value / 100) : appliedCoupon.value;
-        } else {
-          appliedCoupon = null;
-        }
-      }
-    } catch(e) {}
-
-    const total = Math.max(0, subtotal + shippingFee - discount);
+    const total = subtotal + shippingFee;
     const freeThreshold = parseFloat(sessionStorage.getItem('SWEETOS_free_shipping_threshold') || '25000');
     const freeProgress = Math.min(100, Math.round((subtotal / freeThreshold) * 100));
 
@@ -586,27 +572,6 @@ class CheckoutModal extends HTMLElement {
           `).join('')}
         </div>
 
-        <!-- Promo Code Input -->
-        <div class="checkout-coupon-box">
-          <input type="text" id="checkout-coupon-input" placeholder="Code Promo (ex: SWEETWELCOME)" value="${appliedCoupon ? appliedCoupon.code : ''}">
-          <button type="button" id="btn-apply-coupon">
-            ${appliedCoupon ? 'Retirer' : 'Appliquer'}
-          </button>
-        </div>
-
-        <!-- Pricing Breakdown -->
-        <div class="pricing-breakdown">
-          <div class="pricing-row">
-            <span>Sous-total articles</span>
-            <strong style="color:#0f172a;">${formatPrice(subtotal)}</strong>
-          </div>
-
-          ${discount > 0 ? `
-            <div class="pricing-row" style="color:#10b981; font-weight:750;">
-              <span>Réduction Code Promo (${appliedCoupon.code})</span>
-              <strong>-${formatPrice(discount)}</strong>
-            </div>
-          ` : ''}
 
           <div class="pricing-row">
             <span>Frais de livraison</span>
@@ -799,16 +764,7 @@ class CheckoutModal extends HTMLElement {
           try {
             cartItems = JSON.parse(cartSaved);
             const subtotal = cartItems.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-            const shippingFee = this.getShippingFee(subtotal);
-            let discount = 0;
-            const savedCoupon = sessionStorage.getItem('SWEETOS_applied_coupon');
-            if (savedCoupon) {
-              const applied = JSON.parse(savedCoupon);
-              if (!applied.minOrder || subtotal >= applied.minOrder) {
-                discount = applied.type === 'percentage' ? subtotal * (applied.value / 100) : applied.value;
-              }
-            }
-            orderTotal = Math.max(0, subtotal + shippingFee - discount);
+            orderTotal = subtotal + shippingFee;
             this.latestOrderTotal = orderTotal;
           } catch(err) {}
         }
@@ -925,32 +881,7 @@ class CheckoutModal extends HTMLElement {
         }
 
 
-        // Deduct coupon usage if applied
-        try {
-          const appliedCouponStr = sessionStorage.getItem('SWEETOS_applied_coupon');
-          if (appliedCouponStr) {
-            const appliedC = JSON.parse(appliedCouponStr);
-            if (appliedC.code) {
-              if (appliedC.badgeCoupon || (appliedC.code && appliedC.code.startsWith('BADGE5'))) {
-                // Multi-use badge reward: consumes 1 use and updates remaining counter
-                consumeBadgeRewardUse(this.formData.email, appliedC.code);
-              } else {
-                // Single-use coupon: mark used & exhausted immediately
-                let adminCoupons = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
-                const idx = adminCoupons.findIndex(c => c.code === appliedC.code);
-                if (idx > -1) {
-                  adminCoupons[idx].used = (adminCoupons[idx].used || 0) + 1;
-                  adminCoupons[idx].remainingUses = 0;
-                  adminCoupons[idx].status = 'exhausted';
-                  sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
-                }
-              }
-            }
-          }
-        } catch(e) {}
-
-        // Clear Cart & Clean Coupon
-        sessionStorage.removeItem('SWEETOS_applied_coupon');
+        // Clear Cart
         sessionStorage.removeItem(getCartStorageKey());
         window.dispatchEvent(new CustomEvent('cart:updated', { detail: [] }));
         window.dispatchEvent(new CustomEvent('orders:updated'));
@@ -985,41 +916,7 @@ class CheckoutModal extends HTMLElement {
       });
     }
 
-    // Coupon Code Application
-    const couponInput = shadow.getElementById('checkout-coupon-input');
-    const applyCouponBtn = shadow.getElementById('btn-apply-coupon');
-    if (applyCouponBtn && couponInput) {
-      applyCouponBtn.addEventListener('click', () => {
-        const code = couponInput.value.trim().toUpperCase();
-        const savedCoupon = sessionStorage.getItem('SWEETOS_applied_coupon');
 
-        if (savedCoupon) {
-          sessionStorage.removeItem('SWEETOS_applied_coupon');
-          window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Code promo retiré.' }));
-          this.render();
-          return;
-        }
-
-        if (!code) {
-          window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Veuillez saisir un code promo.' }));
-          return;
-        }
-
-        let coupons = [];
-        try {
-          coupons = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
-        } catch(e) {}
-
-        const found = coupons.find(c => c.code.toUpperCase() === code && c.status === 'active');
-        if (found) {
-          sessionStorage.setItem('SWEETOS_applied_coupon', JSON.stringify(found));
-          window.dispatchEvent(new CustomEvent('toast:show', { detail: `Code "${found.code}" appliqué avec succès ! 🎉` }));
-          this.render();
-        } else {
-          window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Code promo invalide ou expiré.' }));
-        }
-      });
-    }
 
     // Step 3 Actions
     const copyIdBtn = shadow.getElementById('copy-order-id-btn');

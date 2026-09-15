@@ -360,29 +360,7 @@ export function scratchBadgeReward(email) {
         saveStorageItem(scratchKey, JSON.stringify(scratchcards));
       }
 
-      // Sync into SWEETOS_coupons
-      let adminCoupons = JSON.parse(getStorageItem('SWEETOS_coupons') || '[]');
-      const existingIdx = adminCoupons.findIndex(c => c.code === userReward.code);
-      const couponEntry = {
-        code: userReward.code,
-        type: 'percentage',
-        value: 5,
-        limit: userReward.totalUses,
-        used: Math.max(0, userReward.totalUses - userReward.remainingUses),
-        remainingUses: userReward.remainingUses,
-        expiry: null,
-        badgeCoupon: true,
-        customerEmail: safeEmail,
-        scratched: true,
-        status: userReward.remainingUses > 0 ? 'active' : 'exhausted'
-      };
 
-      if (existingIdx > -1) {
-        adminCoupons[existingIdx] = couponEntry;
-      } else {
-        adminCoupons.unshift(couponEntry);
-      }
-      saveStorageItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
 
       import('./supabase.js').then(({ saveSiteSettingInSupabase }) => {
         saveSiteSettingInSupabase(`sweetos_badge_reward_${safeEmail.replace(/[^a-zA-Z0-9]/g, '_')}`, userReward);

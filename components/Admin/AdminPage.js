@@ -14,7 +14,6 @@ import {
   fetchBrandsFromSupabase,
   fetchOrdersFromSupabase,
   fetchCustomersFromSupabase,
-  fetchCouponsFromSupabase,
   fetchSectionsFromSupabase,
   fetchSettingsFromSupabase
 } from '../../utils/supabase.js';
@@ -34,7 +33,6 @@ import { renderAdminBrands, attachAdminBrandsListeners } from './AdminBrands.js'
 import { renderAdminOrders, attachAdminOrdersListeners } from './AdminOrders.js';
 import { renderAdminCustomers, attachAdminCustomersListeners } from './AdminCustomers.js';
 import { renderAdminInventory, attachAdminInventoryListeners } from './AdminInventory.js';
-import { renderAdminCoupons, attachAdminCouponsListeners } from './AdminCoupons.js';
 import { renderAdminAnalytics, attachAdminAnalyticsListeners } from './AdminAnalytics.js';
 import { renderAdminNotifications, attachAdminNotificationsListeners } from './AdminNotifications.js';
 import { renderAdminSettings, attachAdminSettingsListeners } from './AdminSettings.js';
@@ -647,13 +645,12 @@ class AdminPage extends HTMLElement {
   async loadDatabase(autoRender = true) {
     console.log('[Supabase Cloud] Loading database state from Cloud...');
     try {
-      const [prods, cats, brands, ords, custs, cpps, secs] = await Promise.allSettled([
+      const [prods, cats, brands, ords, custs, secs] = await Promise.allSettled([
         fetchProductsFromSupabase(),
         fetchCategoriesFromSupabase(),
         fetchBrandsFromSupabase(),
         fetchOrdersFromSupabase(),
         fetchCustomersFromSupabase(),
-        fetchCouponsFromSupabase(),
         fetchSectionsFromSupabase()
       ]);
 
@@ -1213,8 +1210,6 @@ class AdminPage extends HTMLElement {
         return renderAdminCustomers(this);
       case 'inventory':
         return renderAdminInventory(this);
-      case 'coupons':
-        return renderAdminCoupons(this);
       case 'analytics':
         return renderAdminAnalytics(this);
       case 'notifications':
@@ -1331,9 +1326,6 @@ class AdminPage extends HTMLElement {
         break;
       case 'inventory':
         attachAdminInventoryListeners(this, shadow);
-        break;
-      case 'coupons':
-        attachAdminCouponsListeners(this, shadow);
         break;
       case 'analytics':
         attachAdminAnalyticsListeners(this, shadow);
