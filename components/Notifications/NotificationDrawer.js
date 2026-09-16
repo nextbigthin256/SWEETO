@@ -64,174 +64,16 @@ class NotificationDrawer extends HTMLElement {
   }
 
   loadNotifications() {
-    let email = null;
-    try {
-      const userJson = getStorageItem('SWEETOS_logged_in_user') || localStorage.getItem('SWEETOS_logged_in_user');
-      if (userJson) {
-        const u = JSON.parse(userJson);
-        email = u?.email;
-      }
-    } catch(e) {}
-
-    this.notifications = getNotificationsFromStorage(email);
-
-    if (email) {
-      import('../../utils/supabase.js').then(async ({ fetchSiteSettingFromSupabase }) => {
-        const safeKey = String(email).toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
-        const cloudNotifs = await fetchSiteSettingFromSupabase(`sweetos_notifications_${safeKey}`);
-        if (Array.isArray(cloudNotifs) && cloudNotifs.length > 0) {
-          const map = new Map();
-          this.notifications.forEach(n => { if (n && n.id) map.set(String(n.id), n); });
-          cloudNotifs.forEach(n => { if (n && n.id) map.set(String(n.id), n); });
-          this.notifications = Array.from(map.values());
-          this.notifications.sort((a, b) => (b.createdAt || b.id || 0) - (a.createdAt || a.id || 0));
-          saveNotificationsToStorage(this.notifications, email);
-          if (this.shadowRoot) {
-            this.render();
-            window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: this.notifications.filter(n => n.unread).length }));
-          }
-        }
-      }).catch(() => {});
-    }
-
-    if (!Array.isArray(this.notifications) || this.notifications.length === 0) {
-      this.notifications = [
-        {
-          id: `welcome-${Date.now()}`,
-          title: '🎉 Bienvenue sur SWEETOS !',
-          desc: 'Profitez de notre sélection exclusive d\'équipements tech et accessoires d\'espace de travail haut de gamme.',
-          category: 'promos',
-          icon: '🎁',
-          unread: false,
-          createdAt: Date.now() - 3600000
-        },
-        {
-          id: `flash-deals-${Date.now()}`,
-          title: '🔥 Ventes Flash & Offres Spéciales',
-          desc: 'Découvrez nos promotions exclusives sur une sélection de claviers mécaniques et accessoires audio.',
-          category: 'promos',
-          icon: '⚡',
-          unread: false,
-          createdAt: Date.now() - 7200000
-        },
-        {
-          id: `system-delivery-${Date.now()}`,
-          title: '📦 Suivi & Livraison Express',
-          desc: 'Toutes vos commandes bénéficient d\'un suivi en direct et d\'un support client réactif 7j/7.',
-          category: 'orders',
-          icon: '🚚',
-          unread: false,
-          createdAt: Date.now() - 86400000
-        }
-      ];
-      this.saveNotifications(true);
-    }
-
-    let needsSave = false;
-    this.notifications.forEach(n => {
-      if (!n.createdAt) {
-        n.createdAt = n.timestamp || Date.now();
-        needsSave = true;
-      }
-    });
-    if (needsSave) {
-      this.saveNotifications(true);
-    }
-
-    this.generateExpiringReminders();
-    const totalUnread = this.notifications.filter(n => n.unread).length;
-    window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: totalUnread }));
+    this.notifications = [];
+    window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: 0 }));
   }
 
   generateExpiringReminders() {
-    let scratchcards = [];
-    try {
-      const scratchKey = getScratchcardsStorageKey();
-      const rawScratch = getStorageItem(scratchKey);
-      scratchcards = rawScratch ? JSON.parse(rawScratch) : [];
-    } catch(e) {}
-    
-    const now = Date.now();
-    let updated = false;
-    
-    scratchcards.forEach(card => {
-      if (!card.scratched && card.expiresAt) {
-        const diffMs = card.expiresAt - now;
-        const daysRemaining = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
-        
-        if (daysRemaining > 0 && daysRemaining <= 14) {
-          // Remove any existing reminder for this scratchcard first
-          this.notifications = this.notifications.filter(n =>
-            !(n.uniqueKey && n.uniqueKey.startsWith(`reminder-mystery-${card.id}`))
-          );
-
-          const uniqueId = `reminder-mystery-${card.id}`;
-          this.notifications.unshift({
-            id: Date.now() + Math.floor(Math.random() * 1000),
-            uniqueKey: uniqueId,
-            type: 'promo',
-            icon: '⏰',
-            title: `Rappel: Boîte Mystère expire dans ${daysRemaining} jour${daysRemaining > 1 ? 's' : ''}! 🎁`,
-            desc: `Votre boîte mystère de la commande #${card.orderId} va bientôt expirer. Grattez-la maintenant pour découvrir votre offre !`,
-            createdAt: Date.now(),
-            unread: true
-          });
-          updated = true;
-        }
-      }
-    });
-
-    let coupons = [];
-    try {
-      const rawCoupons = getStorageItem('SWEETOS_coupons');
-      coupons = rawCoupons ? JSON.parse(rawCoupons) : [];
-    } catch(e) {}
-    
-    coupons.forEach(c => {
-      const isWonCoupon = c.code.startsWith('LOYAL') || c.code.startsWith('SAVE');
-      if (isWonCoupon && c.status === 'active' && c.expiry) {
-        const expiryTime = new Date(c.expiry).getTime() + (24 * 60 * 60 * 1000) - 1000;
-        const diffMs = expiryTime - now;
-        const daysRemaining = Math.ceil(diffMs / (24 * 60 * 60 * 1000));
-        
-        if (daysRemaining > 0 && daysRemaining <= 7) {
-          // Remove any existing reminder for this coupon first
-          this.notifications = this.notifications.filter(n =>
-            !(n.uniqueKey && n.uniqueKey.startsWith(`reminder-coupon-${c.code}`))
-          );
-
-          const uniqueId = `reminder-coupon-${c.code}`;
-          this.notifications.unshift({
-            id: Date.now() + Math.floor(Math.random() * 1000),
-            uniqueKey: uniqueId,
-            couponCode: c.code,
-            type: 'promo',
-            icon: '⏰',
-            title: `Rappel Coupon: ${daysRemaining} jour${daysRemaining > 1 ? 's' : ''} restant${daysRemaining > 1 ? 's' : ''}! 🎟️`,
-            desc: `Votre coupon de réduction exclusif ${c.code} (${c.value}% OFF) expire bientôt. Utilisez-le vite à la caisse !`,
-            createdAt: Date.now(),
-            unread: true
-          });
-          updated = true;
-        }
-      }
-    });
-    
-    if (updated) {
-      this.saveNotifications(true);
-    }
+    // Disabled / blank mode
   }
 
   saveNotifications(silent = false) {
-    let email = null;
-    try {
-      const userJson = getStorageItem('SWEETOS_logged_in_user') || localStorage.getItem('SWEETOS_logged_in_user');
-      if (userJson) {
-        const u = JSON.parse(userJson);
-        email = u?.email;
-      }
-    } catch(e) {}
-    saveNotificationsToStorage(this.notifications, email, silent);
+    // Disabled / blank mode
   }
 
   render() {
@@ -252,133 +94,34 @@ class NotificationDrawer extends HTMLElement {
       this.shadowRoot.appendChild(container);
     }
 
-    const totalUnread = this.notifications.filter(n => n.unread).length;
-
-    // Filter notifications based on active pill
-    const filteredNotifications = this.notifications.filter(n => {
-      if (this.activeFilter === 'orders') return n.type === 'shipping' || n.type === 'order' || n.category === 'orders';
-      if (this.activeFilter === 'promos') return n.type === 'promo' || n.type === 'coupon' || n.category === 'promos';
-      if (this.activeFilter === 'messages') return n.type === 'email' || n.type === 'system' || n.category === 'messages';
-      return true;
-    });
-
     container.innerHTML = `
-      <div class="notifications-wrapper">
+      <div class="notifications-wrapper" style="display: flex; flex-direction: column; height: 100%;">
         <!-- Swipe handle indicator for mobile -->
         <div class="drawer-swipe-handle"></div>
         
         <!-- Header -->
-        <div class="notifications-header">
+        <div class="notifications-header" style="display: flex; align-items: center; justify-content: space-between; padding: 18px 20px; border-bottom: 1px solid var(--border);">
           <div style="display: flex; align-items: center; gap: 8px;">
             <span style="font-size: 20px;">🔔</span>
             <h3 style="margin: 0; font-size: 17px; font-weight: 850; color: var(--text-dark);">
-              Centre de Notifications ${totalUnread > 0 ? `(<span class="unread-count">${totalUnread}</span>)` : ''}
+              Notifications
             </h3>
           </div>
-          <div style="display: flex; align-items: center; gap: 6px;">
-            ${totalUnread > 0 ? `
-              <button class="notif-mark-read-btn" id="notifMarkAllReadBtn" title="Tout marquer comme lu" style="background: rgba(0,82,204,0.08); color: var(--primary); border: none; font-size: 11.5px; font-weight: 750; padding: 5px 10px; border-radius: 8px; cursor: pointer;">
-                ✓ Tout lire
-              </button>
-            ` : ''}
-            <button class="notif-close" id="notifCloseBtn" title="Fermer le centre">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
+          <button class="notif-close" id="notifCloseBtn" title="Fermer" style="background: none; border: none; font-size: 18px; cursor: pointer; color: var(--text-gray);">
+            ✕
+          </button>
+        </div>
+
+        <!-- Clean Blank Drawer Content -->
+        <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; text-align: center;">
+          <div style="width: 76px; height: 76px; border-radius: 50%; background: rgba(0, 82, 204, 0.06); display: flex; align-items: center; justify-content: center; font-size: 34px; margin-bottom: 16px; color: var(--primary);">
+            🔔
           </div>
+          <h4 style="margin: 0 0 8px 0; font-size: 17px; font-weight: 800; color: var(--text-dark);">Aucune notification</h4>
+          <p style="margin: 0; font-size: 13.5px; color: #94a3b8; max-width: 260px; line-height: 1.5;">
+            Votre centre de notifications est actuellement vide.
+          </p>
         </div>
-
-        <!-- Web Push Enable Banner -->
-        <div class="notif-push-banner" style="background: linear-gradient(135deg, rgba(0,82,204,0.08) 0%, rgba(0,180,216,0.08) 100%); padding: 10px 14px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-shrink: 0;">
-          <div style="display: flex; align-items: center; gap: 10px;">
-            <div style="font-size: 20px;">🔔</div>
-            <div>
-              <div style="font-size: 12.5px; font-weight: 800; color: var(--text-dark);">Push Notifications</div>
-              <div style="font-size: 11px; color: var(--text-gray);">Get background alerts when app is closed</div>
-            </div>
-          </div>
-          <button id="togglePushSubBtn" style="background: var(--primary); color: white; border: none; border-radius: 8px; padding: 6px 12px; font-size: 11.5px; font-weight: 800; cursor: pointer; transition: all 0.2s ease;">
-            Enable Push
-          </button>
-        </div>
-
-        <!-- Filter Tabs Row -->
-        <div class="notif-filter-pills-row" style="display: flex; gap: 6px; padding: 12px 18px 6px 18px; border-bottom: 1px solid var(--border); overflow-x: auto;">
-          <button class="notif-pill ${this.activeFilter === 'all' ? 'active' : ''}" data-filter="all" style="padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 750; border: none; cursor: pointer; transition: all 0.2s; background: ${this.activeFilter === 'all' ? 'var(--primary)' : 'rgba(0,0,0,0.05)'}; color: ${this.activeFilter === 'all' ? 'white' : 'var(--text-gray)'};">
-            Tous (${this.notifications.length})
-          </button>
-          <button class="notif-pill ${this.activeFilter === 'orders' ? 'active' : ''}" data-filter="orders" style="padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 750; border: none; cursor: pointer; transition: all 0.2s; background: ${this.activeFilter === 'orders' ? 'var(--primary)' : 'rgba(0,0,0,0.05)'}; color: ${this.activeFilter === 'orders' ? 'white' : 'var(--text-gray)'};">
-            📦 Commandes
-          </button>
-          <button class="notif-pill ${this.activeFilter === 'promos' ? 'active' : ''}" data-filter="promos" style="padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 750; border: none; cursor: pointer; transition: all 0.2s; background: ${this.activeFilter === 'promos' ? 'var(--primary)' : 'rgba(0,0,0,0.05)'}; color: ${this.activeFilter === 'promos' ? 'white' : 'var(--text-gray)'};">
-            🎁 Offres & Coupons
-          </button>
-          <button class="notif-pill ${this.activeFilter === 'messages' ? 'active' : ''}" data-filter="messages" style="padding: 6px 12px; border-radius: 20px; font-size: 12px; font-weight: 750; border: none; cursor: pointer; transition: all 0.2s; background: ${this.activeFilter === 'messages' ? 'var(--primary)' : 'rgba(0,0,0,0.05)'}; color: ${this.activeFilter === 'messages' ? 'white' : 'var(--text-gray)'};">
-            💬 Messages
-          </button>
-        </div>
-
-        <!-- Scrollable Notifications Listing -->
-        <div class="notifications-list" id="notifList">
-          ${filteredNotifications.length === 0 ? `
-            <div class="empty-state" style="padding: 40px 20px; text-align: center;">
-              <div class="empty-bell" style="font-size: 40px; margin-bottom: 12px;">🔔</div>
-              <p class="empty-title" style="font-weight: 850; font-size: 15px; color: var(--text-dark); margin: 0 0 6px 0;">Aucune notification</p>
-              <p class="empty-desc" style="font-size: 13px; color: var(--text-gray); margin: 0; line-height: 1.5;">Vous êtes parfaitement à jour ! Les alertes de livraison et promotions s'afficheront ici en direct.</p>
-            </div>
-          ` : filteredNotifications.map(n => {
-            const timestamp = n.createdAt || n.timestamp || Date.now();
-            const timeAgoText = formatTimeAgo(timestamp);
-            let pId = n.productId || (n.data && n.data.productId);
-            if (!pId && n.id && String(n.id).startsWith('new-product-')) {
-              const parsedId = parseInt(String(n.id).replace('new-product-', ''));
-              if (!isNaN(parsedId)) pId = parsedId;
-            }
-            if (!pId && n.url) {
-              const match = String(n.url).match(/product[=/](\d+)/);
-              if (match) pId = parseInt(match[1]);
-            }
-            if (!pId && n.desc) {
-              const match = String(n.desc).match(/product[=/](\d+)/);
-              if (match) pId = parseInt(match[1]);
-            }
-
-            return `
-              <div class="notif-item ${n.unread ? 'unread-flag' : ''}" data-id="${n.id}" style="cursor: pointer; position: relative;">
-                <div class="notif-icon-circle ${n.type}">
-                  ${n.icon || '🔔'}
-                </div>
-                <div class="notif-info" style="flex: 1;">
-                  <div class="notif-title-row">
-                    <h4>${n.title}</h4>
-                    <span class="notif-time" data-timestamp="${timestamp}">${timeAgoText}</span>
-                  </div>
-                  <div class="notif-desc" style="font-size: 12.5px; color: var(--text-gray); line-height: 1.5; margin-top: 4px;">
-                    ${n.desc}
-                  </div>
-                  ${pId ? `
-                    <div style="margin-top: 6px; display: inline-flex; align-items: center; gap: 4px; font-size: 11.5px; font-weight: 800; color: #2563eb; background: rgba(37,99,235,0.08); padding: 3px 8px; border-radius: 6px;">
-                      <span>🛍️ Voir le produit</span>
-                      <span>→</span>
-                    </div>
-                  ` : ''}
-                </div>
-                <button class="notif-delete-btn" data-id="${n.id}" title="Supprimer l'alerte">×</button>
-              </div>
-            `;
-          }).join('')}
-        </div>
-
-        <!-- Footer actions -->
-        ${this.notifications.length > 0 ? `
-          <div class="notifications-footer" style="padding: 14px 20px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
-            <button class="clear-all-btn" id="notifClearAllBtn" style="color: var(--red); background: none; border: none; font-size: 12.5px; font-weight: 750; cursor: pointer;">
-              🗑️ Tout effacer
-            </button>
-            <span style="font-size: 11px; color: var(--text-gray); font-weight: 600;">Mis à jour en temps réel ⚡</span>
-          </div>
-        ` : ''}
       </div>
     `;
 

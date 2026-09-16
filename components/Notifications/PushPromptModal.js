@@ -10,9 +10,7 @@ class PushPromptModal extends HTMLElement {
   }
 
   connectedCallback() {
-    this.render();
-    this.setupListeners();
-    this.initAutoPushCycle();
+    return;
   }
 
   disconnectedCallback() {

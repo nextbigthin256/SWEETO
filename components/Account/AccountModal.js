@@ -65,7 +65,10 @@ class AccountModal extends HTMLElement {
             const pKey = `SWEETOS_user_profile_${email.replace(/[^a-zA-Z0-9]/g, '_')}`;
             const profObj = JSON.parse(localStorage.getItem(pKey) || localStorage.getItem('SWEETOS_user_profile') || '{}');
             if (profObj && Array.isArray(profObj.orders)) {
-              sessionOrders = profObj.orders;
+              sessionOrders = profObj.orders.filter(o => {
+                const oEmail = (o?.customerEmail || o?.customer_email || o?.email || '').toLowerCase().trim();
+                return (!oEmail || oEmail === email) && (o?.status || '').toLowerCase() !== 'deleted';
+              });
             }
           } catch(e) {}
 

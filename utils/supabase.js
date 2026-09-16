@@ -736,8 +736,9 @@ export async function fetchOrdersFromSupabase(userEmail = null) {
           sOrders.forEach(o => {
             if (o && (o.id || o.order_number)) {
               const id = o.id || o.order_number;
-              if (!userEmail || (o.customerEmail && o.customerEmail.toLowerCase() === userEmail.toLowerCase())) {
-                allOrders.push({ ...o, id });
+              const orderEmail = (o.customerEmail || o.customer_email || o.email || '').toLowerCase();
+              if (!userEmail || (orderEmail && orderEmail === userEmail.toLowerCase())) {
+                allOrders.push({ ...o, id, customerEmail: orderEmail });
               }
             }
           });
@@ -762,12 +763,13 @@ export async function fetchOrdersFromSupabase(userEmail = null) {
             pOrders.forEach(o => {
               if (o && (o.id || o.order_number)) {
                 const id = o.id || o.order_number;
-                if (!userEmail || (o.customerEmail && o.customerEmail.toLowerCase() === userEmail.toLowerCase())) {
+                const orderEmail = (o.customerEmail || o.customer_email || o.email || p.email || '').toLowerCase();
+                if (!userEmail || (orderEmail && orderEmail === userEmail.toLowerCase())) {
                   const idx = allOrders.findIndex(existing => existing.id === id);
                   if (idx === -1) {
-                    allOrders.push({ ...o, id });
+                    allOrders.push({ ...o, id, customerEmail: orderEmail });
                   } else {
-                    allOrders[idx] = { ...allOrders[idx], ...o, id };
+                    allOrders[idx] = { ...allOrders[idx], ...o, id, customerEmail: orderEmail };
                   }
                 }
               }
@@ -814,14 +816,20 @@ export async function fetchOrdersFromSupabase(userEmail = null) {
       }
     } catch(e) {}
 
+    if (userEmail) {
+      const emailTarget = userEmail.toLowerCase().trim();
+      const filtered = allOrders.filter(o => {
+        const oEmail = (o.customerEmail || o.customer_email || o.email || '').toLowerCase().trim();
+        return oEmail === emailTarget && (o.status || '').toLowerCase() !== 'deleted';
+      });
+      return filtered;
+    }
+
     if (allOrders.length > 0) {
       saveAllOrdersToStorage(allOrders);
     } else {
       const fallbackLocal = getAllOrdersFromStorage();
       if (fallbackLocal && fallbackLocal.length > 0) {
-        if (userEmail) {
-          return fallbackLocal.filter(o => (o.customerEmail || o.email || '').toLowerCase() === userEmail.toLowerCase());
-        }
         return fallbackLocal;
       }
     }
@@ -829,6 +837,10 @@ export async function fetchOrdersFromSupabase(userEmail = null) {
     return allOrders;
   } catch (err) {
     console.error('[Supabase Cloud] fetchOrders error:', err);
+    if (userEmail) {
+      const fallback = getAllOrdersFromStorage() || [];
+      return fallback.filter(o => (o.customerEmail || o.customer_email || o.email || '').toLowerCase().trim() === userEmail.toLowerCase().trim());
+    }
     return getAllOrdersFromStorage() || [];
   }
 }

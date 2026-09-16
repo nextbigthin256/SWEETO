@@ -48,7 +48,7 @@ export function saveStorageItem(key, val) {
   try { localStorage.setItem(key, str); } catch(e) {}
   
   // Auto-sync to Supabase for known keys via queue (non-blocking)
-  const syncableKeys = ['SWEETOS_cart_', 'SWEETOS_notifications_', 'SWEETOS_user_scratchcards_', 'SWEETOS_coupons_', 'SWEETOS_user_profile_'];
+  const syncableKeys = ['SWEETOS_cart_', 'SWEETOS_wishlist', 'SWEETOS_notifications_', 'SWEETOS_user_scratchcards_', 'SWEETOS_coupons_', 'SWEETOS_user_profile'];
   const shouldSync = syncableKeys.some(prefix => key.startsWith(prefix));
   
   if (shouldSync) {
@@ -70,6 +70,9 @@ export function saveStorageItem(key, val) {
             if (key.startsWith('SWEETOS_cart_')) {
               supabaseKey = `sweetos_cart_${safeKey}`;
               type = 'cart';
+            } else if (key.startsWith('SWEETOS_wishlist')) {
+              supabaseKey = `sweetos_wishlist_${safeKey}`;
+              type = 'wishlist';
             } else if (key.startsWith('SWEETOS_notifications_')) {
               supabaseKey = `sweetos_notifications_${safeKey}`;
               type = 'notifications';
@@ -79,8 +82,9 @@ export function saveStorageItem(key, val) {
             } else if (key.startsWith('SWEETOS_coupons_')) {
               supabaseKey = `sweetos_coupons_${safeKey}`;
               type = 'coupons';
-            } else if (key.startsWith('SWEETOS_user_profile_')) {
+            } else if (key.startsWith('SWEETOS_user_profile')) {
               await saveCustomerToSupabase(data);
+              supabaseKey = `sweetos_user_profile_${safeKey}`;
               type = 'profile';
             }
             
@@ -200,24 +204,12 @@ export function getNotificationsStorageKey(targetEmail = null) {
   return 'SWEETOS_notifications_guest';
 }
 
-export function getNotificationsFromStorage(targetEmail = null) {
-  const key = getNotificationsStorageKey(targetEmail);
-  let notifs = [];
-  try {
-    const localStr = localStorage.getItem(key);
-    if (localStr) notifs = JSON.parse(localStr);
-  } catch(e) {}
-  
-  return Array.isArray(notifs) ? notifs : [];
+export function getNotificationsFromStorage() {
+  return [];
 }
 
-export async function saveNotificationsToStorage(notifs, targetEmail, silent = false) {
-  if (!Array.isArray(notifs)) return;
-  const key = getNotificationsStorageKey(targetEmail);
-  saveStorageItem(key, notifs);
-  if (!silent) {
-    window.dispatchEvent(new CustomEvent('notifications:updated'));
-  }
+export async function saveNotificationsToStorage() {
+  window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: 0 }));
 }
 
 export function broadcastNotificationToAll(notifItem) {
@@ -546,10 +538,12 @@ export async function loadUserDataFromSupabase(email) {
   try {
     const { fetchProfileFromSupabase, fetchOrdersFromSupabase, fetchSiteSettingFromSupabase } = await import('./supabase.js');
 
-    const [profile, cloudOrders, cloudCart, cloudNotifs, cloudScratchcards, cloudCoupons] = await Promise.allSettled([
+    const [profile, cloudOrders, cloudCart, cloudWishlist, cloudProfileSetting, cloudNotifs, cloudScratchcards, cloudCoupons] = await Promise.allSettled([
       fetchProfileFromSupabase(userEmailLower),
       fetchOrdersFromSupabase(userEmailLower),
       fetchSiteSettingFromSupabase(`sweetos_cart_${safeKey}`),
+      fetchSiteSettingFromSupabase(`sweetos_wishlist_${safeKey}`),
+      fetchSiteSettingFromSupabase(`sweetos_user_profile_${safeKey}`),
       fetchSiteSettingFromSupabase(`sweetos_notifications_${safeKey}`),
       fetchSiteSettingFromSupabase(`sweetos_scratchcards_${safeKey}`),
       fetchSiteSettingFromSupabase(`sweetos_coupons_${safeKey}`)
@@ -575,7 +569,9 @@ export async function loadUserDataFromSupabase(email) {
     }
 
     let userProf = null;
-    if (profile.status === 'fulfilled' && profile.value) {
+    if (cloudProfileSetting.status === 'fulfilled' && cloudProfileSetting.value && typeof cloudProfileSetting.value === 'object') {
+      userProf = cloudProfileSetting.value;
+    } else if (profile.status === 'fulfilled' && profile.value) {
       userProf = profile.value;
     } else {
       const existingProfStr = getStorageItem(`SWEETOS_user_profile_${safeKey}`) || getStorageItem('SWEETOS_user_profile');
@@ -586,6 +582,10 @@ export async function loadUserDataFromSupabase(email) {
 
     if (userProf) {
       if (!Array.isArray(userProf.orders)) userProf.orders = [];
+      userProf.orders = userProf.orders.filter(o => {
+        const oEmail = (o.customerEmail || o.customer_email || o.email || '').toLowerCase().trim();
+        return (!oEmail || oEmail === userEmailLower) && (o.status || '').toLowerCase() !== 'deleted';
+      });
       fetchedOrders.forEach(co => {
         if (!userProf.orders.some(po => po.id === co.id)) {
           userProf.orders.unshift(co);
@@ -598,6 +598,12 @@ export async function loadUserDataFromSupabase(email) {
     if (cloudCart.status === 'fulfilled' && Array.isArray(cloudCart.value)) {
       saveStorageItem(`SWEETOS_cart_${safeKey}`, cloudCart.value);
       window.dispatchEvent(new CustomEvent('cart:updated', { detail: cloudCart.value }));
+    }
+
+    if (cloudWishlist.status === 'fulfilled' && Array.isArray(cloudWishlist.value)) {
+      saveStorageItem(`SWEETOS_wishlist_${safeKey}`, cloudWishlist.value);
+      saveStorageItem('SWEETOS_wishlist', cloudWishlist.value);
+      window.dispatchEvent(new CustomEvent('wishlist:updated', { detail: cloudWishlist.value }));
     }
 
     if (cloudNotifs.status === 'fulfilled' && Array.isArray(cloudNotifs.value)) {

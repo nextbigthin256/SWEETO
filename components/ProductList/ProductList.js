@@ -686,6 +686,14 @@ class ProductList extends HTMLElement {
 
       if (!Array.isArray(profile.orders)) profile.orders = [];
 
+      // Strictly purge any orders that belong to another email address
+      if (currentEmail) {
+        profile.orders = profile.orders.filter(po => {
+          const poEmail = (po.customerEmail || po.customer_email || po.email || po.userEmail || '').toLowerCase().trim();
+          return (poEmail === currentEmail) && (po.status || '').toLowerCase() !== 'deleted';
+        });
+      }
+
       // 1. Update status & attributes of existing profile orders from latest global orders
       profile.orders.forEach(po => {
         const latest = userGlobalOrders.find(go => go.id === po.id);
@@ -703,8 +711,11 @@ class ProductList extends HTMLElement {
         }
       });
 
-      // 3. Filter out deleted orders
-      profile.orders = profile.orders.filter(po => (po.status || '').toLowerCase() !== 'deleted');
+      // 3. Filter out deleted or unowned orders
+      profile.orders = profile.orders.filter(po => {
+        const poEmail = (po.customerEmail || po.customer_email || po.email || po.userEmail || '').toLowerCase().trim();
+        return (!poEmail || poEmail === currentEmail) && (po.status || '').toLowerCase() !== 'deleted';
+      });
     } catch(e) {}
 
     if (!Array.isArray(profile.orders)) {
