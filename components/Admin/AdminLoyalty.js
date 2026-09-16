@@ -521,7 +521,7 @@ export function attachAdminLoyaltyListeners(context, shadow) {
         });
       }
 
-      sessionStorage.setItem('SWEETOS_customers', JSON.stringify(customers));
+      localStorage.setItem('SWEETOS_customers', JSON.stringify(customers));
 
       // Save customer profile and loyalty badges to Supabase Cloud
       saveCustomerToSupabase({
@@ -532,16 +532,16 @@ export function attachAdminLoyaltyListeners(context, shadow) {
         unlockedBadges: checkedBadges
       });
 
-      // Sync customer user profile in sessionStorage
+      // Sync customer user profile in localStorage
       try {
         const safeKey = custEmail.replace(/[^a-zA-Z0-9]/g, '_');
         const specificProfileKey = `SWEETOS_user_profile_${safeKey}`;
-        let prof = JSON.parse(sessionStorage.getItem(specificProfileKey) || sessionStorage.getItem('SWEETOS_user_profile') || '{}');
+        let prof = JSON.parse(localStorage.getItem(specificProfileKey) || localStorage.getItem('SWEETOS_user_profile') || '{}');
         prof.level = selectedLevel;
         prof.badgeType = selectedBadge;
         prof.unlockedBadges = checkedBadges;
-        sessionStorage.setItem(specificProfileKey, JSON.stringify(prof));
-        sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(prof));
+        localStorage.setItem(specificProfileKey, JSON.stringify(prof));
+        localStorage.setItem('SWEETOS_user_profile', JSON.stringify(prof));
       } catch(e) {}
 
       // Grant/update badge reward coupons (5 uses per badge = up to 25 uses for all 5 badges)

@@ -15,6 +15,7 @@ import {
   fetchOrdersFromSupabase,
   fetchCustomersFromSupabase,
   fetchSectionsFromSupabase,
+  fetchCouponsFromSupabase,
   fetchSettingsFromSupabase
 } from '../../utils/supabase.js';
 
@@ -336,12 +337,12 @@ class AdminPage extends HTMLElement {
     this.attachShadow({ mode: 'open' });
     
     // Auth state
-    this.isAuthenticated = sessionStorage.getItem('SWEETOS_admin_authenticated') === 'true';
+    this.isAuthenticated = localStorage.getItem('SWEETOS_admin_authenticated') === 'true';
     
     // View state
-    this.currentTab = sessionStorage.getItem('SWEETOS_admin_current_tab') || 'dashboard';
-    this.settingsSubTab = sessionStorage.getItem('SWEETOS_admin_settings_subtab') || 'general';
-    this.sidebarCollapsed = sessionStorage.getItem('SWEETOS_admin_sidebar_collapsed') === 'true';
+    this.currentTab = localStorage.getItem('SWEETOS_admin_current_tab') || 'dashboard';
+    this.settingsSubTab = localStorage.getItem('SWEETOS_admin_settings_subtab') || 'general';
+    this.sidebarCollapsed = localStorage.getItem('SWEETOS_admin_sidebar_collapsed') === 'true';
     
     // Filter & Search states
     this.searchQueries = {
@@ -428,13 +429,13 @@ class AdminPage extends HTMLElement {
   }
 
    checkSessionValidity() {
-    const isAuth = sessionStorage.getItem('SWEETOS_admin_authenticated') === 'true';
-    const globalVersion = sessionStorage.getItem('SWEETOS_admin_session_version');
-    const deviceVersion = sessionStorage.getItem('SWEETOS_admin_device_session_version');
+    const isAuth = localStorage.getItem('SWEETOS_admin_authenticated') === 'true';
+    const globalVersion = localStorage.getItem('SWEETOS_admin_session_version');
+    const deviceVersion = localStorage.getItem('SWEETOS_admin_device_session_version');
 
     if (isAuth && globalVersion && deviceVersion !== globalVersion) {
-      sessionStorage.removeItem('SWEETOS_admin_authenticated');
-      sessionStorage.removeItem('SWEETOS_admin_device_session_version');
+      localStorage.removeItem('SWEETOS_admin_authenticated');
+      localStorage.removeItem('SWEETOS_admin_device_session_version');
       this.isAuthenticated = false;
     }
   }
@@ -487,11 +488,11 @@ class AdminPage extends HTMLElement {
 
     this._storageEventListener = (e) => {
       if (e.key === 'SWEETOS_admin_session_version') {
-        const isAuth = sessionStorage.getItem('SWEETOS_admin_authenticated') === 'true';
-        const deviceVersion = sessionStorage.getItem('SWEETOS_admin_device_session_version');
+        const isAuth = localStorage.getItem('SWEETOS_admin_authenticated') === 'true';
+        const deviceVersion = localStorage.getItem('SWEETOS_admin_device_session_version');
         if (isAuth && e.newValue && deviceVersion !== e.newValue) {
-          sessionStorage.removeItem('SWEETOS_admin_authenticated');
-          sessionStorage.removeItem('SWEETOS_admin_device_session_version');
+          localStorage.removeItem('SWEETOS_admin_authenticated');
+          localStorage.removeItem('SWEETOS_admin_device_session_version');
           this.isAuthenticated = false;
           this.render();
           this.attachListeners();
@@ -603,22 +604,22 @@ class AdminPage extends HTMLElement {
         let needsRender = false;
         if (Array.isArray(products) && products.length > 0) {
           this.products = products;
-          sessionStorage.setItem('SWEETOS_products', JSON.stringify(products));
+          localStorage.setItem('SWEETOS_products', JSON.stringify(products));
           needsRender = true;
         }
         if (Array.isArray(categories) && categories.length > 0) {
           this.categories = categories;
-          sessionStorage.setItem('SWEETOS_categories', JSON.stringify(categories));
+          localStorage.setItem('SWEETOS_categories', JSON.stringify(categories));
           needsRender = true;
         }
         if (Array.isArray(brands) && brands.length > 0) {
           this.brands = brands;
-          sessionStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
+          localStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
           needsRender = true;
         }
         if (Array.isArray(reviews) && reviews.length > 0) {
           this.reviews = reviews;
-          sessionStorage.setItem('SWEETOS_reviews_all', JSON.stringify(reviews));
+          localStorage.setItem('SWEETOS_reviews_all', JSON.stringify(reviews));
           needsRender = true;
         }
         if (Array.isArray(orders) && orders.length > 0) {
@@ -628,7 +629,7 @@ class AdminPage extends HTMLElement {
         }
         if (Array.isArray(coupons) && coupons.length > 0) {
           this.coupons = coupons;
-          sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(coupons));
+          localStorage.setItem('SWEETOS_coupons', JSON.stringify(coupons));
           needsRender = true;
         }
         if (needsRender && this.isAuthenticated) {
@@ -645,13 +646,14 @@ class AdminPage extends HTMLElement {
   async loadDatabase(autoRender = true) {
     console.log('[Supabase Cloud] Loading database state from Cloud...');
     try {
-      const [prods, cats, brands, ords, custs, secs] = await Promise.allSettled([
+      const [prods, cats, brands, ords, custs, secs, cpps] = await Promise.allSettled([
         fetchProductsFromSupabase(),
         fetchCategoriesFromSupabase(),
         fetchBrandsFromSupabase(),
         fetchOrdersFromSupabase(),
         fetchCustomersFromSupabase(),
-        fetchSectionsFromSupabase()
+        fetchSectionsFromSupabase(),
+        fetchCouponsFromSupabase()
       ]);
 
       if (prods.status === 'fulfilled' && Array.isArray(prods.value) && prods.value !== null) {
@@ -733,9 +735,6 @@ class AdminPage extends HTMLElement {
       this.customers = Array.from(custsMap.values());
       try {
         const custsJson = JSON.stringify(this.customers);
-        if (sessionStorage.getItem('SWEETOS_customers') !== custsJson) {
-          sessionStorage.setItem('SWEETOS_customers', custsJson);
-        }
         if (localStorage.getItem('SWEETOS_customers') !== custsJson) {
           localStorage.setItem('SWEETOS_customers', custsJson);
         }
@@ -759,10 +758,10 @@ class AdminPage extends HTMLElement {
         syncSectionsToSupabase(this.homepageSections);
       }
 
-      const storedReviews = sessionStorage.getItem('SWEETOS_reviews_all');
+      const storedReviews = localStorage.getItem('SWEETOS_reviews_all');
       if (storedReviews) try { this.reviews = JSON.parse(storedReviews); } catch(e) {}
 
-      sessionStorage.setItem('SWEETOS_db_initialized', 'true');
+      localStorage.setItem('SWEETOS_db_initialized', 'true');
 
       if (autoRender && this.isConnected && this.isAuthenticated) {
         this.render(false);
@@ -776,7 +775,7 @@ class AdminPage extends HTMLElement {
   loadCustomers() {
     const customersMap = new Map();
 
-    // 1. Load stored customers from localStorage & sessionStorage
+    // 1. Load stored customers from localStorage
     const storedCustsStr = getStorageItem('SWEETOS_customers');
     if (storedCustsStr) {
       try {
@@ -821,7 +820,6 @@ class AdminPage extends HTMLElement {
     };
 
     scanStorage(localStorage);
-    scanStorage(sessionStorage);
 
     // Add values from checkout orders
     (this.orders || []).forEach(order => {
@@ -1051,19 +1049,19 @@ class AdminPage extends HTMLElement {
     ]).then(([products, categories, brands, reviews, orders, coupons]) => {
       if (products) {
         this.products = products;
-        sessionStorage.setItem('SWEETOS_products', JSON.stringify(products));
+        localStorage.setItem('SWEETOS_products', JSON.stringify(products));
       }
       if (categories) {
         this.categories = categories;
-        sessionStorage.setItem('SWEETOS_categories', JSON.stringify(categories));
+        localStorage.setItem('SWEETOS_categories', JSON.stringify(categories));
       }
       if (brands) {
         this.brands = brands;
-        sessionStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
+        localStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
       }
       if (reviews) {
         this.reviews = reviews;
-        sessionStorage.setItem('SWEETOS_reviews_all', JSON.stringify(reviews));
+        localStorage.setItem('SWEETOS_reviews_all', JSON.stringify(reviews));
       }
       if (orders) {
         this.orders = orders;
@@ -1071,7 +1069,7 @@ class AdminPage extends HTMLElement {
       }
       if (coupons) {
         this.coupons = coupons;
-        sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(coupons));
+        localStorage.setItem('SWEETOS_coupons', JSON.stringify(coupons));
       }
       
       this.render();
@@ -1262,15 +1260,15 @@ class AdminPage extends HTMLElement {
 
             if (result.success) {
               this.isAuthenticated = true;
-              sessionStorage.setItem('SWEETOS_admin_authenticated', 'true');
-              if (email) sessionStorage.setItem('SWEETOS_admin_login_email', email);
-              const sessionVersion = sessionStorage.getItem('SWEETOS_admin_session_version') || Date.now().toString();
-              sessionStorage.setItem('SWEETOS_admin_session_version', sessionVersion);
-              sessionStorage.setItem('SWEETOS_admin_device_session_version', sessionVersion);
+              localStorage.setItem('SWEETOS_admin_authenticated', 'true');
+              if (email) localStorage.setItem('SWEETOS_admin_login_email', email);
+              const sessionVersion = localStorage.getItem('SWEETOS_admin_session_version') || Date.now().toString();
+              localStorage.setItem('SWEETOS_admin_session_version', sessionVersion);
+              localStorage.setItem('SWEETOS_admin_device_session_version', sessionVersion);
               
               if (result.user && result.user.email) {
-                sessionStorage.setItem('SWEETOS_admin_user', JSON.stringify({ email: result.user.email }));
-                sessionStorage.setItem('SWEETOS_admin_login_email', result.user.email);
+                localStorage.setItem('SWEETOS_admin_user', JSON.stringify({ email: result.user.email }));
+                localStorage.setItem('SWEETOS_admin_login_email', result.user.email);
               }
 
               this.render();
@@ -1396,7 +1394,7 @@ class AdminPage extends HTMLElement {
 
         try {
           const { revokeOtherAdminDevicesInSupabase } = await import('../../utils/supabase.js');
-          const deviceId = sessionStorage.getItem('SWEETOS_admin_primary_device_id') || ('dev_' + Math.random().toString(36).substr(2, 7));
+          const deviceId = localStorage.getItem('SWEETOS_admin_primary_device_id') || ('dev_' + Math.random().toString(36).substr(2, 7));
           const res = await revokeOtherAdminDevicesInSupabase(pin, deviceId);
 
           if (res.success) {

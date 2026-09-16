@@ -15,10 +15,10 @@ class CartDrawer extends HTMLElement {
 
   loadCartFromStorage() {
     const key = getCartStorageKey();
-    const saved = sessionStorage.getItem(key);
+    const saved = getStorageItem(key);
     if (saved) {
       try {
-        this.cart = JSON.parse(saved);
+        this.cart = typeof saved === 'string' ? JSON.parse(saved) : saved;
       } catch (e) {
         this.cart = [];
       }
@@ -29,7 +29,7 @@ class CartDrawer extends HTMLElement {
 
   saveCartToStorage() {
     const key = getCartStorageKey();
-    sessionStorage.setItem(key, JSON.stringify(this.cart));
+    saveStorageItem(key, this.cart);
     window.dispatchEvent(new CustomEvent('cart:updated', { detail: this.cart }));
   }
 
@@ -284,11 +284,11 @@ class CartDrawer extends HTMLElement {
         if (item) {
           let wishlist = [];
           try {
-            wishlist = JSON.parse(sessionStorage.getItem('SWEETOS_wishlist') || '[]');
+            wishlist = JSON.parse(localStorage.getItem('SWEETOS_wishlist') || '[]');
           } catch(e) {}
           if (!wishlist.some(w => w.id === item.id)) {
             wishlist.push(item);
-            sessionStorage.setItem('SWEETOS_wishlist', JSON.stringify(wishlist));
+            localStorage.setItem('SWEETOS_wishlist', JSON.stringify(wishlist));
             window.dispatchEvent(new CustomEvent('wishlist:updated', { detail: wishlist }));
           }
           this.cart.splice(idx, 1);

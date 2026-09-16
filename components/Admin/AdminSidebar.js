@@ -1,5 +1,5 @@
 export function renderAdminSidebar(context) {
-  const readAlertsStr = sessionStorage.getItem('SWEETOS_admin_read_alerts') || '[]';
+  const readAlertsStr = localStorage.getItem('SWEETOS_admin_read_alerts') || '[]';
   let readAlerts = [];
   try {
     readAlerts = JSON.parse(readAlertsStr);
@@ -152,7 +152,7 @@ export function attachAdminSidebarListeners(context, shadow) {
       closeMobileSidebar();
       const tab = item.getAttribute('data-tab');
       context.currentTab = tab;
-      sessionStorage.setItem('SWEETOS_admin_current_tab', tab);
+      localStorage.setItem('SWEETOS_admin_current_tab', tab);
       
       // Reset filter pagination
       context.currentPageIndex = 1;
@@ -169,7 +169,7 @@ export function attachAdminSidebarListeners(context, shadow) {
   if (toggleBtn) {
     toggleBtn.addEventListener('click', () => {
       context.sidebarCollapsed = !context.sidebarCollapsed;
-      sessionStorage.setItem('SWEETOS_admin_sidebar_collapsed', context.sidebarCollapsed.toString());
+      localStorage.setItem('SWEETOS_admin_sidebar_collapsed', context.sidebarCollapsed.toString());
       context.render();
       context.attachListeners();
     });
@@ -180,7 +180,7 @@ export function attachAdminSidebarListeners(context, shadow) {
   if (logoutBtn) {
     logoutBtn.addEventListener('click', () => {
       context.isAuthenticated = false;
-      sessionStorage.removeItem('SWEETOS_admin_authenticated');
+      localStorage.removeItem('SWEETOS_admin_authenticated');
       window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Logged out successfully.' }));
       context.render();
       context.attachListeners();

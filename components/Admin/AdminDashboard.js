@@ -320,7 +320,7 @@ export function attachAdminDashboardListeners(context, shadow) {
       const target = btn.getAttribute('data-target');
       if (target) {
         context.currentTab = target;
-        sessionStorage.setItem('SWEETOS_admin_current_tab', target);
+        localStorage.setItem('SWEETOS_admin_current_tab', target);
         context.render();
         context.attachListeners();
       }
@@ -333,7 +333,7 @@ export function attachAdminDashboardListeners(context, shadow) {
       const orderId = btn.getAttribute('data-order-id');
       context.selectedOrderId = orderId;
       context.currentTab = 'orders';
-      sessionStorage.setItem('SWEETOS_admin_current_tab', 'orders');
+      localStorage.setItem('SWEETOS_admin_current_tab', 'orders');
       context.render();
       context.attachListeners();
     });

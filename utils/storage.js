@@ -38,17 +38,14 @@ function queueSupabaseSync(task) {
 export function saveStorageItem(key, val) {
   if (key === 'SWEETOS_products') {
     try { localStorage.removeItem(key); } catch(e) {}
-    try { sessionStorage.removeItem(key); } catch(e) {}
     return;
   }
   if (val === null || val === undefined) {
     try { localStorage.removeItem(key); } catch(e) {}
-    try { sessionStorage.removeItem(key); } catch(e) {}
     return;
   }
   const str = typeof val === 'string' ? val : JSON.stringify(val);
   try { localStorage.setItem(key, str); } catch(e) {}
-  try { sessionStorage.setItem(key, str); } catch(e) {}
   
   // Auto-sync to Supabase for known keys via queue (non-blocking)
   const syncableKeys = ['SWEETOS_cart_', 'SWEETOS_notifications_', 'SWEETOS_user_scratchcards_', 'SWEETOS_coupons_', 'SWEETOS_user_profile_'];
@@ -90,9 +87,9 @@ export function saveStorageItem(key, val) {
             if (supabaseKey) {
               const ok = await saveSiteSettingInSupabase(supabaseKey, data);
               if (ok) {
-                try { sessionStorage.setItem(`SUPABASE_SYNC_${type}_${safeKey}`, 'synced'); } catch(e) {}
+                try { localStorage.setItem(`SUPABASE_SYNC_${type}_${safeKey}`, 'synced'); } catch(e) {}
               } else {
-                try { sessionStorage.setItem(`SUPABASE_SYNC_${type}_${safeKey}`, 'pending'); } catch(e) {}
+                try { localStorage.setItem(`SUPABASE_SYNC_${type}_${safeKey}`, 'pending'); } catch(e) {}
               }
             }
           }
@@ -113,10 +110,13 @@ export function getStorageItem(key) {
     const localVal = localStorage.getItem(key);
     if (localVal !== null) return localVal;
   } catch(e) {}
-  try {
-    return sessionStorage.getItem(key);
-  } catch(e) {}
   return null;
+}
+
+export function removeStorageItem(key) {
+  try {
+    localStorage.removeItem(key);
+  } catch(e) {}
 }
 
 export async function forceReloadProducts() {
@@ -126,7 +126,7 @@ export async function forceReloadProducts() {
     const products = await fetchProductsFromSupabase();
     if (products && products.length > 0) {
       const str = JSON.stringify(products);
-      try { sessionStorage.setItem('SWEETOS_products', str); } catch(e) {}
+      try { localStorage.setItem('SWEETOS_products', str); } catch(e) {}
       console.log('✅ [Storage] Products reloaded:', products.length);
       return products;
     }
@@ -208,13 +208,6 @@ export function getNotificationsFromStorage(targetEmail = null) {
     if (localStr) notifs = JSON.parse(localStr);
   } catch(e) {}
   
-  if (!Array.isArray(notifs) || notifs.length === 0) {
-    try {
-      const sessionStr = sessionStorage.getItem(key);
-      if (sessionStr) notifs = JSON.parse(sessionStr);
-    } catch(e) {}
-  }
-  
   return Array.isArray(notifs) ? notifs : [];
 }
 
@@ -260,7 +253,6 @@ export function broadcastNotificationToAll(notifItem) {
   };
 
   scanAndAdd(localStorage);
-  scanAndAdd(sessionStorage);
 
   window.dispatchEvent(new CustomEvent('notifications:updated'));
 }
@@ -464,13 +456,6 @@ export function getAllOrdersFromStorage() {
     if (localStr) orders = JSON.parse(localStr);
   } catch(e) {}
   
-  if (!Array.isArray(orders) || orders.length === 0) {
-    try {
-      const sessionStr = sessionStorage.getItem('SWEETOS_all_orders');
-      if (sessionStr) orders = JSON.parse(sessionStr);
-    } catch(e) {}
-  }
-  
   const ordersMap = new Map((Array.isArray(orders) ? orders : []).map(o => [o.id || o.order_number, o]));
 
   const currentProfileKey = getProfileStorageKey();
@@ -502,7 +487,6 @@ export async function saveAllOrdersToStorage(orders, silent = false) {
   if (!Array.isArray(orders)) return;
   const jsonStr = JSON.stringify(orders);
   try { localStorage.setItem('SWEETOS_all_orders', jsonStr); } catch(e) {}
-  try { sessionStorage.setItem('SWEETOS_all_orders', jsonStr); } catch(e) {}
   if (!silent) {
     window.dispatchEvent(new CustomEvent('orders:updated', { detail: orders }));
   }
@@ -517,9 +501,9 @@ export async function saveAllOrdersToStorage(orders, silent = false) {
           const safeKey = userKey(user.email);
           const ok = await saveSiteSettingInSupabase(`sweetos_orders_${safeKey}`, orders);
           if (ok) {
-            try { sessionStorage.setItem(`SUPABASE_SYNC_orders_${safeKey}`, 'synced'); } catch(e) {}
+            try { localStorage.setItem(`SUPABASE_SYNC_orders_${safeKey}`, 'synced'); } catch(e) {}
           } else {
-            try { sessionStorage.setItem(`SUPABASE_SYNC_orders_${safeKey}`, 'pending'); } catch(e) {}
+            try { localStorage.setItem(`SUPABASE_SYNC_orders_${safeKey}`, 'pending'); } catch(e) {}
           }
         }
       } catch(e) {
@@ -676,7 +660,7 @@ export async function retryPendingSupabaseSyncs() {
 
     for (const type of types) {
       const syncKey = `SUPABASE_SYNC_${type}_${safeKey}`;
-      if (sessionStorage.getItem(syncKey) === 'pending') {
+      if (localStorage.getItem(syncKey) === 'pending') {
         const dataKey = type === 'cart' ? `SWEETOS_cart_${safeKey}` :
                         type === 'notifications' ? `SWEETOS_notifications_${safeKey}` :
                         type === 'scratchcards' ? `SWEETOS_user_scratchcards_${safeKey}` :
@@ -689,7 +673,7 @@ export async function retryPendingSupabaseSyncs() {
             const data = typeof dataStr === 'string' ? JSON.parse(dataStr) : dataStr;
             const ok = await saveSiteSettingInSupabase(`sweetos_${type}_${safeKey}`, data);
             if (ok) {
-              try { sessionStorage.setItem(syncKey, 'synced'); } catch(e) {}
+              try { localStorage.setItem(syncKey, 'synced'); } catch(e) {}
               console.log(`[Supabase Cloud] Retry sync succeeded for ${type}`);
             }
           } catch(e) {
@@ -720,21 +704,18 @@ export async function syncAllStorage() {
     if (Array.isArray(orders)) {
       const ordersStr = JSON.stringify(orders);
       try { localStorage.setItem('SWEETOS_all_orders', ordersStr); } catch(e) {}
-      try { sessionStorage.setItem('SWEETOS_all_orders', ordersStr); } catch(e) {}
       console.log('✅ [Storage Sync] Orders synced:', orders.length);
     }
 
     if (Array.isArray(customers)) {
       const customersStr = JSON.stringify(customers);
       try { localStorage.setItem('SWEETOS_customers', customersStr); } catch(e) {}
-      try { sessionStorage.setItem('SWEETOS_customers', customersStr); } catch(e) {}
       console.log('✅ [Storage Sync] Customers synced:', customers.length);
     }
 
     if (Array.isArray(products)) {
       const productsStr = JSON.stringify(products);
       try { localStorage.setItem('SWEETOS_products', productsStr); } catch(e) {}
-      try { sessionStorage.setItem('SWEETOS_products', productsStr); } catch(e) {}
       console.log('✅ [Storage Sync] Products synced:', products.length);
     }
 
@@ -796,20 +777,38 @@ export function clearAllUserSessionData() {
     'SWEETOS_user_profile',
     'SWEETOS_auth_token',
     'SWEETOS_user_session',
-    'SWEETOS_session'
+    'SWEETOS_session',
+    'SWEETOS_active_profile_tab',
+    'SWEETOS_applied_coupon',
+    'SWEETOS_wishlist'
   ];
   
-  [localStorage, sessionStorage].forEach(storage => {
-    try {
-      keysToRemove.forEach(k => storage.removeItem(k));
-      for (let i = storage.length - 1; i >= 0; i--) {
-        const key = storage.key(i);
-        if (key && (key.startsWith('SWEETOS_user_profile_') || key.startsWith('SUPABASE_SYNC_'))) {
-          storage.removeItem(key);
-        }
+  try {
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key && (
+        key.startsWith('SWEETOS_user_profile_') ||
+        key.startsWith('SWEETOS_notifications_') ||
+        key.startsWith('SWEETOS_cart_') ||
+        key.startsWith('SWEETOS_coupons_') ||
+        key.startsWith('SWEETOS_user_scratchcards_') ||
+        key.startsWith('SUPABASE_SYNC_') ||
+        key.startsWith('sb-') ||
+        key.includes('auth-token')
+      )) {
+        localStorage.removeItem(key);
       }
-    } catch(e) {}
-  });
+    }
+  } catch(e) {}
+
+  try {
+    import('./supabase.js').then(({ supabase }) => {
+      if (supabase && supabase.auth) {
+        supabase.auth.signOut().catch(() => {});
+      }
+    }).catch(() => {});
+  } catch(e) {}
 }
 
 export function validateAndCleanStaleSession() {
@@ -832,10 +831,18 @@ export function checkAppVersionAndCleanStorage() {
   try {
     const storedVersion = localStorage.getItem('SWEETOS_APP_VERSION');
     if (storedVersion !== CURRENT_APP_VERSION) {
-      console.log(`🧹 [Storage] App updated from ${storedVersion || 'legacy'} to ${CURRENT_APP_VERSION}. Invalidating old local/session storage...`);
+      console.log(`🧹 [Storage] App updated from ${storedVersion || 'legacy'} to ${CURRENT_APP_VERSION}. Invalidating old local storage cache...`);
       
       try { localStorage.removeItem('SWEETOS_products'); } catch(e) {}
-      try { sessionStorage.clear(); } catch(e) {}
+      
+      try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const key = localStorage.key(i);
+          if (key && (key.startsWith('SWEETOS_products') || key.startsWith('SUPABASE_SYNC_'))) {
+            localStorage.removeItem(key);
+          }
+        }
+      } catch(e) {}
       
       localStorage.setItem('SWEETOS_APP_VERSION', CURRENT_APP_VERSION);
     }
@@ -870,7 +877,7 @@ export function getSyncStatus(email) {
   
   return types.map(type => ({
     type,
-    status: sessionStorage.getItem(`SUPABASE_SYNC_${type}_${safeKey}`) || 'unknown',
+    status: localStorage.getItem(`SUPABASE_SYNC_${type}_${safeKey}`) || 'unknown',
     key: `SUPABASE_SYNC_${type}_${safeKey}`
   }));
 }

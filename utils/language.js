@@ -2,7 +2,7 @@
 
 export function getInitialLanguage() {
   // 1. Respect manual user choice if previously selected
-  const saved = localStorage.getItem('SWEETOS_user_lang_preference') || sessionStorage.getItem('SWEETOS_lang');
+  const saved = localStorage.getItem('SWEETOS_user_lang_preference');
   if (saved) return saved.toLowerCase();
 
   // 2. Auto-detect browser/device language (e.g. fr-FR, fr-CI, fr-CA -> 'fr')
@@ -17,7 +17,6 @@ export function getInitialLanguage() {
 export function setUserLanguage(lang) {
   const safeLang = (lang || 'fr').toLowerCase();
   localStorage.setItem('SWEETOS_user_lang_preference', safeLang);
-  sessionStorage.setItem('SWEETOS_lang', safeLang);
   window.dispatchEvent(new CustomEvent('language:changed', { detail: safeLang }));
   return safeLang;
 }

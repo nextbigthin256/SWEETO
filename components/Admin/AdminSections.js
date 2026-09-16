@@ -281,6 +281,14 @@ export function renderAdminSections(context) {
       </div>
 
       <div style="display: flex; align-items: center; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 6px; background: rgba(37, 99, 235, 0.08); border: 1px solid rgba(37, 99, 235, 0.2); padding: 6px 12px; border-radius: 10px;">
+          <span style="font-size: 12px; font-weight: 800; color: #2563eb;">💖 For You Mode:</span>
+          <select id="global-foryou-mode-select" class="select-filter-btn" style="padding: 4px 8px; font-size: 12px; font-weight: 800; color: #1e293b; border-color: #cbd5e1;">
+            <option value="infinite" ${localStorage.getItem('SWEETOS_foryou_mode') !== 'single' ? 'selected' : ''}>🔄 Infinite Scroll</option>
+            <option value="single" ${localStorage.getItem('SWEETOS_foryou_mode') === 'single' ? 'selected' : ''}>⏹️ Single Pass (Once)</option>
+          </select>
+        </div>
+
         <button class="admin-btn" id="open-more-love-studio-btn" style="background: #fdf2f8; color: #db2777; border: 1.5px solid #fbcfe8; display: flex; align-items: center; gap: 6px; padding: 10px 16px; font-weight: 800; border-radius: 10px; cursor: pointer;" title="Configurer la section More to Love">
           <span>💖 More to Love Studio</span>
         </button>
@@ -300,7 +308,8 @@ export function renderAdminSections(context) {
               <th style="padding:12px 16px; width:70px; text-align:center; font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Sequence</th>
               <th style="padding:12px 16px; font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Section Name</th>
               <th style="padding:12px 16px; font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Layout Style</th>
-              <th style="padding:12px 16px; font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Target Category</th>
+              <th style="padding:12px 16px; font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Target Cat / Brand</th>
+              <th style="padding:12px 16px; font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Header Placement</th>
               <th style="padding:12px 16px; font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase;">Storefront Visibility</th>
               <th style="padding:12px 16px; font-size:11.5px; font-weight:800; color:#64748b; text-transform:uppercase; text-align:right;">Actions</th>
             </tr>
@@ -308,7 +317,7 @@ export function renderAdminSections(context) {
           <tbody>
             ${filtered.length === 0 ? `
               <tr>
-                <td colspan="6" style="padding:48px 20px; text-align:center; color:#94a3b8;">
+                <td colspan="7" style="padding:48px 20px; text-align:center; color:#94a3b8;">
                   <div style="font-size:36px; margin-bottom:8px;">🎨</div>
                   <strong style="font-size:15px; color:#475569; display:block;">No homepage sections found</strong>
                   <span style="font-size:13px;">Create a new custom banner, carousel, or deal showcase above!</span>
@@ -318,6 +327,7 @@ export function renderAdminSections(context) {
               const badge = getLayoutTypeBadge(s.type);
               const isFirst = idx === 0;
               const isLast = idx === filtered.length - 1;
+              const alignIcon = s.headerAlignment === 'center' ? '↔️ Center' : s.headerAlignment === 'right' ? '➡️ Right' : '⬅️ Left';
 
               return `
                 <tr class="section-row-hover" style="border-bottom:1px solid #e2e8f0;">
@@ -343,7 +353,13 @@ export function renderAdminSections(context) {
                     </span>
                   </td>
                   <td style="padding:14px 16px;">
-                    <code style="font-size:12px; font-weight:700; color:#0052cc;">${s.category || 'All Products'}</code>
+                    <div style="display:flex; flex-direction:column; gap:4px;">
+                      <code style="font-size:12px; font-weight:700; color:#0052cc;">📁 ${s.category || 'All Products'}</code>
+                      ${s.brand && s.brand !== 'All' ? `<span style="font-size:11px; font-weight:800; color:#2563eb; background:rgba(37,99,235,0.1); padding:2px 6px; border-radius:4px; width:fit-content;">🏷️ ${s.brand}</span>` : ''}
+                    </div>
+                  </td>
+                  <td style="padding:14px 16px;">
+                    <span style="font-size:12px; font-weight:800; color:#334155; background:#f1f5f9; padding:4px 8px; border-radius:6px;">${alignIcon}</span>
                   </td>
                   <td style="padding:14px 16px;">
                     <button class="toggle-section-active-btn" data-sec-id="${s.id}" style="background:transparent; border:none; cursor:pointer;" title="Click to toggle active state">
@@ -415,6 +431,15 @@ export function renderAdminSections(context) {
             </div>
 
             <div class="form-group-modern">
+              <label>Header Alignment / Placement *</label>
+              <select id="sec-align-input" class="admin-input" style="padding:12px 14px; font-weight:700;">
+                <option value="left" ${editSec.headerAlignment === 'left' || !editSec.headerAlignment ? 'selected' : ''}>⬅️ Left Alignment (Gauche - Title left, Button right)</option>
+                <option value="center" ${editSec.headerAlignment === 'center' ? 'selected' : ''}>↔️ Center Alignment (Centre - Centered title & elements)</option>
+                <option value="right" ${editSec.headerAlignment === 'right' ? 'selected' : ''}>➡️ Right Alignment (Droite - Title right, Button left)</option>
+              </select>
+            </div>
+
+            <div class="form-group-modern">
               <label>Category Source Filter</label>
               <select id="sec-category-input" class="admin-input" style="padding:12px 14px; font-weight:700;">
                 <option value="All" ${editSec.category === 'All' || !editSec.category ? 'selected' : ''}>📂 All Catalog Products</option>
@@ -438,6 +463,45 @@ export function renderAdminSections(context) {
                     `;
                   }).join('');
                 })()}
+              </select>
+            </div>
+
+            <div class="form-group-modern">
+              <label>Brand Selection Filter</label>
+              <select id="sec-brand-input" class="admin-input" style="padding:12px 14px; font-weight:700;">
+                <option value="All" ${!editSec.brand || editSec.brand === 'All' ? 'selected' : ''}>🏷️ All Brands (Tous les Marques)</option>
+                ${(() => {
+                  const brandNames = [];
+                  if (Array.isArray(context.brands)) {
+                    context.brands.forEach(b => {
+                      const name = typeof b === 'string' ? b : b.name;
+                      if (name && !brandNames.includes(name)) brandNames.push(name);
+                    });
+                  }
+                  try {
+                    const storedBrands = JSON.parse(localStorage.getItem('SWEETOS_brands') || '[]');
+                    storedBrands.forEach(b => {
+                      const name = typeof b === 'string' ? b : b.name;
+                      if (name && !brandNames.includes(name)) brandNames.push(name);
+                    });
+                  } catch(e) {}
+                  if (Array.isArray(context.products)) {
+                    context.products.forEach(p => {
+                      if (p.brand && !brandNames.includes(p.brand)) brandNames.push(p.brand);
+                    });
+                  }
+                  return brandNames.map(bName => `
+                    <option value="${bName}" ${editSec.brand === bName ? 'selected' : ''}>🏷️ ${bName}</option>
+                  `).join('');
+                })()}
+              </select>
+            </div>
+
+            <div class="form-group-modern">
+              <label>"FOR YOU" Display Mode Setting</label>
+              <select id="sec-foryou-mode-input" class="admin-input" style="padding:12px 14px; font-weight:700;">
+                <option value="infinite" ${(!editSec.forYouMode || editSec.forYouMode === 'infinite') ? 'selected' : ''}>🔄 Défilement Infini (Infinite Scroll Loop)</option>
+                <option value="single" ${editSec.forYouMode === 'single' ? 'selected' : ''}>⏹️ Un Seul Passage (Display Once Without Repeating)</option>
               </select>
             </div>
 
@@ -506,7 +570,7 @@ export function attachAdminSectionsListeners(context, shadow) {
   if (moreLoveBtn) {
     moreLoveBtn.addEventListener('click', () => {
       context.currentTab = 'more-to-love';
-      sessionStorage.setItem('SWEETOS_admin_current_tab', 'more-to-love');
+      localStorage.setItem('SWEETOS_admin_current_tab', 'more-to-love');
       context.render();
       context.attachListeners();
     });
@@ -635,6 +699,18 @@ export function attachAdminSectionsListeners(context, shadow) {
     });
   });
 
+  // Global For You Mode Select listener
+  const globalForYouSelect = shadow.getElementById('global-foryou-mode-select');
+  if (globalForYouSelect) {
+    globalForYouSelect.addEventListener('change', (e) => {
+      const mode = e.target.value;
+      localStorage.setItem('SWEETOS_foryou_mode', mode);
+      window.dispatchEvent(new CustomEvent('toast:show', { 
+        detail: `Mode Pour Vous configuré sur: ${mode === 'single' ? 'Un seul passage (Single Pass)' : 'Défilement infini (Infinite Scroll)'}` 
+      }));
+    });
+  }
+
   // 9. Form Submit
   const form = shadow.getElementById('section-crud-form');
   if (form) {
@@ -644,9 +720,14 @@ export function attachAdminSectionsListeners(context, shadow) {
       const subtitle = shadow.getElementById('sec-subtitle-input').value.trim();
       const type = shadow.getElementById('sec-type-input').value;
       const category = shadow.getElementById('sec-category-input').value;
+      const headerAlignment = shadow.getElementById('sec-align-input') ? shadow.getElementById('sec-align-input').value : 'left';
+      const brand = shadow.getElementById('sec-brand-input') ? shadow.getElementById('sec-brand-input').value : 'All';
+      const forYouMode = shadow.getElementById('sec-foryou-mode-input') ? shadow.getElementById('sec-foryou-mode-input').value : 'infinite';
       const active = shadow.getElementById('sec-active-toggle').checked;
 
       if (!name) return;
+
+      localStorage.setItem('SWEETOS_foryou_mode', forYouMode);
 
       if (context.editingSection && context.editingSection.id) {
         const id = context.editingSection.id;
@@ -658,6 +739,9 @@ export function attachAdminSectionsListeners(context, shadow) {
             subtitle,
             type,
             category,
+            headerAlignment,
+            brand,
+            forYouMode,
             active
           };
           window.dispatchEvent(new CustomEvent('toast:show', { detail: `Updated section "${name}"!` }));
@@ -671,6 +755,9 @@ export function attachAdminSectionsListeners(context, shadow) {
           subtitle,
           type,
           category,
+          headerAlignment,
+          brand,
+          forYouMode,
           active,
           order: nextOrder
         });

@@ -72,6 +72,24 @@ window.refreshProducts = async () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Ultra-Smooth Boot Loader Dismissal Engine (Prevents FOUC)
+  const dismissBootLoader = () => {
+    const loader = document.getElementById('app-boot-loader');
+    if (loader && !loader.classList.contains('hidden')) {
+      loader.classList.add('hidden');
+      setTimeout(() => loader.remove(), 600);
+    }
+  };
+
+  Promise.all([
+    customElements.whenDefined('product-list'),
+    customElements.whenDefined('app-header'),
+    customElements.whenDefined('app-hero')
+  ]).then(dismissBootLoader).catch(dismissBootLoader);
+
+  // Safety fallback timeout
+  setTimeout(dismissBootLoader, 800);
+
   // Initialize Supabase Live Backend Sync & Storage Sync Engine
   initSupabaseSync();
   initStorageSync();
@@ -106,10 +124,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Apply dynamic store configurations (theme, brand colors, font family)
   const applyBrandingSettings = () => {
-    const primaryColor = sessionStorage.getItem('SWEETOS_brand_color_primary') || '#0052cc';
-    const accentColor = sessionStorage.getItem('SWEETOS_brand_color_accent') || '#00b4d8';
-    const font = sessionStorage.getItem('SWEETOS_font_family') || 'Outfit';
-    const theme = sessionStorage.getItem('SWEETOS_theme_mode') || 'dark';
+    const primaryColor = localStorage.getItem('SWEETOS_brand_color_primary') || '#0052cc';
+    const accentColor = localStorage.getItem('SWEETOS_brand_color_accent') || '#00b4d8';
+    const font = localStorage.getItem('SWEETOS_font_family') || 'Outfit';
+    const theme = localStorage.getItem('SWEETOS_theme_mode') || 'dark';
 
     // Inject Google Font link tag dynamically if it isn't already loaded in index.html
     const preloadedFonts = ['Inter', 'Poppins', 'Fraunces'];
@@ -710,9 +728,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 1. Guest User Welcome Dialog
   const loggedInUserStr = getStorageItem('SWEETOS_logged_in_user');
-  const guestDismissed = sessionStorage.getItem('SWEETOS_guest_welcome_dismissed');
+  const guestDismissed = localStorage.getItem('SWEETOS_guest_welcome_dismissed');
   if (!loggedInUserStr && !guestDismissed) {
-    sessionStorage.setItem('SWEETOS_guest_welcome_dismissed', 'true');
+    localStorage.setItem('SWEETOS_guest_welcome_dismissed', 'true');
     setTimeout(() => {
       showCustomScreenModal({
         icon: '🌌',
@@ -754,7 +772,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     if (subtotal < 30000) {
       const todayStr = new Date().toDateString();
-      const lastShown = sessionStorage.getItem('SWEETOS_cart_upsell_last_shown');
+      const lastShown = localStorage.getItem('SWEETOS_cart_upsell_last_shown');
       if (lastShown === todayStr) {
         return; // Do not show again today
       }
@@ -762,7 +780,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const needed = 30000 - subtotal;
       setTimeout(() => {
         // Mark as shown today immediately when triggered
-        sessionStorage.setItem('SWEETOS_cart_upsell_last_shown', todayStr);
+        localStorage.setItem('SWEETOS_cart_upsell_last_shown', todayStr);
         showCustomScreenModal({
           icon: '🛒',
           title: 'Offre Spéciale / Special Offer',

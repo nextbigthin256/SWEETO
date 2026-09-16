@@ -328,10 +328,10 @@ export function claimTodaysDealsCoupon(customerEmail) {
   // Add to global coupons database
   let couponsList = [];
   try {
-    couponsList = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
+    couponsList = JSON.parse(localStorage.getItem('SWEETOS_coupons') || '[]');
   } catch (e) {}
   couponsList.unshift(newCoupon);
-  sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(couponsList));
+  localStorage.setItem('SWEETOS_coupons', JSON.stringify(couponsList));
 
   // Deduct 1 from pool
   pool.remainingCoupons = Math.max(0, pool.remainingCoupons - 1);
@@ -366,7 +366,7 @@ export function awardMysteryBoxForDeliveredOrder(order) {
   const scratchKey = getScratchcardsStorageKey();
   let scratchcards = [];
   try {
-    scratchcards = JSON.parse(sessionStorage.getItem(scratchKey) || '[]');
+    scratchcards = JSON.parse(localStorage.getItem(scratchKey) || '[]');
   } catch (e) {}
 
   // Prevent duplicate mystery boxes for the same order
@@ -395,13 +395,13 @@ export function awardMysteryBoxForDeliveredOrder(order) {
     expiresAt: Date.now() + 14 * 24 * 60 * 60 * 1000
   });
 
-  sessionStorage.setItem(scratchKey, JSON.stringify(scratchcards));
+  localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
 
   // Push customer delivered notification with mystery box alert to user-scoped notification store
   const notifKey = getNotificationsStorageKey();
   let notifs = [];
   try {
-    notifs = JSON.parse(sessionStorage.getItem(notifKey) || '[]');
+    notifs = JSON.parse(localStorage.getItem(notifKey) || '[]');
   } catch (e) {}
 
   notifs.unshift({
@@ -415,14 +415,14 @@ export function awardMysteryBoxForDeliveredOrder(order) {
     unread: true
   });
 
-  sessionStorage.setItem(notifKey, JSON.stringify(notifs));
+  localStorage.setItem(notifKey, JSON.stringify(notifs));
 
   // Also push to user-specific notification store if available
   if (userEmail) {
     const userSafeKey = `SWEETOS_notifications_${userEmail.replace(/[^a-zA-Z0-9]/g, '_')}`;
     let userNotifs = [];
     try {
-      userNotifs = JSON.parse(sessionStorage.getItem(userSafeKey) || '[]');
+      userNotifs = JSON.parse(localStorage.getItem(userSafeKey) || '[]');
     } catch (e) {}
     userNotifs.unshift({
       id: Date.now(),
@@ -434,7 +434,7 @@ export function awardMysteryBoxForDeliveredOrder(order) {
       timestamp: Date.now(),
       unread: true
     });
-    sessionStorage.setItem(userSafeKey, JSON.stringify(userNotifs));
+    localStorage.setItem(userSafeKey, JSON.stringify(userNotifs));
   }
 
   window.dispatchEvent(new CustomEvent('notifications:updated'));

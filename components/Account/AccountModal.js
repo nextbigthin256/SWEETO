@@ -63,7 +63,7 @@ class AccountModal extends HTMLElement {
           let sessionOrders = [];
           try {
             const pKey = `SWEETOS_user_profile_${email.replace(/[^a-zA-Z0-9]/g, '_')}`;
-            const profObj = JSON.parse(sessionStorage.getItem(pKey) || sessionStorage.getItem('SWEETOS_user_profile') || '{}');
+            const profObj = JSON.parse(localStorage.getItem(pKey) || localStorage.getItem('SWEETOS_user_profile') || '{}');
             if (profObj && Array.isArray(profObj.orders)) {
               sessionOrders = profObj.orders;
             }
@@ -205,7 +205,7 @@ class AccountModal extends HTMLElement {
 
   setupEventListeners() {
     window.addEventListener('account:toggle', () => {
-      const loggedIn = sessionStorage.getItem('SWEETOS_logged_in_user');
+      const loggedIn = getStorageItem('SWEETOS_logged_in_user');
       if (!loggedIn) {
         window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'auth' } }));
         return;

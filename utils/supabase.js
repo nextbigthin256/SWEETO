@@ -196,7 +196,6 @@ export async function deleteProductPermanentlyFromSupabase(productOrId) {
         await saveSiteSettingInSupabase('sweetos_cloud_products', filtered);
         try {
           localStorage.removeItem('SWEETOS_products');
-          sessionStorage.removeItem('SWEETOS_products');
         } catch(e) {}
       }
     } catch(e) {}
@@ -245,7 +244,6 @@ export async function deleteMultipleProductsPermanentlyFromSupabase(productIds =
         await saveSiteSettingInSupabase('sweetos_cloud_products', filtered);
         try {
           localStorage.removeItem('SWEETOS_products');
-          sessionStorage.removeItem('SWEETOS_products');
         } catch(e) {}
       }
     } catch(e) {}
@@ -371,7 +369,7 @@ export async function fetchCategoriesFromSupabase() {
 
     const cats = Array.from(catMap.values());
     if (cats.length > 0) {
-      sessionStorage.setItem('SWEETOS_categories', JSON.stringify(cats));
+      localStorage.setItem('SWEETOS_categories', JSON.stringify(cats));
       return cats;
     }
   } catch (e) {}
@@ -433,7 +431,7 @@ export async function fetchBrandsFromSupabase() {
 
     const brands = Array.from(brandMap.values());
     if (brands.length > 0) {
-      sessionStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
+      localStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
       return brands;
     }
   } catch (e) {}
@@ -479,7 +477,7 @@ export async function deleteBrandFromSupabase(brandOrSlug) {
       if (Array.isArray(fallback)) {
         const filtered = fallback.filter(b => b && b.slug !== targetSlug && b.name !== targetSlug);
         await saveSiteSettingInSupabase('sweetos_cloud_brands', filtered);
-        sessionStorage.setItem('SWEETOS_brands', JSON.stringify(filtered));
+        localStorage.setItem('SWEETOS_brands', JSON.stringify(filtered));
       }
     } catch(e) {}
 
@@ -501,7 +499,7 @@ export async function deleteCategoryFromSupabase(categoryOrSlug) {
       if (Array.isArray(fallback)) {
         const filtered = fallback.filter(c => c && c.slug !== targetSlug && c.name !== targetSlug);
         await saveSiteSettingInSupabase('sweetos_cloud_categories', filtered);
-        sessionStorage.setItem('SWEETOS_categories', JSON.stringify(filtered));
+        localStorage.setItem('SWEETOS_categories', JSON.stringify(filtered));
       }
     } catch(e) {}
 
@@ -565,9 +563,9 @@ export async function createOrderInSupabase(newOrder) {
         pOrders = Array.isArray(p.orders) ? p.orders : (typeof p.orders === 'string' ? JSON.parse(p.orders) : []);
       }
       
-      // Merge with any session profile orders
+      // Merge with any local profile orders
       try {
-        const localProf = JSON.parse(sessionStorage.getItem(pKey) || sessionStorage.getItem('SWEETOS_user_profile') || '{}');
+        const localProf = JSON.parse(localStorage.getItem(pKey) || localStorage.getItem('SWEETOS_user_profile') || '{}');
         if (localProf && Array.isArray(localProf.orders)) {
           localProf.orders.forEach(lo => {
             if (lo && lo.id && !pOrders.some(o => o.id === lo.id)) {
@@ -594,12 +592,12 @@ export async function createOrderInSupabase(newOrder) {
         }], { onConflict: 'email' });
       } catch(e) {}
 
-      // Save to sessionStorage user profile so it is available locally immediately
+      // Save to localStorage user profile so it is available locally immediately
       try {
-        let profObj = JSON.parse(sessionStorage.getItem(pKey) || sessionStorage.getItem('SWEETOS_user_profile') || '{}');
+        let profObj = JSON.parse(localStorage.getItem(pKey) || localStorage.getItem('SWEETOS_user_profile') || '{}');
         profObj.orders = pOrders;
-        sessionStorage.setItem(pKey, JSON.stringify(profObj));
-        sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profObj));
+        localStorage.setItem(pKey, JSON.stringify(profObj));
+        localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profObj));
       } catch(e) {}
     }
 
@@ -640,23 +638,73 @@ export async function updateOrderInSupabase(orderId, patch) {
       updateData.customer_address = typeof patch.customerAddress === 'string' ? patch.customerAddress : (patch.customerAddress?.street || '');
     }
 
+    const cleanId = String(orderId).trim();
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleanId);
+
+    // 1. Update dedicated Supabase orders table
     if (supabase) {
-      await supabase
-        .from('orders')
-        .update(updateData)
-        .or(`order_number.eq.${orderId},id.eq.${orderId}`);
+      try {
+        let query = supabase.from('orders').update(updateData);
+        if (isUuid) {
+          query = query.or(`id.eq.${cleanId},order_number.eq.${cleanId}`);
+        } else {
+          query = query.eq('order_number', cleanId);
+        }
+        await query;
+      } catch(e) {}
     }
 
+    // 2. Update local storage orders array
+    let targetCustomerEmail = null;
     try {
       const allOrders = getAllOrdersFromStorage();
       if (Array.isArray(allOrders)) {
         const idx = allOrders.findIndex(o => o && (o.id === orderId || o.order_number === orderId));
         if (idx > -1) {
           allOrders[idx] = { ...allOrders[idx], ...patch, updatedAt };
+          targetCustomerEmail = allOrders[idx].customerEmail || allOrders[idx].email || null;
           saveAllOrdersToStorage(allOrders);
         }
       }
     } catch(e) {}
+
+    // 3. Update customer profile orders array in local storage
+    if (targetCustomerEmail) {
+      try {
+        const pKey = userKey(targetCustomerEmail);
+        const pStr = localStorage.getItem(`SWEETOS_user_profile_${pKey}`) || localStorage.getItem('SWEETOS_user_profile');
+        if (pStr) {
+          const prof = typeof pStr === 'string' ? JSON.parse(pStr) : pStr;
+          if (prof && Array.isArray(prof.orders)) {
+            const oIdx = prof.orders.findIndex(o => o && (o.id === orderId || o.order_number === orderId));
+            if (oIdx > -1) {
+              prof.orders[oIdx] = { ...prof.orders[oIdx], ...patch, updatedAt };
+              localStorage.setItem(`SWEETOS_user_profile_${pKey}`, JSON.stringify(prof));
+              if (localStorage.getItem('SWEETOS_user_profile')) {
+                localStorage.setItem('SWEETOS_user_profile', JSON.stringify(prof));
+              }
+            }
+          }
+        }
+      } catch(e) {}
+    }
+
+    // 4. Update site_settings (sweetos_cloud_orders) backup in Supabase
+    if (supabase) {
+      try {
+        const { data: s } = await supabase.from('site_settings').select('*').eq('key', 'sweetos_cloud_orders').maybeSingle();
+        if (s && s.value) {
+          let sOrders = typeof s.value === 'string' ? JSON.parse(s.value) : s.value;
+          if (Array.isArray(sOrders)) {
+            const sIdx = sOrders.findIndex(o => o && (o.id === orderId || o.order_number === orderId));
+            if (sIdx > -1) {
+              sOrders[sIdx] = { ...sOrders[sIdx], ...patch, updatedAt };
+              await supabase.from('site_settings').upsert([{ key: 'sweetos_cloud_orders', value: JSON.stringify(sOrders) }], { onConflict: 'key' });
+            }
+          }
+        }
+      } catch(e) {}
+    }
 
     return true;
   } catch (err) {
@@ -790,11 +838,11 @@ export async function fetchSettingsFromSupabase() {
 
     if (!error && data && data.length > 0) {
       const s = data[0];
-      if (s.store_name) sessionStorage.setItem('SWEETOS_store_name', s.store_name);
-      if (s.hero_title) sessionStorage.setItem('SWEETOS_hero_title', s.hero_title);
-      if (s.hero_subtitle) sessionStorage.setItem('SWEETOS_hero_subtitle', s.hero_subtitle);
-      if (s.store_entrance_image) sessionStorage.setItem('SWEETOS_store_entrance_image', s.store_entrance_image);
-      if (s.currency) sessionStorage.setItem('SWEETOS_currency', s.currency);
+      if (s.store_name) localStorage.setItem('SWEETOS_store_name', s.store_name);
+      if (s.hero_title) localStorage.setItem('SWEETOS_hero_title', s.hero_title);
+      if (s.hero_subtitle) localStorage.setItem('SWEETOS_hero_subtitle', s.hero_subtitle);
+      if (s.store_entrance_image) localStorage.setItem('SWEETOS_store_entrance_image', s.store_entrance_image);
+      if (s.currency) localStorage.setItem('SWEETOS_currency', s.currency);
 
       window.dispatchEvent(new CustomEvent('branding:updated'));
       return s;
@@ -817,7 +865,7 @@ export async function fetchProfileFromSupabase(email) {
     const pKey = userKey('SWEETOS_user_profile', emailLower);
     let existing = null;
     try {
-      existing = JSON.parse(sessionStorage.getItem(pKey) || sessionStorage.getItem('SWEETOS_user_profile') || 'null');
+      existing = JSON.parse(localStorage.getItem(pKey) || localStorage.getItem('SWEETOS_user_profile') || 'null');
     } catch(e) {}
 
     let formattedOrders = existing?.orders || [];
@@ -879,8 +927,8 @@ export async function fetchProfileFromSupabase(email) {
         addresses: pData?.addresses || existing?.addresses || [],
         orders: formattedOrders
       };
-      sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
-      sessionStorage.setItem(pKey, JSON.stringify(profile));
+      localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+      localStorage.setItem(pKey, JSON.stringify(profile));
       window.dispatchEvent(new CustomEvent('profile:updated', { detail: profile }));
       window.dispatchEvent(new CustomEvent('orders:updated', { detail: formattedOrders }));
       return profile;
@@ -919,10 +967,10 @@ export function subscribeToGlobalRealtimeSync() {
             debounceRealtimeSync('products', async () => {
               const updated = await fetchProductsFromSupabase();
               if (updated) {
-                const prev = sessionStorage.getItem('SWEETOS_products');
+                const prev = localStorage.getItem('SWEETOS_products');
                 const curr = JSON.stringify(updated);
                 if (prev !== curr) {
-                  sessionStorage.setItem('SWEETOS_products', curr);
+                  localStorage.setItem('SWEETOS_products', curr);
                   window.dispatchEvent(new CustomEvent('products:updated', { detail: updated }));
                 }
               }
@@ -931,10 +979,10 @@ export function subscribeToGlobalRealtimeSync() {
             debounceRealtimeSync('categories', async () => {
               const updated = await fetchCategoriesFromSupabase();
               if (updated) {
-                const prev = sessionStorage.getItem('SWEETOS_categories');
+                const prev = localStorage.getItem('SWEETOS_categories');
                 const curr = JSON.stringify(updated);
                 if (prev !== curr) {
-                  sessionStorage.setItem('SWEETOS_categories', curr);
+                  localStorage.setItem('SWEETOS_categories', curr);
                   window.dispatchEvent(new CustomEvent('categories:updated', { detail: updated }));
                 }
               }
@@ -943,10 +991,10 @@ export function subscribeToGlobalRealtimeSync() {
             debounceRealtimeSync('brands', async () => {
               const updated = await fetchBrandsFromSupabase();
               if (updated) {
-                const prev = sessionStorage.getItem('SWEETOS_brands');
+                const prev = localStorage.getItem('SWEETOS_brands');
                 const curr = JSON.stringify(updated);
                 if (prev !== curr) {
-                  sessionStorage.setItem('SWEETOS_brands', curr);
+                  localStorage.setItem('SWEETOS_brands', curr);
                   window.dispatchEvent(new CustomEvent('brands:updated', { detail: updated }));
                 }
               }
@@ -957,7 +1005,7 @@ export function subscribeToGlobalRealtimeSync() {
               if (updated) {
                 saveAllOrdersToStorage(updated);
                 window.dispatchEvent(new CustomEvent('orders:updated', { detail: updated }));
-                const userJson = sessionStorage.getItem('SWEETOS_logged_in_user') || localStorage.getItem('SWEETOS_logged_in_user') || sessionStorage.getItem('SWEETOS_user_session') || sessionStorage.getItem('SWEETOS_session');
+                const userJson = localStorage.getItem('SWEETOS_logged_in_user');
                 if (userJson) {
                   try {
                     const u = JSON.parse(userJson);
@@ -999,6 +1047,33 @@ export async function initSupabaseSync() {
   // Start OAuth session listener
   initSupabaseAuthListener();
 
+  // Rehydrate session from Supabase auth if localStorage user missing
+  try {
+    if (supabase && supabase.auth) {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && session.user && session.user.email) {
+        const email = session.user.email.toLowerCase();
+        let loggedUserStr = getStorageItem('SWEETOS_logged_in_user');
+        if (!loggedUserStr) {
+          const u = session.user;
+          const meta = u.user_metadata || {};
+          const fullName = meta.full_name || meta.name || `${meta.given_name || ''} ${meta.family_name || ''}`.trim() || 'User';
+          const parts = fullName.split(' ');
+          const userObj = {
+            email: email,
+            firstName: parts[0] || 'User',
+            lastName: parts.slice(1).join(' ') || '',
+            name: fullName,
+            isLoggedIn: true
+          };
+          saveStorageItem('SWEETOS_logged_in_user', userObj);
+        }
+      }
+    }
+  } catch(e) {
+    console.warn('[Supabase Auth Rehydration Notice]:', e);
+  }
+
   // Activate multi-device Realtime channel listener
   subscribeToGlobalRealtimeSync();
 
@@ -1006,7 +1081,7 @@ export async function initSupabaseSync() {
   try {
     const loggedUserStr = getStorageItem('SWEETOS_logged_in_user');
     if (loggedUserStr) {
-      const loggedUser = JSON.parse(loggedUserStr);
+      const loggedUser = typeof loggedUserStr === 'string' ? JSON.parse(loggedUserStr) : loggedUserStr;
       if (loggedUser && loggedUser.email) {
         fetchProfileFromSupabase(loggedUser.email);
       }
@@ -1052,7 +1127,7 @@ export async function signInWithGoogle() {
               const avatarUrl = u.picture || '';
 
               const pKey = userKey('SWEETOS_user_profile', email);
-              const existingProfileStr = sessionStorage.getItem(pKey) || sessionStorage.getItem('SWEETOS_user_profile');
+              const existingProfileStr = localStorage.getItem(pKey) || localStorage.getItem('SWEETOS_user_profile');
               let profile = null;
               if (existingProfileStr) {
                 try { profile = JSON.parse(existingProfileStr); } catch(e) {}
@@ -1142,7 +1217,7 @@ export function initSupabaseAuthListener() {
         const lastName = parts.slice(1).join(' ') || '';
 
         const pKey = userKey('SWEETOS_user_profile', email);
-        const existingProfileStr = sessionStorage.getItem(pKey) || sessionStorage.getItem('SWEETOS_user_profile');
+        const existingProfileStr = localStorage.getItem(pKey) || localStorage.getItem('SWEETOS_user_profile');
         let profile = null;
         if (existingProfileStr) {
           try { profile = JSON.parse(existingProfileStr); } catch(e) {}
@@ -1209,34 +1284,38 @@ export async function adminSignInWithSupabase(email, password) {
       return { success: false, error: 'Client Supabase indisponible.' };
     }
 
-    // 1. Try native Supabase Auth password sign in
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email: cleanEmail,
-      password: cleanPassword
-    });
+    // 1. Dynamic check against site_settings table (admin_email & admin_key)
+    try {
+      const { data: settings } = await supabase
+        .from('site_settings')
+        .select('key, value')
+        .in('key', ['admin_email', 'admin_key']);
 
-    if (!authError && authData && authData.user) {
-      console.log('[Supabase Cloud Auth] Authenticated via Supabase Auth API:', cleanEmail);
-      return { success: true, user: authData.user, session: authData.session };
-    }
+      if (Array.isArray(settings) && settings.length > 0) {
+        const emailSetting = settings.find(s => s.key === 'admin_email')?.value;
+        const keySetting = settings.find(s => s.key === 'admin_key')?.value;
 
-    // 2. Dynamic check against site_settings table (admin_email & admin_key)
-    const { data: settings } = await supabase
-      .from('site_settings')
-      .select('key, value')
-      .in('key', ['admin_email', 'admin_key']);
-
-    if (Array.isArray(settings) && settings.length > 0) {
-      const emailSetting = settings.find(s => s.key === 'admin_email')?.value;
-      const keySetting = settings.find(s => s.key === 'admin_key')?.value;
-
-      if (emailSetting && keySetting) {
-        if (cleanEmail === emailSetting.trim().toLowerCase() && cleanPassword === keySetting.trim()) {
-          console.log('[Supabase Cloud Auth] Authenticated via site_settings table:', cleanEmail);
-          return { success: true, user: { email: cleanEmail, role: 'admin' } };
+        if (emailSetting && keySetting) {
+          if (cleanEmail === String(emailSetting).trim().toLowerCase() && cleanPassword === String(keySetting).trim()) {
+            console.log('[Supabase Cloud Auth] Authenticated via site_settings table:', cleanEmail);
+            return { success: true, user: { email: cleanEmail, role: 'admin' } };
+          }
         }
       }
-    }
+    } catch(e) {}
+
+    // 2. Try native Supabase Auth password sign in as fallback
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: cleanEmail,
+        password: cleanPassword
+      });
+
+      if (!authError && authData && authData.user) {
+        console.log('[Supabase Cloud Auth] Authenticated via Supabase Auth API:', cleanEmail);
+        return { success: true, user: authData.user, session: authData.session };
+      }
+    } catch(e) {}
 
     return { success: false, error: 'Email ou mot de passe Supabase incorrect.' };
   } catch (err) {
@@ -1509,7 +1588,7 @@ export async function checkIsAdminAccountInSupabase(email) {
     // 1. Query Supabase profiles table for role or is_admin flag
     const { data: profile } = await supabase
       .from('profiles')
-      .select('role, is_admin, type')
+      .select('*')
       .eq('email', cleanEmail)
       .maybeSingle();
 
@@ -1550,7 +1629,7 @@ export async function checkIsAdminAccountInSupabase(email) {
  */
 export async function getAdminSecurityPinFromSupabase() {
   try {
-    if (!supabase) return sessionStorage.getItem('SWEETOS_admin_security_pin') || '256';
+    if (!supabase) return localStorage.getItem('SWEETOS_admin_security_pin') || '256';
 
     const { data } = await supabase
       .from('site_settings')
@@ -1559,13 +1638,13 @@ export async function getAdminSecurityPinFromSupabase() {
       .maybeSingle();
 
     if (data && data.value) {
-      sessionStorage.setItem('SWEETOS_admin_security_pin', data.value);
+      localStorage.setItem('SWEETOS_admin_security_pin', data.value);
       return data.value;
     }
   } catch (err) {
     console.warn('[Supabase PIN Fetch Notice]:', err);
   }
-  return sessionStorage.getItem('SWEETOS_admin_security_pin') || '256';
+  return localStorage.getItem('SWEETOS_admin_security_pin') || '256';
 }
 
 /**
@@ -1578,7 +1657,7 @@ export async function updateAdminSecurityPinInSupabase(newPin) {
   }
 
   try {
-    sessionStorage.setItem('SWEETOS_admin_security_pin', cleanPin);
+    localStorage.setItem('SWEETOS_admin_security_pin', cleanPin);
 
     if (supabase) {
       await supabase
@@ -1607,10 +1686,10 @@ export async function revokeOtherAdminDevicesInSupabase(inputPin, deviceId) {
     const newSessionVersion = Date.now().toString();
     const currentDeviceId = deviceId || ('device_' + Math.random().toString(36).substring(2, 9));
 
-    // Save in sessionStorage
-    sessionStorage.setItem('SWEETOS_admin_session_version', newSessionVersion);
-    sessionStorage.setItem('SWEETOS_admin_device_session_version', newSessionVersion);
-    sessionStorage.setItem('SWEETOS_admin_primary_device_id', currentDeviceId);
+    // Save in localStorage
+    localStorage.setItem('SWEETOS_admin_session_version', newSessionVersion);
+    localStorage.setItem('SWEETOS_admin_device_session_version', newSessionVersion);
+    localStorage.setItem('SWEETOS_admin_primary_device_id', currentDeviceId);
 
     // Save to Supabase Cloud
     if (supabase) {

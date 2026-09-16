@@ -492,7 +492,7 @@ export function renderAdminOrders(context) {
         <!-- Search Box -->
         <div class="clean-search-box">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-          <input type="text" id="order-search-input" autocomplete="off" placeholder="Search ID, customer, email, phone or product..." value="${escapeHtml(context.searchQuery || '')}">
+          <input type="search" role="searchbox" aria-label="Search" id="order-search-input" name="q_search_no_credentials" placeholder="Search ID, customer, email, phone or product..." value="${escapeHtml(context.searchQuery || '')}" autocomplete="one-time-code" autocorrect="off" autocapitalize="off" spellcheck="false">
         </div>
 
         <!-- Date Range Filter -->
@@ -1014,7 +1014,22 @@ export function renderAdminOrderDetails(context) {
   `;
 }
 
-export function attachAdminOrdersListeners(shadow, context) {
+export function attachAdminOrdersListeners(context, shadow) {
+  let ctx = context;
+  let root = shadow;
+
+  // Gracefully handle both (context, shadow) and legacy inverted (shadow, context) parameter orders
+  if (context && typeof context.getElementById === 'function') {
+    root = context;
+    ctx = shadow;
+  }
+  if (!root || typeof root.getElementById !== 'function') {
+    root = (ctx && ctx.shadowRoot) ? ctx.shadowRoot : document;
+  }
+
+  shadow = root;
+  context = ctx;
+
   ensureOrderState(context);
 
   // 1. Return to list button
@@ -1519,10 +1534,10 @@ function printOrderReceipt(order) {
   const printWindow = window.open('', '_blank', 'width=800,height=900,noopener=false');
   if (!printWindow) return;
 
-  const storeName = escapeHtml(sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS');
-  const storePhone = escapeHtml(sessionStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23');
-  const storeEmail = escapeHtml(sessionStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com');
-  const storeAddress = escapeHtml(sessionStorage.getItem('SWEETOS_store_addr') || 'Abidjan, Cocody Mermoz');
+  const storeName = escapeHtml(localStorage.getItem('SWEETOS_store_name') || 'SWEETOS');
+  const storePhone = escapeHtml(localStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23');
+  const storeEmail = escapeHtml(localStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com');
+  const storeAddress = escapeHtml(localStorage.getItem('SWEETOS_store_addr') || 'Abidjan, Cocody Mermoz');
 
   const prods = order.products || [];
   let subtotal = 0;
@@ -1638,10 +1653,10 @@ function printMultipleOrderReceipts(orders) {
   const printWindow = window.open('', '_blank', 'width=800,height=900,noopener=false');
   if (!printWindow) return;
 
-  const storeName = escapeHtml(sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS');
-  const storePhone = escapeHtml(sessionStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23');
-  const storeEmail = escapeHtml(sessionStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com');
-  const storeAddress = escapeHtml(sessionStorage.getItem('SWEETOS_store_addr') || 'Abidjan, Cocody Mermoz');
+  const storeName = escapeHtml(localStorage.getItem('SWEETOS_store_name') || 'SWEETOS');
+  const storePhone = escapeHtml(localStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23');
+  const storeEmail = escapeHtml(localStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com');
+  const storeAddress = escapeHtml(localStorage.getItem('SWEETOS_store_addr') || 'Abidjan, Cocody Mermoz');
 
   const invoicesHtml = orders.map((order, idx) => {
     const prods = order.products || [];

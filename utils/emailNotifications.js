@@ -43,13 +43,13 @@ async function loadEmailJS() {
 
 export function getUserInfo() {
   try {
-    const userJson = sessionStorage.getItem('SWEETOS_logged_in_user') || localStorage.getItem('SWEETOS_logged_in_user');
+    const userJson = localStorage.getItem('SWEETOS_logged_in_user');
     if (userJson) {
       const user = JSON.parse(userJson);
       if (user && user.email) {
         const safeKey = user.email.toLowerCase().replace(/[^a-zA-Z0-9]/g, '_');
         const profileKey = `SWEETOS_user_profile_${safeKey}`;
-        const profileJson = sessionStorage.getItem(profileKey) || localStorage.getItem(profileKey) || sessionStorage.getItem('SWEETOS_user_profile');
+        const profileJson = localStorage.getItem(profileKey) || localStorage.getItem('SWEETOS_user_profile');
         let name = user.name || user.firstName || 'Client';
         if (profileJson) {
           try {

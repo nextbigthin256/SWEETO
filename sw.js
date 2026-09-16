@@ -1,5 +1,5 @@
 // Service Worker for SWEETOS - Web Push Notifications & Offline Support
-const CACHE_NAME = 'sweetos-v4';
+const CACHE_NAME = 'sweetos-v5';
 const OFFLINE_URL = '/index.html';
 
 // Install - Cache essential static assets
@@ -38,7 +38,16 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   
-  const url = new URL(event.request.url);
+  let url;
+  try {
+    url = new URL(event.request.url);
+  } catch(e) {
+    return;
+  }
+
+  // Only handle http and https requests (skip chrome-extension, chrome, data, blob schemes)
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') return;
+
   const isCoreAsset = event.request.mode === 'navigate' || 
                       url.pathname.endsWith('.html') || 
                       url.pathname.endsWith('.js') || 
@@ -47,9 +56,11 @@ self.addEventListener('fetch', (event) => {
   if (isCoreAsset) {
     event.respondWith(
       fetch(event.request).then((response) => {
-        if (response && response.status === 200) {
+        if (response && response.status === 200 && (response.type === 'basic' || response.type === 'cors')) {
           const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(event.request, responseClone).catch(() => {});
+          }).catch(() => {});
         }
         return response;
       }).catch(() => {
@@ -61,12 +72,14 @@ self.addEventListener('fetch', (event) => {
       caches.match(event.request).then((cachedResponse) => {
         if (cachedResponse) return cachedResponse;
         return fetch(event.request).then((response) => {
-          if (response && response.status === 200) {
+          if (response && response.status === 200 && (response.type === 'basic' || response.type === 'cors')) {
             const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseClone));
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, responseClone).catch(() => {});
+            }).catch(() => {});
           }
           return response;
-        });
+        }).catch(() => null);
       })
     );
   }

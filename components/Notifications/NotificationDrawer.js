@@ -66,7 +66,7 @@ class NotificationDrawer extends HTMLElement {
   loadNotifications() {
     let email = null;
     try {
-      const userJson = getStorageItem('SWEETOS_logged_in_user') || sessionStorage.getItem('SWEETOS_logged_in_user');
+      const userJson = getStorageItem('SWEETOS_logged_in_user') || localStorage.getItem('SWEETOS_logged_in_user');
       if (userJson) {
         const u = JSON.parse(userJson);
         email = u?.email;
@@ -225,7 +225,7 @@ class NotificationDrawer extends HTMLElement {
   saveNotifications(silent = false) {
     let email = null;
     try {
-      const userJson = getStorageItem('SWEETOS_logged_in_user') || sessionStorage.getItem('SWEETOS_logged_in_user');
+      const userJson = getStorageItem('SWEETOS_logged_in_user') || localStorage.getItem('SWEETOS_logged_in_user');
       if (userJson) {
         const u = JSON.parse(userJson);
         email = u?.email;

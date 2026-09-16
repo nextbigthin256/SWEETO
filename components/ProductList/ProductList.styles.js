@@ -1,4 +1,4 @@
-:host {
+export const productListCSS = `:host {
   display: block;
   width: 100%;
   max-width: 100%;
@@ -6644,3 +6644,5 @@ h2.big em { font-style: italic; color: var(--accent); }
 
 
 
+`;
+export default productListCSS;

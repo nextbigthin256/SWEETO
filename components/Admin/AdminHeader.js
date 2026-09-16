@@ -22,7 +22,7 @@ export function renderAdminHeader(context) {
   const pendingOrders = (context.orders || []).filter(o => o.status === 'Pending' || o.status === 'En cours' || o.status === 'Traitement');
   const lowCoupons = (context.coupons || []).filter(c => c.stock !== undefined && c.stock <= 2);
   
-  const readAlertsStr = sessionStorage.getItem('SWEETOS_admin_read_alerts') || '[]';
+  const readAlertsStr = localStorage.getItem('SWEETOS_admin_read_alerts') || '[]';
   let readAlerts = [];
   try {
     readAlerts = JSON.parse(readAlertsStr);
@@ -372,11 +372,11 @@ export function attachAdminHeaderListeners(context, shadow) {
 
         // 1. Sync Store Settings
         const settingsRecord = {
-          store_name: sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS',
-          hero_title: sessionStorage.getItem('SWEETOS_hero_title') || 'Find Your Style, Love Your Look ✨',
-          hero_subtitle: sessionStorage.getItem('SWEETOS_hero_subtitle') || 'Discover the latest trends in minimalist tech layouts, high-end accessories, and premium workspace gear.',
-          store_entrance_image: sessionStorage.getItem('SWEETOS_store_entrance_image') || null,
-          currency: sessionStorage.getItem('SWEETOS_currency') || 'FCFA'
+          store_name: localStorage.getItem('SWEETOS_store_name') || 'SWEETOS',
+          hero_title: localStorage.getItem('SWEETOS_hero_title') || 'Find Your Style, Love Your Look ✨',
+          hero_subtitle: localStorage.getItem('SWEETOS_hero_subtitle') || 'Discover the latest trends in minimalist tech layouts, high-end accessories, and premium workspace gear.',
+          store_entrance_image: localStorage.getItem('SWEETOS_store_entrance_image') || null,
+          currency: localStorage.getItem('SWEETOS_currency') || 'FCFA'
         };
         await supabase.from('store_settings').insert([settingsRecord]).catch(() => {});
 
@@ -478,18 +478,16 @@ export function attachAdminHeaderListeners(context, shadow) {
           }
         } catch(e) {}
 
-        // 2. Clear sessionStorage
-        sessionStorage.setItem('SWEETOS_products', JSON.stringify([]));
-        sessionStorage.setItem('SWEETOS_all_orders', JSON.stringify([]));
+        // 2. Clear localStorage store keys
+        localStorage.setItem('SWEETOS_products', JSON.stringify([]));
         localStorage.setItem('SWEETOS_all_orders', JSON.stringify([]));
-        sessionStorage.setItem('SWEETOS_categories', JSON.stringify([]));
-        sessionStorage.setItem('SWEETOS_brands', JSON.stringify([]));
-        sessionStorage.setItem('SWEETOS_reviews_all', JSON.stringify([]));
-        sessionStorage.setItem('SWEETOS_coupons', JSON.stringify([]));
-        sessionStorage.setItem('SWEETOS_inventory_logs', JSON.stringify([]));
-        sessionStorage.removeItem('SWEETOS_homepage_sections');
+        localStorage.setItem('SWEETOS_categories', JSON.stringify([]));
+        localStorage.setItem('SWEETOS_brands', JSON.stringify([]));
+        localStorage.setItem('SWEETOS_reviews_all', JSON.stringify([]));
+        localStorage.setItem('SWEETOS_coupons', JSON.stringify([]));
+        localStorage.setItem('SWEETOS_inventory_logs', JSON.stringify([]));
         localStorage.removeItem('SWEETOS_homepage_sections');
-        sessionStorage.setItem('SWEETOS_db_initialized', 'true');
+        localStorage.setItem('SWEETOS_db_initialized', 'true');
 
         window.dispatchEvent(new CustomEvent('toast:show', { detail: '🔥 Store completely wiped! All items erased from database and cloud.' }));
         setTimeout(() => window.location.reload(), 600);
@@ -562,7 +560,7 @@ export function attachAdminHeaderListeners(context, shadow) {
         ...pendingOrders.map(o => `order-${o.id}`)
       ];
 
-      sessionStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(allIds));
+      localStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(allIds));
       context.render();
       context.attachListeners();
       const dropRef = shadow.getElementById('admin-notif-dropdown');
@@ -580,12 +578,12 @@ export function attachAdminHeaderListeners(context, shadow) {
       if (alertId) {
         let readAlerts = [];
         try {
-          readAlerts = JSON.parse(sessionStorage.getItem('SWEETOS_admin_read_alerts') || '[]');
+          readAlerts = JSON.parse(localStorage.getItem('SWEETOS_admin_read_alerts') || '[]');
         } catch(e) {}
         
         if (!readAlerts.includes(alertId)) {
           readAlerts.push(alertId);
-          sessionStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(readAlerts));
+          localStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(readAlerts));
         }
       }
       
@@ -595,7 +593,7 @@ export function attachAdminHeaderListeners(context, shadow) {
 
       if (tab) {
         context.currentTab = tab;
-        sessionStorage.setItem('SWEETOS_admin_current_tab', tab);
+        localStorage.setItem('SWEETOS_admin_current_tab', tab);
       }
       
       context.render();
@@ -609,7 +607,7 @@ export function attachAdminHeaderListeners(context, shadow) {
     gotoFullNotifsBtn.addEventListener('click', (e) => {
       e.preventDefault();
       context.currentTab = 'notifications';
-      sessionStorage.setItem('SWEETOS_admin_current_tab', 'notifications');
+      localStorage.setItem('SWEETOS_admin_current_tab', 'notifications');
       context.render();
       context.attachListeners();
     });

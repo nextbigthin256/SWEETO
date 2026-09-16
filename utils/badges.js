@@ -569,15 +569,15 @@ export function notifyCustomerAchievement(email, data = {}) {
   };
 
   notifs.unshift(newNotif);
-  sessionStorage.setItem(notifKey, JSON.stringify(notifs));
+  localStorage.setItem(notifKey, JSON.stringify(notifs));
 
   // Save to customer specific notifications key
   try {
     const userSafe = safeEmail.replace(/[^a-z0-9]/g, '_');
     const userKey = `SWEETOS_user_notifications_${userSafe}`;
-    let userNotifs = JSON.parse(sessionStorage.getItem(userKey) || '[]');
+    let userNotifs = JSON.parse(localStorage.getItem(userKey) || '[]');
     userNotifs.unshift(newNotif);
-    sessionStorage.setItem(userKey, JSON.stringify(userNotifs));
+    localStorage.setItem(userKey, JSON.stringify(userNotifs));
   } catch(e) {}
 
   window.dispatchEvent(new CustomEvent('notifications:updated'));
@@ -588,7 +588,7 @@ export function consumeBadgeRewardUse(email, couponCode) {
   if (!email || !couponCode) return false;
   const safeEmail = email.toLowerCase();
   try {
-    const rewards = JSON.parse(sessionStorage.getItem('SWEETOS_badge_rewards') || '{}');
+    const rewards = JSON.parse(localStorage.getItem('SWEETOS_badge_rewards') || '{}');
     const userReward = rewards[safeEmail];
 
     if (userReward && userReward.code === couponCode) {
@@ -598,10 +598,10 @@ export function consumeBadgeRewardUse(email, couponCode) {
           userReward.status = 'exhausted';
         }
         rewards[safeEmail] = userReward;
-        sessionStorage.setItem('SWEETOS_badge_rewards', JSON.stringify(rewards));
+        localStorage.setItem('SWEETOS_badge_rewards', JSON.stringify(rewards));
 
         // Sync with SWEETOS_coupons
-        let adminCoupons = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
+        let adminCoupons = JSON.parse(localStorage.getItem('SWEETOS_coupons') || '[]');
         const idx = adminCoupons.findIndex(c => c.code === couponCode);
         if (idx > -1) {
           adminCoupons[idx].remainingUses = userReward.remainingUses;
@@ -609,7 +609,7 @@ export function consumeBadgeRewardUse(email, couponCode) {
           if (userReward.remainingUses <= 0) {
             adminCoupons[idx].status = 'exhausted';
           }
-          sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
+          localStorage.setItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
         }
 
         window.dispatchEvent(new CustomEvent('badge_reward:updated', { detail: { email: safeEmail, reward: userReward } }));

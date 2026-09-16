@@ -1,7 +1,11 @@
+import { loadStyles } from '../../utils/cssLoader.js';
+import { searchBarCSS } from './SearchBar.styles.js';
+
 class SearchBar extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
+    loadStyles(this.shadowRoot, searchBarCSS);
     this.isOpen = false;
     this.currentQuery = '';
     this.currentCategory = 'All';
@@ -14,7 +18,6 @@ class SearchBar extends HTMLElement {
 
   render() {
     this.shadowRoot.innerHTML = `
-      <link rel="stylesheet" href="./components/Search/SearchBar.css">
       <div class="search-overlay ${this.isOpen ? 'open' : ''}" id="overlay">
         <div class="search-panel glass-panel">
           <div class="search-header">

@@ -210,7 +210,7 @@ export function renderAdminProducts(context) {
   const allSelected = paginatedProducts.length > 0 && paginatedProducts.every(p => selectedProductIds.has(p.id));
 
   // Extract unique brands
-  const savedBrands = JSON.parse(sessionStorage.getItem('SWEETOS_brands') || '[]');
+  const savedBrands = JSON.parse(localStorage.getItem('SWEETOS_brands') || '[]');
   const brandNames = Array.from(new Set([...savedBrands.map(b => b.name), ...rawProducts.map(p => p.brand).filter(Boolean)]));
 
   return `

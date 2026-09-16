@@ -283,8 +283,8 @@ class PWAInstaller extends HTMLElement {
     const iosModal = shadow.getElementById('iosModal');
     const iosCloseBtn = shadow.getElementById('iosCloseBtn');
 
-    // Check if dismissed in current session
-    if (sessionStorage.getItem('SWEETOS_pwa_dismissed')) {
+    // Check if dismissed
+    if (localStorage.getItem('SWEETOS_pwa_dismissed')) {
       if (banner) banner.style.display = 'none';
       return;
     }
@@ -292,7 +292,7 @@ class PWAInstaller extends HTMLElement {
     try {
       import('../../utils/engagement.js').then(({ isUserEngaged }) => {
         const tryShowBanner = () => {
-          if (sessionStorage.getItem('SWEETOS_pwa_dismissed')) return;
+          if (localStorage.getItem('SWEETOS_pwa_dismissed')) return;
           if (typeof isUserEngaged === 'function' && !isUserEngaged()) return;
           if (this.deferredPrompt || (this.isIOS && !this.isStandalone)) {
             if (banner) banner.style.display = 'flex';
@@ -331,7 +331,7 @@ class PWAInstaller extends HTMLElement {
           console.log(`PWA install outcome: ${outcome}`);
           this.deferredPrompt = null;
           if (banner) banner.style.display = 'none';
-          sessionStorage.setItem('SWEETOS_pwa_dismissed', 'true');
+          localStorage.setItem('SWEETOS_pwa_dismissed', 'true');
         } else if (this.isIOS) {
           if (iosModal) iosModal.classList.add('active');
         } else {
@@ -357,7 +357,7 @@ class PWAInstaller extends HTMLElement {
     if (dismissBtn) {
       dismissBtn.addEventListener('click', () => {
         if (banner) banner.style.display = 'none';
-        sessionStorage.setItem('SWEETOS_pwa_dismissed', 'true');
+        localStorage.setItem('SWEETOS_pwa_dismissed', 'true');
       });
     }
 
@@ -365,14 +365,14 @@ class PWAInstaller extends HTMLElement {
       iosCloseBtn.addEventListener('click', () => {
         iosModal.classList.remove('active');
         if (banner) banner.style.display = 'none';
-        sessionStorage.setItem('SWEETOS_pwa_dismissed', 'true');
+        localStorage.setItem('SWEETOS_pwa_dismissed', 'true');
       });
     }
 
     // Hide banner once app is successfully installed
     window.addEventListener('appinstalled', () => {
       if (banner) banner.style.display = 'none';
-      sessionStorage.setItem('SWEETOS_pwa_dismissed', 'true');
+      localStorage.setItem('SWEETOS_pwa_dismissed', 'true');
       window.dispatchEvent(new CustomEvent('toast:show', { detail: '🎉 SWEETOS App installed successfully!' }));
     });
   }

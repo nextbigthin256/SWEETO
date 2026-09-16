@@ -67,6 +67,112 @@ body {
   box-sizing: border-box;
 }
 
+/* ===== FOUC ELIMINATOR & ULTRA-SMOOTH BOOT LOADER ===== */
+app-header:not(:defined),
+app-sidebar:not(:defined),
+app-hero:not(:defined),
+product-list:not(:defined),
+app-footer:not(:defined),
+cart-drawer:not(:defined),
+app-mobile-nav:not(:defined),
+product-card:not(:defined) {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+
+#app-boot-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.45s;
+}
+
+#app-boot-loader.hidden {
+  opacity: 0;
+  visibility: hidden;
+  transform: scale(1.03);
+  pointer-events: none;
+}
+
+.boot-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  padding: 36px 48px;
+  border-radius: 28px;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(255, 255, 255, 0.5);
+  animation: bootCardPop 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes bootCardPop {
+  0% { opacity: 0; transform: scale(0.92) translateY(12px); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.boot-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.boot-icon {
+  font-size: 32px;
+  animation: bootPulse 2s infinite ease-in-out;
+}
+
+@keyframes bootPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.15); filter: drop-shadow(0 0 12px rgba(0, 82, 204, 0.4)); }
+}
+
+.boot-title {
+  font-size: 26px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  background: linear-gradient(135deg, #0f172a 0%, #0052cc 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.boot-progress-track {
+  width: 180px;
+  height: 4px;
+  background: #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+}
+
+.boot-progress-bar {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, #0052cc, #00b4d8, #0052cc);
+  background-size: 200% 100%;
+  border-radius: 10px;
+  animation: bootLoading 1.4s infinite ease-in-out;
+}
+
+@keyframes bootLoading {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+.boot-subtitle {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #64748b;
+  letter-spacing: 0.2px;
+}
+
 /* ===== GPU HARDWARE ACCELERATION & ZERO JITTER ===== */
 .top-nav,
 .cart-toggle-float,

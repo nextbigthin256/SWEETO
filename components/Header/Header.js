@@ -23,9 +23,9 @@ class Header extends HTMLElement {
 
   getProductsList() {
     try {
-      const stored = sessionStorage.getItem('SWEETOS_products') || localStorage.getItem('SWEETOS_products');
+      const stored = getStorageItem('SWEETOS_products') || localStorage.getItem('SWEETOS_products');
       if (stored) {
-        const parsed = JSON.parse(stored);
+        const parsed = typeof stored === 'string' ? JSON.parse(stored) : stored;
         if (Array.isArray(parsed)) return parsed;
       }
     } catch(e) {}
@@ -149,11 +149,11 @@ class Header extends HTMLElement {
 
   syncCartBadge() {
     const cartKey = getCartStorageKey();
-    const cartSaved = sessionStorage.getItem(cartKey);
+    const cartSaved = getStorageItem(cartKey) || localStorage.getItem(cartKey);
     let count = 0;
     if (cartSaved) {
       try {
-        const cart = JSON.parse(cartSaved);
+        const cart = typeof cartSaved === 'string' ? JSON.parse(cartSaved) : cartSaved;
         count = cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
       } catch (e) {}
     }
@@ -183,11 +183,11 @@ class Header extends HTMLElement {
   }
 
   syncWishlistBadge() {
-    const wishlistSaved = sessionStorage.getItem('SWEETOS_wishlist');
+    const wishlistSaved = getStorageItem('SWEETOS_wishlist') || localStorage.getItem('SWEETOS_wishlist');
     let count = 0;
     if (wishlistSaved) {
       try {
-        const wishlist = JSON.parse(wishlistSaved);
+        const wishlist = typeof wishlistSaved === 'string' ? JSON.parse(wishlistSaved) : wishlistSaved;
         count = wishlist.length;
       } catch (e) {}
     }
@@ -203,8 +203,14 @@ class Header extends HTMLElement {
   }
 
   render() {
-    const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
-    const categories = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
+    const storeName = getStorageItem('SWEETOS_store_name') || localStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
+    const rawCategories = getStorageItem('SWEETOS_categories') || localStorage.getItem('SWEETOS_categories');
+    let categories = [];
+    if (rawCategories) {
+      try {
+        categories = typeof rawCategories === 'string' ? JSON.parse(rawCategories) : rawCategories;
+      } catch(e) {}
+    }
 
     this.shadowRoot.innerHTML = `
       <header class="top-nav">

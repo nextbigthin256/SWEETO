@@ -1,8 +1,10 @@
 import defaultSections from '../../data/sections.js';
+import { loadStyles } from '../../utils/cssLoader.js';
+import { productListCSS } from './ProductList.styles.js';
 import { showEditAddressModal } from '../Modals/EditAddressModal.js';
 import { showCancelOrderModal } from '../Modals/CancelOrderModal.js';
 import { getAuthPageHTML, attachAuthListeners } from '../Auth/AuthPage.js';
-import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getScratchcardsStorageKey, formatPrice, formatTimeAgo, syncDeliveredNotifications, getAllOrdersFromStorage, saveAllOrdersToStorage, getStorageItem, saveStorageItem, isLocalDevHost } from '../../utils/storage.js';
+import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getScratchcardsStorageKey, formatPrice, formatTimeAgo, syncDeliveredNotifications, getAllOrdersFromStorage, saveAllOrdersToStorage, getStorageItem, saveStorageItem, isLocalDevHost, clearAllUserSessionData, getOrderCategory } from '../../utils/storage.js';
 
 function safeGetOrders() {
   if (isLocalDevHost()) {
@@ -70,6 +72,7 @@ class ProductList extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
+    loadStyles(this.shadowRoot, productListCSS);
     
     // Initialize products database from storage (will load from Supabase)
     let loadedProducts = [];
@@ -168,7 +171,7 @@ class ProductList extends HTMLElement {
     this.countdownTime = 2 * 3600 + 45 * 60 + 18; 
     
     // Profile active tab state
-    this.activeProfileTab = sessionStorage.getItem('SWEETOS_active_profile_tab') || 'overview';
+    this.activeProfileTab = localStorage.getItem('SWEETOS_active_profile_tab') || 'overview';
     this.activeAboutTab = 'about-us';
 
     // Infinite scroll "For You" states
@@ -278,7 +281,7 @@ class ProductList extends HTMLElement {
       if (categories && categories.length > 0) {
         this.categories = categories;
         saveStorageItem('SWEETOS_categories', categories);
-        sessionStorage.setItem('SWEETOS_categories', JSON.stringify(categories));
+        localStorage.setItem('SWEETOS_categories', JSON.stringify(categories));
         console.log('✅ [ProductList] Categories loaded:', this.categories.length);
       }
       
@@ -286,7 +289,7 @@ class ProductList extends HTMLElement {
       if (brands && brands.length > 0) {
         this.brands = brands;
         saveStorageItem('SWEETOS_brands', brands);
-        sessionStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
+        localStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
         console.log('✅ [ProductList] Brands loaded:', this.brands.length);
       }
       
@@ -453,7 +456,7 @@ class ProductList extends HTMLElement {
         if (Array.isArray(updatedProducts) && updatedProducts.length > 0) {
           this.products = updatedProducts;
           saveStorageItem('SWEETOS_products', updatedProducts);
-          sessionStorage.setItem('SWEETOS_products', JSON.stringify(updatedProducts));
+          localStorage.setItem('SWEETOS_products', JSON.stringify(updatedProducts));
         }
 
         const newJson = JSON.stringify(this.products || []);
@@ -476,7 +479,7 @@ class ProductList extends HTMLElement {
     });
 
     window.addEventListener('auth:changed', (e) => {
-      const isLoggedIn = sessionStorage.getItem('SWEETOS_logged_in_user') !== null || (e.detail && e.detail.loggedIn);
+      const isLoggedIn = localStorage.getItem('SWEETOS_logged_in_user') !== null || (e.detail && e.detail.loggedIn);
       if (isLoggedIn && (this.currentPage === 'auth' || window.location.hash === '#/auth' || window.location.hash === '#/auth/')) {
         this.currentPage = 'home';
         this.currentCategory = 'All';
@@ -558,7 +561,7 @@ class ProductList extends HTMLElement {
 
   // --- Functional Wishlist Utility Methods ---
   loadWishlistFromStorage() {
-    const saved = sessionStorage.getItem('SWEETOS_wishlist');
+    const saved = localStorage.getItem('SWEETOS_wishlist');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -570,7 +573,7 @@ class ProductList extends HTMLElement {
   }
 
   saveWishlistToStorage(wishlist) {
-    sessionStorage.setItem('SWEETOS_wishlist', JSON.stringify(wishlist));
+    localStorage.setItem('SWEETOS_wishlist', JSON.stringify(wishlist));
     window.dispatchEvent(new CustomEvent('wishlist:updated', { detail: wishlist }));
   }
 
@@ -603,7 +606,7 @@ class ProductList extends HTMLElement {
 
   // --- Functional User Profile Utility Methods ---
   loadUserProfile() {
-    const loggedInUserStr = getStorageItem('SWEETOS_logged_in_user') || sessionStorage.getItem('SWEETOS_logged_in_user');
+    const loggedInUserStr = getStorageItem('SWEETOS_logged_in_user') || localStorage.getItem('SWEETOS_logged_in_user');
     if (!loggedInUserStr) {
       return null;
     }
@@ -619,7 +622,7 @@ class ProductList extends HTMLElement {
 
     const currentEmail = loggedUser.email.toLowerCase().trim();
     const profileKey = getProfileStorageKey(currentEmail);
-    const saved = getStorageItem(profileKey) || sessionStorage.getItem(profileKey);
+    const saved = getStorageItem(profileKey) || localStorage.getItem(profileKey);
     let profile = null;
     if (saved) {
       try {
@@ -655,7 +658,7 @@ class ProductList extends HTMLElement {
 
     // Check if admin customer record has level, badge or avatar override
     try {
-      const customersList = JSON.parse(sessionStorage.getItem('SWEETOS_customers') || '[]');
+      const customersList = JSON.parse(localStorage.getItem('SWEETOS_customers') || '[]');
       if (currentEmail) {
         const custRecord = customersList.find(c => c.email && c.email.toLowerCase() === currentEmail);
         if (custRecord) {
@@ -728,12 +731,12 @@ class ProductList extends HTMLElement {
 
   saveUserProfile(profile) {
     const profileKey = getProfileStorageKey();
-    sessionStorage.setItem(profileKey, JSON.stringify(profile));
-    sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+    localStorage.setItem(profileKey, JSON.stringify(profile));
+    localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
 
     // Synchronize with SWEETOS_customers if exists
     try {
-      let customers = JSON.parse(sessionStorage.getItem('SWEETOS_customers') || '[]');
+      let customers = JSON.parse(localStorage.getItem('SWEETOS_customers') || '[]');
       const idx = customers.findIndex(c => c.email && c.email.toLowerCase() === (profile.email || '').toLowerCase());
       if (idx > -1) {
         customers[idx].name = `${profile.firstName || ''} ${profile.lastName || ''}`.trim();
@@ -741,7 +744,7 @@ class ProductList extends HTMLElement {
         if (profile.avatar !== undefined) customers[idx].avatar = profile.avatar;
         if (profile.level) customers[idx].level = profile.level;
         if (profile.badgeType) customers[idx].badgeType = profile.badgeType;
-        sessionStorage.setItem('SWEETOS_customers', JSON.stringify(customers));
+        localStorage.setItem('SWEETOS_customers', JSON.stringify(customers));
       }
     } catch(e) {}
   }
@@ -865,7 +868,6 @@ class ProductList extends HTMLElement {
 
   render() {
     this.shadowRoot.innerHTML = `
-      <link rel="stylesheet" href="./components/ProductList/ProductList.css">
       <section class="shop-section">
 
 
@@ -898,6 +900,39 @@ class ProductList extends HTMLElement {
       return `<span class="more-to-love-title" style="font-family: 'Fraunces', Georgia, serif; font-weight: 700; color: var(--text-dark, #0A2540); letter-spacing: -0.015em;">Vous aimerez <em style="font-style: italic; color: #1F6FEB; font-family: 'Fraunces', Georgia, serif;">aussi.</em></span>`;
     }
     return title;
+  }
+
+  renderSectionHeader(s, buttonHtml = '') {
+    const align = s.headerAlignment || 'left';
+    let flexStyle = 'display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; gap: 10px; width: 100%;';
+    let titleAlign = 'left';
+
+    if (align === 'center') {
+      flexStyle = 'display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; margin-bottom: 22px; gap: 10px; width: 100%;';
+      titleAlign = 'center';
+    } else if (align === 'right') {
+      flexStyle = 'display: flex; flex-direction: row-reverse; align-items: center; justify-content: space-between; margin-bottom: 18px; gap: 10px; width: 100%;';
+      titleAlign = 'right';
+    }
+
+    const brandBadge = s.brand && s.brand !== 'All' 
+      ? `<span style="font-size: 11px; font-weight: 800; color: #2563eb; background: rgba(37, 99, 235, 0.1); padding: 3px 8px; border-radius: 6px; text-transform: uppercase;">🏷️ ${s.brand}</span>` 
+      : '';
+
+    const catBadge = s.category && s.category !== 'All' 
+      ? `<span style="font-size: 11px; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px;">${s.category}</span>` 
+      : '';
+
+    return `
+      <div class="section-header" style="${flexStyle}">
+        <h3 class="section-title" style="margin: 0; text-align: ${titleAlign}; display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: ${align === 'center' ? 'center' : align === 'right' ? 'flex-end' : 'flex-start'};">
+          <span>${this.formatSectionTitleHtml(s.name)}</span>
+          ${brandBadge}
+          ${catBadge}
+        </h3>
+        ${buttonHtml ? `<div style="display: flex; align-items: center; gap: 8px;">${buttonHtml}</div>` : ''}
+      </div>
+    `;
   }
 
   getPdpHexColor(name) {
@@ -1009,7 +1044,7 @@ class ProductList extends HTMLElement {
   loadProductReviews(productId, targetRating, defaultCount) {
     let allReviews = [];
     try {
-      const stored = sessionStorage.getItem('SWEETOS_reviews') || sessionStorage.getItem('SWEETOS_reviews_all');
+      const stored = localStorage.getItem('SWEETOS_reviews') || localStorage.getItem('SWEETOS_reviews_all');
       if (stored) {
         allReviews = JSON.parse(stored);
       }
@@ -1027,7 +1062,7 @@ class ProductList extends HTMLElement {
   saveProductReviews(productId, newReviewsForProduct) {
     let allReviews = [];
     try {
-      const stored = sessionStorage.getItem('SWEETOS_reviews') || sessionStorage.getItem('SWEETOS_reviews_all');
+      const stored = localStorage.getItem('SWEETOS_reviews') || localStorage.getItem('SWEETOS_reviews_all');
       if (stored) {
         allReviews = JSON.parse(stored);
       }
@@ -1057,8 +1092,8 @@ class ProductList extends HTMLElement {
     });
 
     allReviews = [...mapped, ...allReviews];
-    sessionStorage.setItem('SWEETOS_reviews', JSON.stringify(allReviews));
-    sessionStorage.setItem('SWEETOS_reviews_all', JSON.stringify(allReviews));
+    localStorage.setItem('SWEETOS_reviews', JSON.stringify(allReviews));
+    localStorage.setItem('SWEETOS_reviews_all', JSON.stringify(allReviews));
     window.dispatchEvent(new CustomEvent('reviews:updated', { detail: allReviews }));
 
     // Sync to server disk if backend API is active
@@ -1138,7 +1173,7 @@ class ProductList extends HTMLElement {
       }
     }
 
-    const isLoggedIn = sessionStorage.getItem('SWEETOS_logged_in_user') !== null;
+    const isLoggedIn = localStorage.getItem('SWEETOS_logged_in_user') !== null;
     if (!isLoggedIn && (this.currentPage === 'profile' || this.currentPage === 'orders')) {
       this.currentPage = 'auth';
       setTimeout(() => {
@@ -1154,18 +1189,18 @@ class ProductList extends HTMLElement {
     this.initializeHomepageSectionsForProducts(this.products);
 
     // Persist current navigation state
-    sessionStorage.setItem('SWEETOS_current_page', this.currentPage);
-    sessionStorage.setItem('SWEETOS_current_category', this.currentCategory || 'All');
-    sessionStorage.setItem('SWEETOS_current_query', this.currentQuery || '');
-    sessionStorage.setItem('SWEETOS_current_brand', this.currentBrand || '');
-    sessionStorage.setItem('SWEETOS_current_brand_filter', this.currentBrandFilter || 'All');
+    localStorage.setItem('SWEETOS_current_page', this.currentPage);
+    localStorage.setItem('SWEETOS_current_category', this.currentCategory || 'All');
+    localStorage.setItem('SWEETOS_current_query', this.currentQuery || '');
+    localStorage.setItem('SWEETOS_current_brand', this.currentBrand || '');
+    localStorage.setItem('SWEETOS_current_brand_filter', this.currentBrandFilter || 'All');
     if (this.currentProductId !== null) {
-      sessionStorage.setItem('SWEETOS_current_product_id', this.currentProductId);
+      localStorage.setItem('SWEETOS_current_product_id', this.currentProductId);
     } else {
-      sessionStorage.removeItem('SWEETOS_current_product_id');
+      localStorage.removeItem('SWEETOS_current_product_id');
       resetDefaultMetaTags();
     }
-    sessionStorage.setItem('SWEETOS_active_profile_tab', this.activeProfileTab);
+    localStorage.setItem('SWEETOS_active_profile_tab', this.activeProfileTab);
     this.updateHashURL();
 
     const contentArea = this.shadowRoot.getElementById('page-content');
@@ -1222,24 +1257,20 @@ class ProductList extends HTMLElement {
           homepageSectionsHTML += `
             <!-- Shop by Category Section (Charming Luxury Cards) -->
             <div class="home-section home-category-showcase-section animate-in" style="margin-bottom: 44px;">
-              <div class="section-header" style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 22px; flex-wrap: wrap; gap: 14px;">
-                <div>
+              <div class="section-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; gap: 12px; width: 100%;">
+                <div style="text-align: left;">
                   <div style="display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; font-weight: 850; color: #2563eb; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; background: rgba(37, 99, 235, 0.08); padding: 4px 12px; border-radius: 20px;">
                     <span>✨ DÉCOUVREZ PAR UNIVERS</span>
                     <span>•</span>
                     <span style="color: #64748b;">COLLECTIONS PREMIUM</span>
                   </div>
-                  <h3 class="section-title" style="font-size: 24px; font-weight: 900; color: var(--text-dark); margin: 0; letter-spacing: -0.5px;">${s.name || "Explorer par Catégorie"}</h3>
+                  <h3 class="section-title" style="font-size: 24px; font-weight: 900; color: var(--text-dark); margin: 0; letter-spacing: -0.5px; text-align: left;">${s.name || "Explorer par Catégorie"}</h3>
                 </div>
-                <div style="display: flex; align-items: center; gap: 10px;">
+                <div style="display: flex; align-items: center; gap: 10px; margin-left: auto;">
                   <button class="view-all-btn" data-target-page="catalog" style="font-size: 13.5px; font-weight: 800; color: #2563eb; background: transparent; border: none; cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; transition: all 0.2s;">
                     <span>Tout voir</span>
                     <span style="font-size: 15px;">→</span>
                   </button>
-                  <div class="category-carousel-arrows" style="display: flex; gap: 6px;">
-                    <button class="carousel-control-btn prev-btn" data-target-carousel="home-category-row" title="Précédent" style="border: 1px solid var(--border); border-radius: 10px; width: 36px; height: 36px; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">←</button>
-                    <button class="carousel-control-btn next-btn" data-target-carousel="home-category-row" title="Suivant" style="border: 1px solid var(--border); border-radius: 10px; width: 36px; height: 36px; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">→</button>
-                  </div>
                 </div>
               </div>
 
@@ -1485,14 +1516,7 @@ class ProductList extends HTMLElement {
           homepageSectionsHTML += `
             <!-- Hot Deals Section (Slidable 1-Line Row) -->
             <div class="home-section" style="margin-bottom: 40px;">
-              <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-                <h3 class="section-title" style="margin: 0;">${this.formatSectionTitleHtml(s.name)}</h3>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <button class="view-all-btn" data-target-page="deals">View All →</button>
-                  <button class="carousel-control-btn prev-btn" data-target-carousel="grid-hot-deals" title="Précédent" style="border: 1px solid var(--border); border-radius: 8px; width: 34px; height: 34px; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s;">←</button>
-                  <button class="carousel-control-btn next-btn" data-target-carousel="grid-hot-deals" title="Suivant" style="border: 1px solid var(--border); border-radius: 8px; width: 34px; height: 34px; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s;">→</button>
-                </div>
-              </div>
+              ${this.renderSectionHeader(s, `<button class="view-all-btn" data-target-page="deals">View All →</button>`)}
               <div class="carousel-scroll-wrapper slidable-product-row" id="grid-hot-deals"></div>
             </div>
           `;
@@ -1500,14 +1524,7 @@ class ProductList extends HTMLElement {
           homepageSectionsHTML += `
             <!-- New Arrivals Section (Slidable 1-Line Row) -->
             <div class="home-section" style="margin-bottom: 40px;">
-              <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-                <h3 class="section-title" style="margin: 0;">${this.formatSectionTitleHtml(s.name)}</h3>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <button class="view-all-btn" data-target-page="new-arrivals">View All →</button>
-                  <button class="carousel-control-btn prev-btn" data-target-carousel="grid-new-arrivals" title="Précédent" style="border: 1px solid var(--border); border-radius: 8px; width: 34px; height: 34px; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s;">←</button>
-                  <button class="carousel-control-btn next-btn" data-target-carousel="grid-new-arrivals" title="Suivant" style="border: 1px solid var(--border); border-radius: 8px; width: 34px; height: 34px; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s;">→</button>
-                </div>
-              </div>
+              ${this.renderSectionHeader(s, `<button class="view-all-btn" data-target-page="new-arrivals">View All →</button>`)}
               <div class="carousel-scroll-wrapper slidable-product-row" id="grid-new-arrivals"></div>
             </div>
           `;
@@ -1515,43 +1532,21 @@ class ProductList extends HTMLElement {
           homepageSectionsHTML += `
             <!-- Best Sellers Section (Slidable 1-Line Row) -->
             <div class="home-section" style="margin-bottom: 40px;">
-              <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-                <h3 class="section-title" style="margin: 0;">${this.formatSectionTitleHtml(s.name)}</h3>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <button class="view-all-btn" data-target-page="best-sellers">View All →</button>
-                  <button class="carousel-control-btn prev-btn" data-target-carousel="grid-best-sellers" title="Précédent" style="border: 1px solid var(--border); border-radius: 8px; width: 34px; height: 34px; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s;">←</button>
-                  <button class="carousel-control-btn next-btn" data-target-carousel="grid-best-sellers" title="Suivant" style="border: 1px solid var(--border); border-radius: 8px; width: 34px; height: 34px; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s;">→</button>
-                </div>
-              </div>
+              ${this.renderSectionHeader(s, `<button class="view-all-btn" data-target-page="best-sellers">View All →</button>`)}
               <div class="carousel-scroll-wrapper slidable-product-row" id="grid-best-sellers"></div>
             </div>
           `;
         } else if (s.type === 'grid') {
           homepageSectionsHTML += `
             <div class="home-section" style="margin-bottom: 40px;">
-              <div class="section-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px;">
-                <h3 class="section-title" style="font-size: 20px; font-weight: 850; color: var(--text-dark); margin: 0; display: flex; align-items: center; gap: 8px;">
-                  <span>${this.formatSectionTitleHtml(s.name)}</span>
-                  ${s.category ? `<span style="font-size: 11px; font-weight: 700; color: var(--primary); background: var(--primary-light); padding: 3px 8px; border-radius: 6px; text-transform: uppercase; letter-spacing: 0.5px; margin-left: 4px;">${s.category}</span>` : ''}
-                </h3>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <button class="carousel-control-btn prev-btn" data-target-carousel="grid-dynamic-${s.id}" title="Précédent" style="border: 1px solid var(--border); border-radius: 8px; width: 34px; height: 34px; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s;">←</button>
-                  <button class="carousel-control-btn next-btn" data-target-carousel="grid-dynamic-${s.id}" title="Suivant" style="border: 1px solid var(--border); border-radius: 8px; width: 34px; height: 34px; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s;">→</button>
-                </div>
-              </div>
+              ${this.renderSectionHeader(s)}
               <div class="carousel-scroll-wrapper slidable-product-row" id="grid-dynamic-${s.id}"></div>
             </div>
           `;
         } else if (s.type === 'carousel') {
           homepageSectionsHTML += `
             <div class="home-section" style="margin-bottom: 40px;">
-              <div class="section-header" style="margin-bottom: 24px;">
-                <h3 class="section-title" style="font-size: 22px; font-weight: 850; color: var(--text-dark); margin:0;">${this.formatSectionTitleHtml(s.name)}</h3>
-                <div style="display: flex; gap: 8px;">
-                  <button class="carousel-control-btn prev-btn" id="btn-prev-${s.id}" style="border: 1px solid var(--border); border-radius: 8px; width: 36px; height: 36px; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s;">←</button>
-                  <button class="carousel-control-btn next-btn" id="btn-next-${s.id}" style="border: 1px solid var(--border); border-radius: 8px; width: 36px; height: 36px; background: white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-weight: bold; transition: all 0.2s;">→</button>
-                </div>
-              </div>
+              ${this.renderSectionHeader(s)}
               <div class="carousel-scroll-wrapper slidable-product-row" id="carousel-${s.id}" style="overflow-x: auto; scroll-behavior: smooth; display: flex; gap: 20px; padding-bottom: 12px;">
                 <!-- Appended dynamically -->
               </div>
@@ -1571,10 +1566,10 @@ class ProductList extends HTMLElement {
               border: 1px solid rgba(255, 255, 255, 0.1);
             ">
               <div style="position: absolute; right: -50px; bottom: -50px; width: 300px; height: 300px; background: rgba(255, 255, 255, 0.1); filter: blur(60px); border-radius: 50%;"></div>
-              <div style="max-width: 550px; position: relative; z-index: 2; display: flex; flex-direction: column; gap: 16px;">
+              <div style="max-width: 550px; position: relative; z-index: 2; display: flex; flex-direction: column; gap: 16px; margin: 0 auto; text-align: center; align-items: center;">
                 <span style="font-size: 11px; font-weight: 800; background: rgba(255, 255, 255, 0.2); padding: 4px 12px; border-radius: 20px; width: fit-content; text-transform: uppercase; letter-spacing: 0.5px;">PROMOTION</span>
-                <h2 style="font-size: 32px; font-weight: 850; margin: 0; color: white; line-height: 1.2;">${s.name}</h2>
-                <p style="font-size: 15px; color: rgba(255, 255, 255, 0.85); margin: 0; line-height: 1.6;">Discover our limited release custom collections filtered by ${s.category}. Save up to 20% today.</p>
+                <h2 style="font-size: 32px; font-weight: 850; margin: 0; color: white; line-height: 1.2; text-align: center;">${s.name}</h2>
+                <p style="font-size: 15px; color: rgba(255, 255, 255, 0.85); margin: 0; line-height: 1.6; text-align: center;">Discover our limited release custom collections filtered by ${s.category}. Save up to 20% today.</p>
                 <button class="shop-now-btn" style="background: white; color: var(--primary); border: none; padding: 12px 28px; border-radius: 12px; font-weight: 800; font-size: 14px; cursor: pointer; width: fit-content; box-shadow: 0 4px 12px rgba(0,0,0,0.1); margin-top: 8px;" data-category="${s.category}">Shop ${s.category} Now</button>
               </div>
             </div>
@@ -1586,8 +1581,8 @@ class ProductList extends HTMLElement {
         ${homepageSectionsHTML}
 
         <div class="home-section" id="for-you-section" style="margin-bottom: 40px;">
-          <div class="section-header" style="margin-bottom: 24px;">
-            <h3 class="section-title" style="font-size: 22px; font-weight: 850; color: var(--text-dark); margin:0;">For You</h3>
+          <div class="section-header" style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 24px; width: 100%;">
+            <h3 class="section-title" style="font-size: 22px; font-weight: 850; color: var(--text-dark); margin:0; text-align: left;">For You</h3>
           </div>
           <div class="home-grid-4" id="grid-for-you"></div>
           
@@ -1647,10 +1642,6 @@ class ProductList extends HTMLElement {
       const brandOptions = Array.from(new Set(this.products.map(p => p.brand).filter(Boolean))).sort();
 
       contentArea.innerHTML = `
-        <!-- Breadcrumbs Navigation -->
-        <nav style="display: flex; gap: 8px; font-size: 13px; color: var(--text-gray); font-weight: 600; margin-bottom: 22px; align-items: center; flex-wrap: wrap;">
-          ${breadcrumbsHTML}
-        </nav>
 
         ${isSearchActive ? `
           <!-- Active Global Search Banner -->
@@ -1797,21 +1788,11 @@ class ProductList extends HTMLElement {
       this.injectCategorizedProducts('best');
 
     } else if (this.currentPage === 'brands') {
-      const storedBrands = JSON.parse(sessionStorage.getItem('SWEETOS_brands') || '[]');
+      const storedBrands = JSON.parse(localStorage.getItem('SWEETOS_brands') || '[]');
       const isAll = !this.currentBrandFilter || this.currentBrandFilter === 'All';
       const activeBrandObj = storedBrands.find(b => b && b.name && b.name.toLowerCase() === (this.currentBrandFilter || '').toLowerCase());
 
       contentArea.innerHTML = `
-        <!-- Hierarchical Breadcrumbs Navigation -->
-        <nav style="display: flex; gap: 6px; font-size: 13px; color: #64748b; font-weight: 600; margin-bottom: 22px; align-items: center; flex-wrap: wrap;">
-          <span style="cursor: pointer; color: #475569; transition: color 0.2s;" id="crumb-home">Accueil</span>
-          <span style="opacity: 0.4;">/</span>
-          <span style="cursor: pointer; color: ${isAll ? 'var(--primary)' : '#475569'}; font-weight: ${isAll ? '750' : '600'};" id="crumb-brand-all">Nos Marques</span>
-          ${!isAll ? `
-            <span style="opacity: 0.4;">/</span>
-            <span style="color: var(--primary); font-weight: 750;">${activeBrandObj?.name || this.currentBrandFilter}</span>
-          ` : ''}
-        </nav>
 
         <!-- Dynamic Luxury Brand Hero Banner Container -->
         <div class="brand-hero-banner-luxury animate-in" id="brand-hero-banner-container">
@@ -1834,7 +1815,7 @@ class ProductList extends HTMLElement {
             <select class="brand-toolbar-select" id="brand-cat-select" aria-label="Filtrer par catégorie">
               <option value="All" ${this.brandCategoryFilter === 'All' ? 'selected' : ''}>Toutes les catégories</option>
               ${(() => {
-                const cats = JSON.parse(sessionStorage.getItem('SWEETOS_categories') || '[]');
+                const cats = JSON.parse(localStorage.getItem('SWEETOS_categories') || '[]');
                 return cats.map(c => `
                   <option value="${c.name || c}" ${this.brandCategoryFilter === (c.name || c) ? 'selected' : ''}>${c.name || c}</option>
                 `).join('');
@@ -2026,10 +2007,10 @@ class ProductList extends HTMLElement {
     } else if (this.currentPage === 'coupons') {
       let scratchcardsList = [];
       try {
-        const loggedInUserStr = sessionStorage.getItem('SWEETOS_logged_in_user');
+        const loggedInUserStr = localStorage.getItem('SWEETOS_logged_in_user');
         if (loggedInUserStr) {
           const scratchKey = getScratchcardsStorageKey();
-          const stored = sessionStorage.getItem(scratchKey);
+          const stored = localStorage.getItem(scratchKey);
           let rawList = stored ? JSON.parse(stored) : [];
           const now = Date.now();
 
@@ -2054,7 +2035,7 @@ class ProductList extends HTMLElement {
       if (this.currentCouponCode) {
         let couponsList = [];
         try {
-          couponsList = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
+          couponsList = JSON.parse(localStorage.getItem('SWEETOS_coupons') || '[]');
         } catch(e) {}
         const c = couponsList.find(item => item.code === this.currentCouponCode);
         if (c) {
@@ -2956,6 +2937,23 @@ class ProductList extends HTMLElement {
     }
 
     sectionsList.filter(s => s.active).forEach(s => {
+      const isMatchBrand = (p) => {
+        if (!s.brand || s.brand === 'All') return true;
+        const bLower = String(s.brand).toLowerCase().trim();
+        const pBrand = String(p.brand || p.brandName || p.vendor || '').toLowerCase().trim();
+        const pName = String(p.name || '').toLowerCase().trim();
+        return pBrand === bLower || pBrand.includes(bLower) || pName.includes(bLower);
+      };
+
+      const isMatchCategory = (p) => {
+        if (!s.category || s.category === 'All') return true;
+        const catLower = String(s.category).toLowerCase().trim();
+        const pCat = String(p.category || '').toLowerCase().trim();
+        const pSubcat = String(p.subcategory || '').toLowerCase().trim();
+        const pName = String(p.name || '').toLowerCase().trim();
+        return pCat === catLower || pCat.includes(catLower) || pSubcat.includes(catLower) || (s.category === 'Apple' && pName.includes('apple'));
+      };
+
       // Check if any product has explicitly been assigned to this section
       const assignedProducts = this.products.filter(p => {
         if (!p) return false;
@@ -2963,16 +2961,22 @@ class ProductList extends HTMLElement {
         const sId = String(s.id || '').toLowerCase();
         const sType = String(s.type || '').toLowerCase();
         const sName = String(s.name || '').toLowerCase();
-        return sec.some(val => val === sId || val === sType || val === sName);
-      });
-      const hasAssigned = assignedProducts.length > 0;
+        const matched = sec.some(val => val === sId || val === sType || val === sName);
+        
+        if (!matched) {
+          if (s.type === 'deals' && (p.isHotDeal || p.isDeal)) return true;
+          if (s.type === 'new-arrivals' && (p.isNewArrival || p.isNew)) return true;
+          if (s.type === 'best-sellers' && (p.isBestseller || p.isBestSeller)) return true;
+          return false;
+        }
+        return true;
+      }).filter(isMatchBrand).filter(isMatchCategory);
 
       if (s.type === 'deals') {
         const gridHot = this.shadowRoot.getElementById('grid-hot-deals');
         if (gridHot) {
           gridHot.innerHTML = '';
-          const poolDeals = pools.deals || [];
-          const displayProducts = [...new Set([...assignedProducts, ...poolDeals])].slice(0, 12);
+          const displayProducts = assignedProducts.slice(0, 12);
           const secWrapper = gridHot.closest('.home-section');
           if (displayProducts.length === 0) {
             if (secWrapper) secWrapper.style.display = 'none';
@@ -2990,8 +2994,7 @@ class ProductList extends HTMLElement {
         const gridNew = this.shadowRoot.getElementById('grid-new-arrivals');
         if (gridNew) {
           gridNew.innerHTML = '';
-          const poolNew = pools.newArrivals || [];
-          const displayProducts = [...new Set([...assignedProducts, ...poolNew])].slice(0, 12);
+          const displayProducts = assignedProducts.slice(0, 12);
           const secWrapper = gridNew.closest('.home-section');
           if (displayProducts.length === 0) {
             if (secWrapper) secWrapper.style.display = 'none';
@@ -3008,8 +3011,7 @@ class ProductList extends HTMLElement {
         const gridBest = this.shadowRoot.getElementById('grid-best-sellers');
         if (gridBest) {
           gridBest.innerHTML = '';
-          const poolBest = pools.bestSellers || [];
-          const displayProducts = [...new Set([...assignedProducts, ...poolBest])].slice(0, 12);
+          const displayProducts = assignedProducts.slice(0, 12);
           const secWrapper = gridBest.closest('.home-section');
           if (displayProducts.length === 0) {
             if (secWrapper) secWrapper.style.display = 'none';
@@ -3027,19 +3029,10 @@ class ProductList extends HTMLElement {
         if (gridDynamic) {
           gridDynamic.innerHTML = '';
           let displayProducts = [];
-          if (hasAssigned) {
+          if (assignedProducts.length > 0) {
             displayProducts = assignedProducts.slice(0, 12);
           } else {
-            if (s.category === 'Apple') {
-              displayProducts = this.products.filter(p => (p.name || '').toLowerCase().includes('apple') || (p.brand || '').toLowerCase().includes('apple')).slice(0, 12);
-            } else if (s.category && s.category !== 'All') {
-              const catLower = String(s.category).toLowerCase().trim();
-              displayProducts = this.products.filter(p => 
-                (p.category || '').toLowerCase().trim() === catLower ||
-                (p.category || '').toLowerCase().includes(catLower) ||
-                (p.subcategory || '').toLowerCase().includes(catLower)
-              ).slice(0, 12);
-            }
+            displayProducts = this.products.filter(isMatchBrand).filter(isMatchCategory).slice(0, 12);
           }
           const secWrapper = gridDynamic.closest('.home-section');
           if (displayProducts.length === 0) {
@@ -3058,19 +3051,10 @@ class ProductList extends HTMLElement {
         if (carousel) {
           carousel.innerHTML = '';
           let displayProducts = [];
-          if (hasAssigned) {
+          if (assignedProducts.length > 0) {
             displayProducts = assignedProducts.slice(0, 12);
           } else {
-            if (s.category === 'Apple') {
-              displayProducts = this.products.filter(p => (p.name || '').toLowerCase().includes('apple') || (p.brand || '').toLowerCase().includes('apple')).slice(0, 8);
-            } else if (s.category && s.category !== 'All') {
-              const catLower = String(s.category).toLowerCase().trim();
-              displayProducts = this.products.filter(p => 
-                (p.category || '').toLowerCase().trim() === catLower ||
-                (p.category || '').toLowerCase().includes(catLower) ||
-                (p.subcategory || '').toLowerCase().includes(catLower)
-              ).slice(0, 8);
-            }
+            displayProducts = this.products.filter(isMatchBrand).filter(isMatchCategory).slice(0, 8);
           }
           const secWrapper = carousel.closest('.home-section');
           if (displayProducts.length === 0) {
@@ -3312,26 +3296,56 @@ class ProductList extends HTMLElement {
       return;
     }
 
+    const forYouMode = localStorage.getItem('SWEETOS_foryou_mode') || 'infinite';
+
+    if (forYouMode === 'single' && this.forYouIndex >= this.products.length) {
+      this.forYouLoading = false;
+      if (loadingEl) {
+        loadingEl.innerHTML = '<span style="font-size: 13.5px; font-weight: 800; color: #64748b; background: rgba(241, 245, 249, 0.8); padding: 8px 16px; border-radius: 20px;">✨ Vous avez vu tous les produits disponibles</span>';
+        loadingEl.style.opacity = '1';
+        loadingEl.style.display = 'flex';
+      }
+      if (this._forYouObserver) {
+        this._forYouObserver.disconnect();
+        this._forYouObserver = null;
+      }
+      return;
+    }
+
     if (loadingEl) {
       loadingEl.style.opacity = '1';
       loadingEl.style.display = 'flex';
     }
 
     setTimeout(() => {
+      let itemsAdded = 0;
       for (let i = 0; i < batchSize; i++) {
-        const prodIndex = (this.forYouIndex + i) % this.products.length;
+        let prodIndex;
+        if (forYouMode === 'single') {
+          prodIndex = this.forYouIndex + i;
+          if (prodIndex >= this.products.length) break;
+        } else {
+          prodIndex = (this.forYouIndex + i) % this.products.length;
+        }
         const p = this.products[prodIndex];
         if (p) {
           const card = document.createElement('product-card');
           card.product = p;
           grid.appendChild(card);
+          itemsAdded++;
         }
       }
-      this.forYouIndex += batchSize;
+      this.forYouIndex += itemsAdded;
       this.forYouLoading = false;
       if (loadingEl) {
-        loadingEl.style.opacity = '0';
-        loadingEl.style.display = 'none';
+        if (forYouMode === 'single' && this.forYouIndex >= this.products.length) {
+          loadingEl.innerHTML = '<span style="font-size: 13.5px; font-weight: 800; color: #64748b; background: rgba(241, 245, 249, 0.8); padding: 8px 16px; border-radius: 20px;">✨ Vous avez vu tous les produits disponibles</span>';
+          loadingEl.style.opacity = '1';
+          loadingEl.style.display = 'flex';
+        } else {
+          loadingEl.style.opacity = '0';
+          loadingEl.style.display = 'none';
+        }
       }
     }, 120);
   }
@@ -3706,17 +3720,12 @@ class ProductList extends HTMLElement {
         section.style.marginBottom = '44px';
 
         section.innerHTML = `
-          <div class="category-section-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid var(--border); padding-bottom:12px; margin-bottom:20px;">
-            <h4 class="category-section-title" style="font-size: 20px; font-weight: 850; color: var(--text-dark); margin:0; display:flex; align-items:center; gap:8px;">
+          <div class="category-section-header" style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; border-bottom:1.5px solid var(--border); padding-bottom:12px; margin-bottom:20px; gap:8px; width:100%;">
+            <h4 class="category-section-title" style="font-size: 20px; font-weight: 850; color: var(--text-dark); margin:0; display:flex; align-items:center; justify-content:center; gap:8px; text-align:center;">
               <span>${c.icon || '📁'}</span>
               <span>${catName}</span>
               <span class="cat-count" style="font-size: 13px; font-weight: 550; color: var(--text-light); margin-left: 4px;">(${sectionProducts.length} articles)</span>
             </h4>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <button class="view-all-cat-btn" data-cat="${catName}" style="background: rgba(0, 82, 204, 0.08); color: var(--primary); border: 1px solid rgba(0, 82, 204, 0.15); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 750; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
-                Voir tout (${sectionProducts.length}) →
-              </button>
-            </div>
           </div>
         `;
 
@@ -3813,14 +3822,14 @@ class ProductList extends HTMLElement {
     if (cleanQuery && cleanQuery !== 'All') {
       let failedSearches = [];
       try {
-        failedSearches = JSON.parse(sessionStorage.getItem('SWEETOS_failed_searches') || '[]');
+        failedSearches = JSON.parse(localStorage.getItem('SWEETOS_failed_searches') || '[]');
       } catch (e) {
         failedSearches = [];
       }
 
       let loggedUser = null;
       try {
-        loggedUser = JSON.parse(sessionStorage.getItem('SWEETOS_logged_in_user') || 'null');
+        loggedUser = JSON.parse(localStorage.getItem('SWEETOS_logged_in_user') || 'null');
       } catch(e) {}
 
       const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -3854,7 +3863,7 @@ class ProductList extends HTMLElement {
         });
       }
 
-      sessionStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
+      localStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
       window.dispatchEvent(new CustomEvent('failed_searches:updated', { detail: failedSearches }));
     }
 
@@ -3875,7 +3884,7 @@ class ProductList extends HTMLElement {
 
     let loggedUser = null;
     try {
-      loggedUser = JSON.parse(sessionStorage.getItem('SWEETOS_logged_in_user') || 'null');
+      loggedUser = JSON.parse(localStorage.getItem('SWEETOS_logged_in_user') || 'null');
     } catch(e) {}
 
     const emptyBox = document.createElement('div');
@@ -3961,7 +3970,7 @@ class ProductList extends HTMLElement {
 
         let failedSearches = [];
         try {
-          failedSearches = JSON.parse(sessionStorage.getItem('SWEETOS_failed_searches') || '[]');
+          failedSearches = JSON.parse(localStorage.getItem('SWEETOS_failed_searches') || '[]');
           const target = failedSearches.find(f => f.query.toLowerCase() === cleanQuery.toLowerCase());
           if (target) {
             target.customerName = nameVal;
@@ -3980,7 +3989,7 @@ class ProductList extends HTMLElement {
               notified: false
             });
           }
-          sessionStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
+          localStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
         } catch(err) {}
 
         const notifyBox = emptyBox.querySelector('#restock-notify-box');
@@ -4011,16 +4020,8 @@ class ProductList extends HTMLElement {
     const all = this.products || [];
     if (all.length === 0) return { deals: [], newArrivals: [], bestSellers: [] };
 
-    // Newest uploaded products first (sorted by createdAt or id descending)
-    const sortedNewestFirst = [...all].sort((a, b) => {
-      if (a.createdAt && b.createdAt) {
-        return new Date(b.createdAt) - new Date(a.createdAt);
-      }
-      return (parseInt(b.id) || 0) - (parseInt(a.id) || 0);
-    });
-
     // 1. Hot Deals: explicit section assigned, isHotDeal flag, sale badge, or discount price
-    let dealsExplicit = all.filter(p => {
+    const deals = all.filter(p => {
       if (!p) return false;
       const b = String(p.badge || '').toUpperCase();
       const sec = getSecArray(p);
@@ -4032,14 +4033,8 @@ class ProductList extends HTMLElement {
              (p.originalPrice && parseFloat(p.originalPrice) > parseFloat(p.price));
     });
 
-    let deals = dealsExplicit;
-    if (deals.length < 4) {
-      const remainder = sortedNewestFirst.filter(p => !deals.some(d => String(d.id) === String(p.id)));
-      deals = [...deals, ...remainder];
-    }
-
     // 2. New Arrivals: explicit section assigned, isNew flag, or badge 'NEW'/'FRESH'/'ARRIV'
-    let newArrivalsExplicit = all.filter(p => {
+    const newArrivals = all.filter(p => {
       if (!p) return false;
       const b = String(p.badge || '').toUpperCase();
       const sec = getSecArray(p);
@@ -4047,10 +4042,8 @@ class ProductList extends HTMLElement {
       return isAssigned || p.isNew === true || p.isNewArrival === true || b.includes('NEW') || b.includes('FRESH') || b.includes('ARRIV');
     });
 
-    let newArrivals = [...new Set([...newArrivalsExplicit, ...sortedNewestFirst])];
-
     // 3. Best Sellers: explicit section assigned, isBestseller flag, badge BEST/TOP/POPULAR/TRENDING, or sales/orders/reviews
-    let bestSellersExplicit = all.filter(p => {
+    const bestSellers = all.filter(p => {
       if (!p) return false;
       const b = String(p.badge || '').toUpperCase();
       const sec = getSecArray(p);
@@ -4063,20 +4056,6 @@ class ProductList extends HTMLElement {
              (p.reviewsCount && parseInt(p.reviewsCount) > 3) ||
              (Array.isArray(p.reviews) && p.reviews.length > 3);
     });
-
-    let bestSellers;
-    if (bestSellersExplicit.length >= 4) {
-      bestSellers = [...new Set([...bestSellersExplicit, ...all])];
-    } else {
-      // Sort by popularity metrics (or ascending ID order so it differs from New Arrivals which is descending)
-      const sortedByPopularity = [...all].sort((a, b) => {
-        const scoreA = (a.salesCount || 0) * 10 + (a.reviewsCount || (Array.isArray(a.reviews) ? a.reviews.length : 0)) * 5 + (a.isBestseller ? 50 : 0);
-        const scoreB = (b.salesCount || 0) * 10 + (b.reviewsCount || (Array.isArray(b.reviews) ? b.reviews.length : 0)) * 5 + (b.isBestseller ? 50 : 0);
-        if (scoreA !== scoreB) return scoreB - scoreA;
-        return (parseInt(a.id) || 0) - (parseInt(b.id) || 0);
-      });
-      bestSellers = [...new Set([...bestSellersExplicit, ...sortedByPopularity])];
-    }
 
     return { deals, newArrivals, bestSellers };
   }
@@ -4167,7 +4146,7 @@ class ProductList extends HTMLElement {
 
       // Authentication route guard
       const requiresAuthPages = ['orders', 'profile', 'coupons'];
-      const isLoggedIn = sessionStorage.getItem('SWEETOS_logged_in_user') !== null;
+      const isLoggedIn = localStorage.getItem('SWEETOS_logged_in_user') !== null;
       if (requiresAuthPages.includes(targetPage) && !isLoggedIn) {
         window.dispatchEvent(new CustomEvent('toast:show', { detail: '🔒 Veuillez vous connecter pour accéder à cette page / Please log in to access this page!' }));
         setTimeout(() => {
@@ -4510,7 +4489,7 @@ class ProductList extends HTMLElement {
     const banner = this.shadowRoot.getElementById('brand-hero-banner-container');
     if (!banner) return;
 
-    const storedBrands = JSON.parse(sessionStorage.getItem('SWEETOS_brands') || '[]');
+    const storedBrands = JSON.parse(localStorage.getItem('SWEETOS_brands') || '[]');
     const isAll = !this.currentBrandFilter || this.currentBrandFilter === 'All';
 
     const isProductOfBrand = (product, brandName) => {
@@ -4681,7 +4660,7 @@ class ProductList extends HTMLElement {
     const container = this.shadowRoot.getElementById('brand-smart-pills-row');
     if (!container) return;
 
-    const storedBrands = JSON.parse(sessionStorage.getItem('SWEETOS_brands') || '[]');
+    const storedBrands = JSON.parse(localStorage.getItem('SWEETOS_brands') || '[]');
     const isAll = !this.currentBrandFilter || this.currentBrandFilter === 'All';
 
     const isProductOfBrand = (product, brandName) => {
@@ -4807,7 +4786,7 @@ class ProductList extends HTMLElement {
     const isAllView = (!this.currentBrandFilter || this.currentBrandFilter === 'All') && !localQ && this.brandCategoryFilter === 'All' && !this.brandInStockOnly && this.brandSort === 'featured';
 
     if (isAllView) {
-      const storedBrands = JSON.parse(sessionStorage.getItem('SWEETOS_brands') || '[]');
+      const storedBrands = JSON.parse(localStorage.getItem('SWEETOS_brands') || '[]');
       
       storedBrands.forEach(brand => {
         const brandProducts = brandFiltered.filter(p => isProductOfBrand(p, brand.name));
@@ -4818,18 +4797,13 @@ class ProductList extends HTMLElement {
         section.style.marginBottom = '44px';
 
         section.innerHTML = `
-          <div class="category-section-header" style="display:flex; justify-content:space-between; align-items:center; border-bottom:1.5px solid var(--border); padding-bottom:12px; margin-bottom:20px;">
-            <h4 class="category-section-title" style="font-size: 20px; font-weight: 850; color: var(--text-dark); margin:0; display:flex; align-items:center; gap:8px;">
+          <div class="category-section-header" style="display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; border-bottom:1.5px solid var(--border); padding-bottom:12px; margin-bottom:20px; gap:8px; width:100%;">
+            <h4 class="category-section-title" style="font-size: 20px; font-weight: 850; color: var(--text-dark); margin:0; display:flex; align-items:center; justify-content:center; gap:8px; text-align:center;">
               <span>${brand.logo || '🏷️'}</span>
               <span>${brand.name} Collection</span>
-              <span class="cat-count" style="font-size: 13px; font-weight: 550; color: var(--text-light); margin-left: 4px;">(${brandProducts.length} articles)</span>
             </h4>
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <button class="view-all-brand-btn" data-brand="${brand.name}" style="background: rgba(0, 82, 204, 0.08); color: var(--primary); border: 1px solid rgba(0, 82, 204, 0.15); padding: 6px 14px; border-radius: 20px; font-size: 13px; font-weight: 750; cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all 0.2s ease;">
-                Voir la boutique (${brandProducts.length}) →
-              </button>
-            </div>
           </div>
+
         `;
 
         const grid = document.createElement('div');
@@ -5623,7 +5597,7 @@ class ProductList extends HTMLElement {
         wishlist.forEach(item => {
           window.dispatchEvent(new CustomEvent('cart:add', { detail: item }));
         });
-        sessionStorage.setItem('SWEETOS_wishlist', JSON.stringify([]));
+        localStorage.setItem('SWEETOS_wishlist', JSON.stringify([]));
         window.dispatchEvent(new CustomEvent('wishlist:updated', { detail: [] }));
         window.dispatchEvent(new CustomEvent('toast:show', { detail: `Tous les articles (${wishlist.length}) ont été ajoutés à votre panier ! 🛒` }));
         this.renderPageContent();
@@ -5644,7 +5618,7 @@ class ProductList extends HTMLElement {
     const clearWishlistBtn = shadow.getElementById('wishlist-clear-btn');
     if (clearWishlistBtn) {
       clearWishlistBtn.addEventListener('click', () => {
-        sessionStorage.setItem('SWEETOS_wishlist', JSON.stringify([]));
+        localStorage.setItem('SWEETOS_wishlist', JSON.stringify([]));
         window.dispatchEvent(new CustomEvent('wishlist:updated', { detail: [] }));
         window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Liste de souhaits vidée.' }));
         this.renderPageContent();
@@ -5684,25 +5658,25 @@ class ProductList extends HTMLElement {
     if (!tabArea) return;
 
     if (this.activeAboutTab === 'about-us') {
-      const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
-      const storeAboutStory = sessionStorage.getItem('SWEETOS_store_about_story') || 'We believe that your physical workspace is a direct reflection of your mind. Every tactile keystroke on our mechanical layouts, every frequency shift in our custom studio audio monitors, and every ambient ray of smart lighting is calibrated to enhance focus, creativity, and deep flow.\n\nSWEETOS was founded to rescue professionals from cluttered, generic desks. By sourcing only the finest premium materials — including solid oak, CNC-milled aluminum, and artisan felt wool — we deliver functional luxury that is made to last a lifetime.';
-      const storeEntranceImage = sessionStorage.getItem('SWEETOS_store_entrance_image') || 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=1200&q=80';
+      const storeName = localStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
+      const storeAboutStory = localStorage.getItem('SWEETOS_store_about_story') || 'We believe that your physical workspace is a direct reflection of your mind. Every tactile keystroke on our mechanical layouts, every frequency shift in our custom studio audio monitors, and every ambient ray of smart lighting is calibrated to enhance focus, creativity, and deep flow.\n\nSWEETOS was founded to rescue professionals from cluttered, generic desks. By sourcing only the finest premium materials — including solid oak, CNC-milled aluminum, and artisan felt wool — we deliver functional luxury that is made to last a lifetime.';
+      const storeEntranceImage = localStorage.getItem('SWEETOS_store_entrance_image') || 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=1200&q=80';
       
-      const s1Val = sessionStorage.getItem('SWEETOS_about_stat_1_val') || '15,000+';
-      const s1Lbl = sessionStorage.getItem('SWEETOS_about_stat_1_lbl') || 'Workspace upgrades';
-      const s2Val = sessionStorage.getItem('SWEETOS_about_stat_2_val') || '50+';
-      const s2Lbl = sessionStorage.getItem('SWEETOS_about_stat_2_lbl') || 'Countries shipped';
-      const s3Val = sessionStorage.getItem('SWEETOS_about_stat_3_val') || '99.4%';
-      const s3Lbl = sessionStorage.getItem('SWEETOS_about_stat_3_lbl') || 'Satisfaction Rate';
-      const s4Val = sessionStorage.getItem('SWEETOS_about_stat_4_val') || '24/7';
-      const s4Lbl = sessionStorage.getItem('SWEETOS_about_stat_4_lbl') || 'Concierge support';
+      const s1Val = localStorage.getItem('SWEETOS_about_stat_1_val') || '15,000+';
+      const s1Lbl = localStorage.getItem('SWEETOS_about_stat_1_lbl') || 'Workspace upgrades';
+      const s2Val = localStorage.getItem('SWEETOS_about_stat_2_val') || '50+';
+      const s2Lbl = localStorage.getItem('SWEETOS_about_stat_2_lbl') || 'Countries shipped';
+      const s3Val = localStorage.getItem('SWEETOS_about_stat_3_val') || '99.4%';
+      const s3Lbl = localStorage.getItem('SWEETOS_about_stat_3_lbl') || 'Satisfaction Rate';
+      const s4Val = localStorage.getItem('SWEETOS_about_stat_4_val') || '24/7';
+      const s4Lbl = localStorage.getItem('SWEETOS_about_stat_4_lbl') || 'Concierge support';
 
-      const p1Title = sessionStorage.getItem('SWEETOS_about_p1_title') || 'Authentic Sourcing';
-      const p1Desc = sessionStorage.getItem('SWEETOS_about_p1_desc') || 'Solid wood, premium wool felt, and genuine electronic components sourced ethically from certified sustainable forestry and fabricators.';
-      const p2Title = sessionStorage.getItem('SWEETOS_about_p2_title') || 'Ergonomic Tactility';
-      const p2Desc = sessionStorage.getItem('SWEETOS_about_p2_desc') || 'Designed to optimize hand postures, wrist health, and auditory acoustics for high-productivity workspace layouts and mechanical switches.';
-      const p3Title = sessionStorage.getItem('SWEETOS_about_p3_title') || 'Global Shipping';
-      const p3Desc = sessionStorage.getItem('SWEETOS_about_p3_desc') || 'Swift shipping to over 50 African countries and globally with secure tracking and reliable express courier partners.';
+      const p1Title = localStorage.getItem('SWEETOS_about_p1_title') || 'Authentic Sourcing';
+      const p1Desc = localStorage.getItem('SWEETOS_about_p1_desc') || 'Solid wood, premium wool felt, and genuine electronic components sourced ethically from certified sustainable forestry and fabricators.';
+      const p2Title = localStorage.getItem('SWEETOS_about_p2_title') || 'Ergonomic Tactility';
+      const p2Desc = localStorage.getItem('SWEETOS_about_p2_desc') || 'Designed to optimize hand postures, wrist health, and auditory acoustics for high-productivity workspace layouts and mechanical switches.';
+      const p3Title = localStorage.getItem('SWEETOS_about_p3_title') || 'Global Shipping';
+      const p3Desc = localStorage.getItem('SWEETOS_about_p3_desc') || 'Swift shipping to over 50 African countries and globally with secure tracking and reliable express courier partners.';
 
       const storyParagraphs = storeAboutStory.split('\n\n').map(p => `
         <p style="font-size: 15.5px; color: var(--text-gray); line-height: 1.8; margin: 0;">${p.trim()}</p>
@@ -6050,12 +6024,12 @@ class ProductList extends HTMLElement {
 
       // Acceptance Actions
       shadow.getElementById('terms-accept-btn').addEventListener('click', () => {
-        sessionStorage.setItem('SWEETOS_terms_accepted', 'true');
+        localStorage.setItem('SWEETOS_terms_accepted', 'true');
         window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Conditions générales acceptées ! Merci de faire confiance à SWEETOS. 📄' }));
       });
 
       shadow.getElementById('terms-decline-btn').addEventListener('click', () => {
-        sessionStorage.setItem('SWEETOS_terms_accepted', 'false');
+        localStorage.setItem('SWEETOS_terms_accepted', 'false');
         window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Vous avez refusé les conditions générales.' }));
       });
 
@@ -6169,12 +6143,12 @@ class ProductList extends HTMLElement {
       `;
 
     } else if (this.activeAboutTab === 'contact') {
-      const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
-      const storeAddress = sessionStorage.getItem('SWEETOS_store_addr') || 'Abidjan, Cocody Mermoz';
-      const storePhone = sessionStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23';
-      const storeEmail = sessionStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com';
-      const storeHours = sessionStorage.getItem('SWEETOS_store_hours') || 'Mon - Fri: 7:00 AM - 8:00 PM | Sun: Closed';
-      const storeEntranceImage = sessionStorage.getItem('SWEETOS_store_entrance_image') || './assets/sweetos_share.jpg';
+      const storeName = localStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
+      const storeAddress = localStorage.getItem('SWEETOS_store_addr') || 'Abidjan, Cocody Mermoz';
+      const storePhone = localStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23';
+      const storeEmail = localStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com';
+      const storeHours = localStorage.getItem('SWEETOS_store_hours') || 'Mon - Fri: 7:00 AM - 8:00 PM | Sun: Closed';
+      const storeEntranceImage = localStorage.getItem('SWEETOS_store_entrance_image') || './assets/sweetos_share.jpg';
 
       tabArea.innerHTML = `
         <div class="about-contact-tab animate-in" style="display: flex; flex-direction: column; gap: 32px;">
@@ -6376,7 +6350,7 @@ class ProductList extends HTMLElement {
         const profileObj = this.loadUserProfile();
         profileObj.address = val;
         this.saveUserProfile(profileObj);
-        sessionStorage.setItem('SWEETOS_store_addr', val);
+        localStorage.setItem('SWEETOS_store_addr', val);
       });
 
       // Phone input sync
@@ -6385,7 +6359,7 @@ class ProductList extends HTMLElement {
         const profileObj = this.loadUserProfile();
         profileObj.phone = val;
         this.saveUserProfile(profileObj);
-        sessionStorage.setItem('SWEETOS_store_phone', val);
+        localStorage.setItem('SWEETOS_store_phone', val);
       });
 
       // Email input sync
@@ -6394,7 +6368,7 @@ class ProductList extends HTMLElement {
         const profileObj = this.loadUserProfile();
         profileObj.email = val;
         this.saveUserProfile(profileObj);
-        sessionStorage.setItem('SWEETOS_store_email', val);
+        localStorage.setItem('SWEETOS_store_email', val);
       });
 
       // Store name input sync
@@ -6402,7 +6376,7 @@ class ProductList extends HTMLElement {
         const val = e.target.value;
         shadow.getElementById('contact-banner-title').textContent = `Contact ${val || 'Store'}`;
         shadow.getElementById('contact-map-store').textContent = `Store: ${val || 'Store'}`;
-        sessionStorage.setItem('SWEETOS_store_name', val);
+        localStorage.setItem('SWEETOS_store_name', val);
       });
 
       shadow.getElementById('contact-map-btn').addEventListener('click', triggerMap);
@@ -6522,7 +6496,7 @@ class ProductList extends HTMLElement {
           
           try {
             const scratchKey = getScratchcardsStorageKey();
-            let scratchcards = JSON.parse(sessionStorage.getItem(scratchKey) || '[]');
+            let scratchcards = JSON.parse(localStorage.getItem(scratchKey) || '[]');
             const rawCardId = canvas.getAttribute('data-scratchcard-id');
             const idx = scratchcards.findIndex(sc => String(sc.id) === String(rawCardId));
             if (idx > -1 && !scratchcards[idx].scratched) {
@@ -6531,7 +6505,7 @@ class ProductList extends HTMLElement {
               const card = scratchcards[idx];
               const totalCFA = card.amount || 0;
               
-              const loggedInUserStr = sessionStorage.getItem('SWEETOS_logged_in_user');
+              const loggedInUserStr = localStorage.getItem('SWEETOS_logged_in_user');
               let userEmail = 'guest@sweetos.com';
               if (loggedInUserStr) {
                 try {
@@ -6557,7 +6531,7 @@ class ProductList extends HTMLElement {
                   status: 'active',
                   description: `5% de réduction (${uses}/${wonReward?.totalUses || uses} utilisations)`
                 };
-                sessionStorage.setItem(scratchKey, JSON.stringify(scratchcards));
+                localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
                 window.dispatchEvent(new CustomEvent('toast:show', { 
                   detail: `🎉 FÉLICITATIONS ! Badge gratté avec succès ! Coupon de 5% OFF débloqué (Code: ${rewardCode}) disponible dans votre panier ! 🎟️✨` 
                 }));
@@ -6588,14 +6562,14 @@ class ProductList extends HTMLElement {
 
                   let adminCoupons = [];
                   try {
-                    adminCoupons = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
+                    adminCoupons = JSON.parse(localStorage.getItem('SWEETOS_coupons') || '[]');
                   } catch(e) {}
                   adminCoupons.unshift(dealCoupon);
-                  sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
+                  localStorage.setItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
 
                   scratchcards[idx].scratched = true;
                   scratchcards[idx].couponWon = dealCoupon;
-                  sessionStorage.setItem(scratchKey, JSON.stringify(scratchcards));
+                  localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
 
                   window.dispatchEvent(new CustomEvent('toast:show', { 
                     detail: `🎉 FÉLICITATIONS ! Palier Offre du Jour atteint ! Coupon de ${dealCoupon.value}% OFF débloqué (Code: ${code}) ! 🎟️✨` 
@@ -6606,7 +6580,7 @@ class ProductList extends HTMLElement {
                   scratchcards[idx].couponWon = 'lost';
                   const emptyMessage = `Oups ! Bonne chance pour la prochaine fois ! 🍀 (Pour débloquer ce coupon, achetez pour au moins ${requiredDealSpend.toLocaleString()} FCFA dans les Offres du Jour).`;
                   scratchcards[idx].emptyMessage = emptyMessage;
-                  sessionStorage.setItem(scratchKey, JSON.stringify(scratchcards));
+                  localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
                   window.dispatchEvent(new CustomEvent('toast:show', { detail: `📦 ${emptyMessage}` }));
                 }
               }
@@ -6619,7 +6593,7 @@ class ProductList extends HTMLElement {
                 // Check Admin Market for active valid coupon
                 let adminCoupons = [];
                 try {
-                  adminCoupons = JSON.parse(sessionStorage.getItem('SWEETOS_coupons') || '[]');
+                  adminCoupons = JSON.parse(localStorage.getItem('SWEETOS_coupons') || '[]');
                 } catch(e) {}
 
                 const expiry7Days = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
@@ -6638,7 +6612,7 @@ class ProductList extends HTMLElement {
                 };
                 
                 adminCoupons.unshift(newCoupon);
-                sessionStorage.setItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
+                localStorage.setItem('SWEETOS_coupons', JSON.stringify(adminCoupons));
                 
                 scratchcards[idx].couponWon = newCoupon;
                 const winMsg = `🎉 Félicitations ! Vous avez débloqué le ${customerTier.label} avec un coupon de ${couponValue}% OFF (Code: ${code}) valable 7 jours ! 🎟️`;
@@ -6649,11 +6623,11 @@ class ProductList extends HTMLElement {
                 scratchcards[idx].couponWon = 'lost';
                 const emptyMessage = 'Oops! Good luck next time! / Oups ! Bonne chance pour la prochaine fois ! 🍀✨';
                 scratchcards[idx].emptyMessage = emptyMessage;
-                sessionStorage.setItem(scratchKey, JSON.stringify(scratchcards));
+                localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
                 window.dispatchEvent(new CustomEvent('toast:show', { detail: `📦 ${emptyMessage}` }));
               }
 
-              sessionStorage.setItem(scratchKey, JSON.stringify(scratchcards));
+              localStorage.setItem(scratchKey, JSON.stringify(scratchcards));
               
               setTimeout(() => {
                 this.renderPageContent();
@@ -6787,26 +6761,26 @@ class ProductList extends HTMLElement {
   }
 
   logCustomerActivity(pageName) {
-    let sessionId = sessionStorage.getItem('SWEETOS_session_id');
+    let sessionId = localStorage.getItem('SWEETOS_session_id');
     if (!sessionId) {
       sessionId = 'sess_' + Date.now();
-      sessionStorage.setItem('SWEETOS_session_id', sessionId);
+      localStorage.setItem('SWEETOS_session_id', sessionId);
     }
     
     let logs = [];
     try {
-      logs = JSON.parse(sessionStorage.getItem('SWEETOS_activity_logs') || '[]');
+      logs = JSON.parse(localStorage.getItem('SWEETOS_activity_logs') || '[]');
     } catch (err) {}
     
     let userName = 'Guest User';
     let loginType = 'Not Logged In';
     
-    const loggedIn = sessionStorage.getItem('SWEETOS_logged_in_user');
+    const loggedIn = localStorage.getItem('SWEETOS_logged_in_user');
     if (loggedIn) {
       try {
         const userObj = JSON.parse(loggedIn);
         userName = userObj.email;
-        const creds = JSON.parse(sessionStorage.getItem('SWEETOS_customer_credentials') || '[]');
+        const creds = JSON.parse(localStorage.getItem('SWEETOS_customer_credentials') || '[]');
         const userCred = creds.find(c => c.email.toLowerCase() === userObj.email.toLowerCase());
         if (userCred) {
           userName = userCred.fullname || userCred.email;
@@ -6872,7 +6846,7 @@ class ProductList extends HTMLElement {
       sessionRecord.visits.push(pageName);
     }
     
-    sessionStorage.setItem('SWEETOS_activity_logs', JSON.stringify(logs));
+    localStorage.setItem('SWEETOS_activity_logs', JSON.stringify(logs));
   }
 
   // --- Functional Notifications Event Handlers ---
@@ -6906,7 +6880,7 @@ class ProductList extends HTMLElement {
       const wishlist = this.loadWishlistFromStorage();
       
       const notifKey = 'SWEETOS_notifications';
-      const savedNotif = sessionStorage.getItem(notifKey);
+      const savedNotif = localStorage.getItem(notifKey);
       let notifCount = 3;
       if (savedNotif) {
         try {
@@ -7464,7 +7438,7 @@ class ProductList extends HTMLElement {
         // Get user email before clearing to remove their notifications
         let userEmail = null;
         try {
-          const userJson = sessionStorage.getItem('SWEETOS_logged_in_user');
+          const userJson = localStorage.getItem('SWEETOS_logged_in_user');
           if (userJson) {
             const user = JSON.parse(userJson);
             userEmail = user?.email;
@@ -7483,10 +7457,11 @@ class ProductList extends HTMLElement {
           } catch(e) {}
         }
 
-        sessionStorage.removeItem('SWEETOS_logged_in_user');
-        sessionStorage.removeItem('SWEETOS_user_profile');
-        sessionStorage.clear();
+        clearAllUserSessionData();
         window.dispatchEvent(new CustomEvent('auth:changed', { detail: { loggedIn: false } }));
+        window.dispatchEvent(new CustomEvent('profile:updated'));
+        window.dispatchEvent(new CustomEvent('cart:updated', { detail: [] }));
+        window.dispatchEvent(new CustomEvent('orders:updated'));
         window.dispatchEvent(new CustomEvent('notifications:updated'));
         window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: 0 }));
         window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Signed out successfully. 🔓' }));
@@ -7498,7 +7473,7 @@ class ProductList extends HTMLElement {
 
   // --- Functional Orders Dashboard Handlers ---
   injectOrdersDashboardList() {
-    const loggedIn = sessionStorage.getItem('SWEETOS_logged_in_user');
+    const loggedIn = localStorage.getItem('SWEETOS_logged_in_user');
     if (!loggedIn) {
       this.renderOrdersDashboardList();
       return;
@@ -7548,8 +7523,8 @@ class ProductList extends HTMLElement {
           
           if (profileChanged) {
             const profileKey = getProfileStorageKey();
-            sessionStorage.setItem(profileKey, JSON.stringify(profile));
-            sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+            localStorage.setItem(profileKey, JSON.stringify(profile));
+            localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
           }
         }
         this.renderOrdersDashboardList();
@@ -7592,30 +7567,12 @@ class ProductList extends HTMLElement {
 
     // Calculate badge stats based on time-filtered orders with status normalization
     const allCount = filteredByTime.length;
-    const placedCount = filteredByTime.filter(o => {
-      const s = (o.status || '').toLowerCase();
-      return s === 'placed' || s === 'pending';
-    }).length;
-    const confirmCount = filteredByTime.filter(o => {
-      const s = (o.status || '').toLowerCase();
-      return s === 'confirmé' || s === 'confirmed';
-    }).length;
-    const processingCount = filteredByTime.filter(o => {
-      const s = (o.status || '').toLowerCase();
-      return s === 'en cours' || s === 'processing';
-    }).length;
-    const shippingCount = filteredByTime.filter(o => {
-      const s = (o.status || '').toLowerCase();
-      return s === 'shipped' || s.includes('transit');
-    }).length;
-    const doneCount = filteredByTime.filter(o => {
-      const s = (o.status || '').toLowerCase();
-      return s === 'livré' || s === 'delivered' || s === 'done' || s === 'livre';
-    }).length;
-    const cancelledCount = filteredByTime.filter(o => {
-      const s = (o.status || '').toLowerCase();
-      return s === 'cancelled';
-    }).length;
+    const placedCount = filteredByTime.filter(o => getOrderCategory(o.status) === 'Placed').length;
+    const confirmCount = filteredByTime.filter(o => getOrderCategory(o.status) === 'Confirm').length;
+    const processingCount = filteredByTime.filter(o => getOrderCategory(o.status) === 'Processing').length;
+    const shippingCount = filteredByTime.filter(o => getOrderCategory(o.status) === 'Shipping').length;
+    const doneCount = filteredByTime.filter(o => getOrderCategory(o.status) === 'Done').length;
+    const cancelledCount = filteredByTime.filter(o => getOrderCategory(o.status) === 'Cancelled').length;
 
     // Format Total Spent
     const totalSpent = filteredByTime.reduce((sum, o) => sum + o.total, 0);
@@ -7628,7 +7585,7 @@ class ProductList extends HTMLElement {
 
     if (statOrders) statOrders.textContent = allCount;
     if (statTransit) statTransit.textContent = shippingCount;
-    if (statProc) statProc.textContent = processingCount;
+    if (statProc) statProc.textContent = processingCount + confirmCount;
     if (statSpent) statSpent.textContent = formatPrice(totalSpent);
 
     // Update badge values on tab buttons
@@ -7652,20 +7609,8 @@ class ProductList extends HTMLElement {
     let finalFiltered = filteredByTime.filter(o => {
       // Tab filter mapping
       if (this.activeOrdersFilter !== 'All') {
-        const s = (o.status || '').toLowerCase();
-        if (this.activeOrdersFilter === 'Placed') {
-          if (s !== 'placed' && s !== 'pending') return false;
-        } else if (this.activeOrdersFilter === 'Confirm') {
-          if (s !== 'confirmé' && s !== 'confirmed') return false;
-        } else if (this.activeOrdersFilter === 'Processing') {
-          if (s !== 'en cours' && s !== 'processing') return false;
-        } else if (this.activeOrdersFilter === 'Shipping') {
-          if (s !== 'shipped' && !s.includes('transit')) return false;
-        } else if (this.activeOrdersFilter === 'Done') {
-          if (s !== 'livré' && s !== 'delivered' && s !== 'done' && s !== 'livre') return false;
-        } else if (this.activeOrdersFilter === 'Cancelled') {
-          if (s !== 'cancelled') return false;
-        }
+        const cat = getOrderCategory(o.status);
+        if (cat !== this.activeOrdersFilter) return false;
       }
       // Search input matching
       if (this.ordersSearchQuery) {
@@ -8059,7 +8004,7 @@ class ProductList extends HTMLElement {
         
         const targetProduct = this.products.find(p => p.id === productId);
         if (targetProduct) {
-          const cartSaved = sessionStorage.getItem(getCartStorageKey());
+          const cartSaved = localStorage.getItem(getCartStorageKey());
           let cart = [];
           if (cartSaved) {
             try {
@@ -8074,7 +8019,7 @@ class ProductList extends HTMLElement {
             cart.push({ ...targetProduct, quantity: 1 });
           }
           
-          sessionStorage.setItem(getCartStorageKey(), JSON.stringify(cart));
+          localStorage.setItem(getCartStorageKey(), JSON.stringify(cart));
           window.dispatchEvent(new CustomEvent('cart:updated', { detail: cart }));
           window.dispatchEvent(new CustomEvent('toast:show', { detail: `Added ${targetProduct.name} to cart!` }));
           overlay.classList.remove('open');
@@ -8102,8 +8047,8 @@ class ProductList extends HTMLElement {
             
             // 1. Save customer profile to correct key
             const profileKey = getProfileStorageKey();
-            sessionStorage.setItem(profileKey, JSON.stringify(profile));
-            sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+            localStorage.setItem(profileKey, JSON.stringify(profile));
+            localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
             
             // 2. Fetch latest orders from server, update and POST back
             safeGetOrders()
@@ -8137,8 +8082,8 @@ class ProductList extends HTMLElement {
             
             // 1. Save customer profile to correct key
             const profileKey = getProfileStorageKey();
-            sessionStorage.setItem(profileKey, JSON.stringify(profile));
-            sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+            localStorage.setItem(profileKey, JSON.stringify(profile));
+            localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
             
             // 2. Fetch latest orders from server, update and POST back
             safeGetOrders()
@@ -8169,8 +8114,8 @@ class ProductList extends HTMLElement {
           const profile = this.loadUserProfile();
           profile.orders = profile.orders.filter(order => order.id !== o.id);
           const profileKey = getProfileStorageKey();
-          sessionStorage.setItem(profileKey, JSON.stringify(profile));
-          sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+          localStorage.setItem(profileKey, JSON.stringify(profile));
+          localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
           
            // 2. Fetch latest orders from server, update and POST back
            safeGetOrders()
@@ -8201,8 +8146,8 @@ class ProductList extends HTMLElement {
         if (targetOrder) {
           targetOrder.status = 'Done';
           const profileKey = getProfileStorageKey();
-          sessionStorage.setItem(profileKey, JSON.stringify(profile));
-          sessionStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
+          localStorage.setItem(profileKey, JSON.stringify(profile));
+          localStorage.setItem('SWEETOS_user_profile', JSON.stringify(profile));
           
           // 2. Fetch latest orders from server, update and POST back
           safeGetOrders()
@@ -8238,7 +8183,7 @@ class ProductList extends HTMLElement {
             const notifKey = getNotificationsStorageKey();
             let customerNotifs = [];
             try {
-              customerNotifs = JSON.parse(sessionStorage.getItem(notifKey) || '[]');
+              customerNotifs = JSON.parse(localStorage.getItem(notifKey) || '[]');
             } catch(e) {}
             
             const currentHour = new Date().getHours();
@@ -8278,7 +8223,7 @@ class ProductList extends HTMLElement {
               unread: true
             });
             
-            sessionStorage.setItem(notifKey, JSON.stringify(customerNotifs));
+            localStorage.setItem(notifKey, JSON.stringify(customerNotifs));
             window.dispatchEvent(new CustomEvent('notifications:updated'));
 
             window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Order marked as Received! Thank you! 🎁' }));
@@ -8356,7 +8301,7 @@ class ProductList extends HTMLElement {
   }
 
   loadCustomCollections() {
-    const saved = sessionStorage.getItem('SWEETOS_custom_collections');
+    const saved = localStorage.getItem('SWEETOS_custom_collections');
     if (saved) {
       try {
         return JSON.parse(saved);
@@ -8423,7 +8368,7 @@ class ProductList extends HTMLElement {
   }
 
   saveCustomCollections(collections) {
-    sessionStorage.setItem('SWEETOS_custom_collections', JSON.stringify(collections));
+    localStorage.setItem('SWEETOS_custom_collections', JSON.stringify(collections));
   }
 
   populatePdpColDropdown(productId) {
@@ -8577,14 +8522,14 @@ class ProductList extends HTMLElement {
     wrapper.style.width = '100%';
     
     wrapper.innerHTML = `
-      <div class="section-header" style="margin-bottom: 22px; display: flex; justify-content: space-between; align-items: flex-end; flex-wrap: wrap; gap: 12px;">
-        <div>
-          <h3 class="more-to-love-title" style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: clamp(24px, 3.2vw, 32px); line-height: 1.15; color: var(--text-dark, #0A2540); letter-spacing: -0.015em;">
+      <div class="section-header" style="margin-bottom: 22px; display: flex; align-items: center; justify-content: space-between; width: 100%; gap: 10px;">
+        <div style="text-align: left;">
+          <h3 class="more-to-love-title" style="margin: 0; font-family: 'Fraunces', Georgia, serif; font-weight: 700; font-size: clamp(24px, 3.2vw, 32px); line-height: 1.15; color: var(--text-dark, #0A2540); letter-spacing: -0.015em; text-align: left;">
             Vous aimerez <em style="font-style: italic; color: #1F6FEB; font-family: 'Fraunces', Georgia, serif;">aussi.</em>
           </h3>
-          ${config.subtitle ? `<p style="margin: 6px 0 0 0; font-size: 13.5px; color: var(--text-gray, #5A6B84); font-weight: 500;">${config.subtitle}</p>` : ''}
+          ${config.subtitle ? `<p style="margin: 6px 0 0 0; font-size: 13.5px; color: var(--text-gray, #5A6B84); font-weight: 500; text-align: left;">${config.subtitle}</p>` : ''}
         </div>
-        <button class="view-all-btn" id="global-more-love-view-all" style="font-size: 13px; font-weight: 700; color: #1F6FEB; background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 6px 0;">Tout le catalogue →</button>
+        <button class="view-all-btn" id="global-more-love-view-all" style="font-size: 13px; font-weight: 700; color: #1F6FEB; background: none; border: none; cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 6px 0; justify-content: center; flex-shrink: 0;">Tout le catalogue →</button>
       </div>
       <div class="home-grid-4" id="global-more-to-love-grid"></div>
     `;
@@ -8652,11 +8597,11 @@ if (typeof window !== 'undefined') {
 
 // Global styled receipt generator for storefront
 function printOrderReceipt(order) {
-  const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
-  const storePhone = sessionStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23';
-  const storeEmail = sessionStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com';
-  const storeAddress = sessionStorage.getItem('SWEETOS_store_addr') || 'Abidjan, Cocody Mermoz';
-  const currency = sessionStorage.getItem('SWEETOS_currency') || 'CFA';
+  const storeName = localStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
+  const storePhone = localStorage.getItem('SWEETOS_store_phone') || '+225 05 00 61 99 23';
+  const storeEmail = localStorage.getItem('SWEETOS_store_email') || 'support@sweetos.com';
+  const storeAddress = localStorage.getItem('SWEETOS_store_addr') || 'Abidjan, Cocody Mermoz';
+  const currency = localStorage.getItem('SWEETOS_currency') || 'CFA';
   
   let clientName = order.customerName || order.name;
   let clientPhone = order.customerPhone || order.phone;
@@ -8668,14 +8613,14 @@ function printOrderReceipt(order) {
   const emailKey = clientEmail || (order.email ? order.email : '');
   if (emailKey) {
     const safeKey = emailKey.replace(/[^a-zA-Z0-9]/g, '_');
-    const profileSaved = sessionStorage.getItem(`SWEETOS_user_profile_${safeKey}`) || sessionStorage.getItem(`SWEETOS_user_profile`);
+    const profileSaved = localStorage.getItem(`SWEETOS_user_profile_${safeKey}`) || localStorage.getItem(`SWEETOS_user_profile`);
     if (profileSaved) {
       try {
         resolvedProfile = JSON.parse(profileSaved);
       } catch(e) {}
     }
   } else {
-    const profileSaved = sessionStorage.getItem(`SWEETOS_user_profile`);
+    const profileSaved = localStorage.getItem(`SWEETOS_user_profile`);
     if (profileSaved) {
       try {
         resolvedProfile = JSON.parse(profileSaved);
@@ -8743,12 +8688,12 @@ function printOrderReceipt(order) {
     `;
   });
 
-  const shippingRate = parseFloat(sessionStorage.getItem('SWEETOS_shipping_rate') || '2000');
-  const freeThreshold = parseFloat(sessionStorage.getItem('SWEETOS_free_shipping_threshold') || '15000');
+  const shippingRate = parseFloat(localStorage.getItem('SWEETOS_shipping_rate') || '2000');
+  const freeThreshold = parseFloat(localStorage.getItem('SWEETOS_free_shipping_threshold') || '15000');
   const shippingFee = subtotal >= freeThreshold ? 0 : shippingRate;
   
-  const vatRate = parseFloat(sessionStorage.getItem('SWEETOS_vat_rate') || '18');
-  const taxMode = sessionStorage.getItem('SWEETOS_tax_mode') || 'inclusive';
+  const vatRate = parseFloat(localStorage.getItem('SWEETOS_vat_rate') || '18');
+  const taxMode = localStorage.getItem('SWEETOS_tax_mode') || 'inclusive';
   
   let taxAmount = 0;
   if (taxMode === 'exclusive') {

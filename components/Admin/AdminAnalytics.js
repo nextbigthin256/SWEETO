@@ -38,7 +38,6 @@ export function renderAdminAnalytics(context) {
   fetchSiteSettingFromSupabase('sweetos_activity_logs').then(cloudLogs => {
     if (Array.isArray(cloudLogs) && cloudLogs.length > 0) {
       const logsStr = JSON.stringify(cloudLogs);
-      try { sessionStorage.setItem('SWEETOS_activity_logs', logsStr); } catch(e) {}
       try { localStorage.setItem('SWEETOS_activity_logs', logsStr); } catch(e) {}
     }
   }).catch(() => {});
@@ -46,7 +45,6 @@ export function renderAdminAnalytics(context) {
   fetchSiteSettingFromSupabase('sweetos_failed_searches').then(cloudSearches => {
     if (Array.isArray(cloudSearches) && cloudSearches.length > 0) {
       const searchesStr = JSON.stringify(cloudSearches);
-      try { sessionStorage.setItem('SWEETOS_failed_searches', searchesStr); } catch(e) {}
       try { localStorage.setItem('SWEETOS_failed_searches', searchesStr); } catch(e) {}
     }
   }).catch(() => {});
@@ -995,11 +993,11 @@ export function attachAdminAnalyticsListeners(context, shadow) {
     
     let failedSearches = [];
     try {
-      failedSearches = JSON.parse(sessionStorage.getItem('SWEETOS_failed_searches') || '[]');
+      failedSearches = JSON.parse(localStorage.getItem('SWEETOS_failed_searches') || '[]');
       const found = failedSearches.find(f => f.id === qId);
       if (found) {
         found.notified = true;
-        sessionStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
+        localStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
       }
     } catch(e) {}
 
@@ -1025,11 +1023,11 @@ export function attachAdminAnalyticsListeners(context, shadow) {
       const qId = btn.getAttribute('data-query-id');
       let failedSearches = [];
       try {
-        failedSearches = JSON.parse(sessionStorage.getItem('SWEETOS_failed_searches') || '[]');
+        failedSearches = JSON.parse(localStorage.getItem('SWEETOS_failed_searches') || '[]');
         const found = failedSearches.find(f => f.id === qId);
         if (found) {
           found.notified = !found.notified;
-          sessionStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
+          localStorage.setItem('SWEETOS_failed_searches', JSON.stringify(failedSearches));
           await saveSiteSettingInSupabase('sweetos_failed_searches', failedSearches);
         }
       } catch(e) {}
@@ -1045,7 +1043,7 @@ export function attachAdminAnalyticsListeners(context, shadow) {
     exportDemandBtn.addEventListener('click', () => {
       let failedSearches = [];
       try {
-        failedSearches = JSON.parse(sessionStorage.getItem('SWEETOS_failed_searches') || '[]');
+        failedSearches = JSON.parse(localStorage.getItem('SWEETOS_failed_searches') || '[]');
       } catch(e) {}
 
       let csv = "data:text/csv;charset=utf-8,ID,Searched Query,Customer Name,Phone Number,Email,Timestamp,Location,Device,Notification Status\n";

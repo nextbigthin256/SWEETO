@@ -250,40 +250,45 @@
 }
 
 .add-btn {
-  width: 52px;
-  height: 52px;
+  width: 38px;
+  height: 38px;
   border-radius: 12px;
-  background: #2563eb;
+  background: #3b82f6;
   border: none;
   cursor: pointer;
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   color: white;
-  transition: background 0.2s ease, transform 0.15s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 .add-btn:hover {
-  background: #1d4ed8;
-  transform: scale(1.04);
+  background: #2563eb;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4);
 }
 
 .add-btn:active {
-  transform: scale(0.96);
+  transform: scale(0.95);
 }
 
 .add-btn-text {
-  font-size: 12px;
-  font-weight: 700;
-  line-height: 1.1;
+  display: none !important;
 }
 
 .add-btn-icon {
-  font-size: 16px;
-  font-weight: 800;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-btn-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: #ffffff;
 }
 
 @media (max-width: 768px) {

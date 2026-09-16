@@ -1,9 +1,12 @@
-import { formatPrice } from '../../utils/storage.js';
+import { formatPrice, getStorageItem } from '../../utils/storage.js';
+import { loadStyles } from '../../utils/cssLoader.js';
+import { heroCSS } from './Hero.styles.js';
 
 class Hero extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: 'open' });
+    loadStyles(this.shadowRoot, heroCSS);
     this.currentSlide = 0;
     this.intervalTime = 6000;
     this.timer = null;
@@ -21,7 +24,7 @@ class Hero extends HTMLElement {
       return window.__SWEETOS_PRODUCTS__;
     }
     try {
-      const stored = sessionStorage.getItem('SWEETOS_cloud_products') || localStorage.getItem('SWEETOS_cloud_products');
+      const stored = getStorageItem('SWEETOS_cloud_products') || localStorage.getItem('SWEETOS_cloud_products');
       if (stored) {
         const parsed = typeof stored === 'string' ? JSON.parse(stored) : stored;
         if (Array.isArray(parsed) && parsed.length > 0) return parsed;
@@ -42,10 +45,10 @@ class Hero extends HTMLElement {
       } catch(e) {}
     }
 
-    const storeName = sessionStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
-    const heroTitle = sessionStorage.getItem('SWEETOS_hero_title') || 'Find Your Style, Love Your Look ✨';
-    const heroSubtitle = sessionStorage.getItem('SWEETOS_hero_subtitle') || 'Discover the latest trends in high-end tech layouts, accessories, and premium workspace gear.';
-    const entranceImg = sessionStorage.getItem('SWEETOS_store_entrance_image') || 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=1200&q=80';
+    const storeName = getStorageItem('SWEETOS_store_name') || localStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
+    const heroTitle = getStorageItem('SWEETOS_hero_title') || localStorage.getItem('SWEETOS_hero_title') || 'Find Your Style, Love Your Look ✨';
+    const heroSubtitle = getStorageItem('SWEETOS_hero_subtitle') || localStorage.getItem('SWEETOS_hero_subtitle') || 'Discover the latest trends in high-end tech layouts, accessories, and premium workspace gear.';
+    const entranceImg = getStorageItem('SWEETOS_store_entrance_image') || localStorage.getItem('SWEETOS_store_entrance_image') || 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=1200&q=80';
 
     if (!Array.isArray(allProds) || allProds.length === 0) {
       // 0 Products in store - Default fallback slide
@@ -124,7 +127,6 @@ class Hero extends HTMLElement {
     const hasMultipleSlides = this.slides.length > 1;
 
     this.shadowRoot.innerHTML = `
-      <link rel="stylesheet" href="./components/Hero/Hero.css">
       <section class="hero-carousel" id="heroBanner">
         
         <!-- Left Arrow -->

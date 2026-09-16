@@ -7,7 +7,7 @@ export function renderAdminNotifications(context) {
   const pendingOrders = (context.orders || []).filter(o => o.status === 'Pending' || o.status === 'En cours' || o.status === 'Traitement');
   const lowCoupons = (context.coupons || []).filter(c => c.stock !== undefined && c.stock <= 2);
   
-  const readAlertsStr = sessionStorage.getItem('SWEETOS_admin_read_alerts') || '[]';
+  const readAlertsStr = localStorage.getItem('SWEETOS_admin_read_alerts') || '[]';
   let readAlerts = [];
   try {
     readAlerts = JSON.parse(readAlertsStr);
@@ -16,7 +16,7 @@ export function renderAdminNotifications(context) {
   // Auto-mark default system notice as read when visiting alerts page
   if (!readAlerts.includes('sys-backup-ok')) {
     readAlerts.push('sys-backup-ok');
-    sessionStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(readAlerts));
+    localStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(readAlerts));
   }
 
   const allAlerts = [];
@@ -413,7 +413,7 @@ export function attachAdminNotificationsListeners(context, shadow) {
         ...pendingOrders.map(o => `order-${o.id}`)
       ];
 
-      sessionStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(allIds));
+      localStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(allIds));
       window.dispatchEvent(new CustomEvent('toast:show', { detail: 'All notifications marked as read!' }));
       context.render();
       context.attachListeners();
@@ -426,7 +426,7 @@ export function attachAdminNotificationsListeners(context, shadow) {
       const id = btn.getAttribute('data-id');
       let readAlerts = [];
       try {
-        readAlerts = JSON.parse(sessionStorage.getItem('SWEETOS_admin_read_alerts') || '[]');
+        readAlerts = JSON.parse(localStorage.getItem('SWEETOS_admin_read_alerts') || '[]');
       } catch(e) {}
 
       if (readAlerts.includes(id)) {
@@ -435,7 +435,7 @@ export function attachAdminNotificationsListeners(context, shadow) {
         readAlerts.push(id);
       }
 
-      sessionStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(readAlerts));
+      localStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(readAlerts));
       context.render();
       context.attachListeners();
     });
@@ -451,11 +451,11 @@ export function attachAdminNotificationsListeners(context, shadow) {
       if (alertId) {
         let readAlerts = [];
         try {
-          readAlerts = JSON.parse(sessionStorage.getItem('SWEETOS_admin_read_alerts') || '[]');
+          readAlerts = JSON.parse(localStorage.getItem('SWEETOS_admin_read_alerts') || '[]');
         } catch(e) {}
         if (!readAlerts.includes(alertId)) {
           readAlerts.push(alertId);
-          sessionStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(readAlerts));
+          localStorage.setItem('SWEETOS_admin_read_alerts', JSON.stringify(readAlerts));
         }
       }
 
@@ -465,7 +465,7 @@ export function attachAdminNotificationsListeners(context, shadow) {
 
       if (tab) {
         context.currentTab = tab;
-        sessionStorage.setItem('SWEETOS_admin_current_tab', tab);
+        localStorage.setItem('SWEETOS_admin_current_tab', tab);
         context.render();
         context.attachListeners();
       }
@@ -478,7 +478,7 @@ export function attachAdminNotificationsListeners(context, shadow) {
     rulesBtn.addEventListener('click', () => {
       context.currentTab = 'settings';
       context.settingsSubTab = 'notifications';
-      sessionStorage.setItem('SWEETOS_admin_current_tab', 'settings');
+      localStorage.setItem('SWEETOS_admin_current_tab', 'settings');
       context.render();
       context.attachListeners();
     });

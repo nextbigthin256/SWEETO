@@ -254,7 +254,7 @@ class PushPromptModal extends HTMLElement {
   }
 
   async triggerEngagedPrompt() {
-    if (this.initialPromptDone || sessionStorage.getItem('SWEETOS_push_dismissed')) return;
+    if (this.initialPromptDone || localStorage.getItem('SWEETOS_push_dismissed')) return;
     if (Notification.permission === 'granted') {
       const sub = await getPushSubscription();
       if (sub) return;

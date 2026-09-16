@@ -3,30 +3,30 @@
 
 export const productCardCSS = `
 .card {
-  background: white;
-  border-radius: 14px;
+  background: #ffffff;
+  border-radius: 18px;
   overflow: hidden;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(0, 0, 0, 0.02);
+  border: 1px solid #e2e8f0;
   width: 100%;
   position: relative;
   display: flex;
   flex-direction: column;
   height: 100%;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.3s ease;
   box-sizing: border-box;
 }
 
 @media (min-width: 600px) {
   .card {
-    border-radius: 16px;
+    border-radius: 18px;
   }
 }
 
 .card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.1);
-  border-color: #2563eb;
+  transform: translateY(-4px);
+  box-shadow: 0 16px 36px -6px rgba(37, 99, 235, 0.14), 0 4px 12px rgba(0, 0, 0, 0.03);
+  border-color: #3b82f6;
 }
 
 .image-wrapper {
@@ -41,7 +41,7 @@ export const productCardCSS = `
 
 .card-image {
   width: 100%;
-  height: 130px;
+  height: 190px;
   object-fit: cover;
   display: block;
   padding: 0;
@@ -51,7 +51,7 @@ export const productCardCSS = `
 
 @media (min-width: 600px) {
   .card-image {
-    height: 180px;
+    height: 230px;
   }
 }
 
@@ -201,7 +201,7 @@ export const productCardCSS = `
 .status-badge.new { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
 
 .card-content {
-  padding: 12px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
   flex-grow: 1;
@@ -209,15 +209,17 @@ export const productCardCSS = `
 
 @media (min-width: 600px) {
   .card-content {
-    padding: 16px;
+    padding: 12px 14px;
   }
 }
 
 .category-name {
-  font-size: 11px;
-  font-weight: 700;
-  color: #1f2937;
-  margin-bottom: 4px;
+  font-size: 10.5px;
+  font-weight: 750;
+  color: #2563eb;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 2px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -225,29 +227,29 @@ export const productCardCSS = `
 
 @media (min-width: 600px) {
   .category-name {
-    font-size: 13px;
+    font-size: 11px;
   }
 }
 
 .product-title {
-  font-size: 10px;
-  font-weight: 600;
-  color: #6b7280;
-  margin-bottom: 8px;
+  font-size: 13.5px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 2px;
   line-height: 1.3;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  min-height: 26px;
+  min-height: 34px;
   cursor: pointer;
   transition: color 0.2s ease;
 }
 
 @media (min-width: 600px) {
   .product-title {
-    font-size: 12px;
-    min-height: 32px;
+    font-size: 15px;
+    min-height: 38px;
   }
 }
 
@@ -273,9 +275,9 @@ export const productCardCSS = `
 }
 
 .current-price {
-  font-size: 13px;
-  font-weight: 800;
-  color: #ef4444;
+  font-size: 15px;
+  font-weight: 900;
+  color: #2563eb;
   margin-bottom: 2px;
   white-space: nowrap;
   overflow: hidden;
@@ -284,7 +286,7 @@ export const productCardCSS = `
 
 @media (min-width: 600px) {
   .current-price {
-    font-size: 16px;
+    font-size: 18px;
   }
 }
 
@@ -295,8 +297,8 @@ export const productCardCSS = `
 }
 
 .old-price {
-  font-size: 10px;
-  color: #d1d5db;
+  font-size: 11px;
+  color: #94a3b8;
   text-decoration: line-through;
   white-space: nowrap;
   overflow: hidden;
@@ -310,44 +312,60 @@ export const productCardCSS = `
 }
 
 .add-btn {
-  width: 36px;
-  height: 36px;
-  background: #2563eb;
+  width: 38px;
+  height: 38px;
+  background: #3b82f6;
   border: none;
-  border-radius: 10px;
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   flex-shrink: 0;
   color: white;
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
 }
 
 @media (min-width: 600px) {
   .add-btn {
     width: 44px;
     height: 44px;
-    border-radius: 12px;
+    border-radius: 14px;
   }
 }
 
 .add-btn:hover {
-  background: #1d4ed8;
-  transform: scale(1.08);
+  background: #2563eb;
+  transform: translateY(-2px) scale(1.05);
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.4);
 }
 
 .add-btn:active {
-  transform: scale(0.96);
+  transform: scale(0.95);
 }
 
 .add-btn-text {
-  display: none;
+  display: none !important;
 }
 
 .add-btn-icon {
-  font-size: 20px;
-  font-weight: bold;
-  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.add-btn-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: #ffffff;
+}
+
+@media (min-width: 600px) {
+  .add-btn-icon svg {
+    width: 22px;
+    height: 22px;
+  }
 }
 `;
+

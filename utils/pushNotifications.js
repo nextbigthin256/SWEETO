@@ -66,8 +66,19 @@ export async function registerServiceWorker() {
     const registration = await navigator.serviceWorker.register(swPath, { scope: '/' });
     console.log('✅ Service Worker registered successfully:', registration.scope);
 
-    // Auto-update check
-    registration.update();
+    // Force update check
+    registration.update().catch(() => {});
+
+    registration.onupdatefound = () => {
+      const installingWorker = registration.installing;
+      if (installingWorker) {
+        installingWorker.onstatechange = () => {
+          if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
+            console.log('🔄 Service Worker updated to latest version (sweetos-v5).');
+          }
+        };
+      }
+    };
 
     return registration;
   } catch (error) {
