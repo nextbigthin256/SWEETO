@@ -584,6 +584,33 @@ class AdminPage extends HTMLElement {
       };
     }
 
+    // Heartbeat Polling every 5s for new orders from Cloud across all devices
+    if (!this._orderPollInterval) {
+      this._orderPollInterval = setInterval(async () => {
+        if (!this.isAuthenticated) return;
+        try {
+          const { fetchOrdersFromSupabase } = await import('../../utils/supabase.js');
+          const latestOrders = await fetchOrdersFromSupabase();
+          if (Array.isArray(latestOrders) && latestOrders.length > 0) {
+            const prevCount = (this.orders || []).length;
+            const newCount = latestOrders.length;
+            const prevIds = (this.orders || []).map(o => String(o.id || o.order_number)).join(',');
+            const newIds = latestOrders.map(o => String(o.id || o.order_number)).join(',');
+            if (newIds !== prevIds) {
+              this.orders = latestOrders;
+              saveAllOrdersToStorage(this.orders);
+              if (newCount > prevCount && prevCount > 0) {
+                window.dispatchEvent(new CustomEvent('toast:show', { detail: '🛍️ NOUVELLE COMMANDE REÇUE EN DIRECT !' }));
+              }
+              if (['orders', 'dashboard', 'analytics', 'customers'].includes(this.currentTab)) {
+                this.render(false);
+                this.attachListeners();
+              }
+            }
+          }
+        } catch(e) {}
+      }, 5000);
+    }
     // Fallback local API fetch only in local dev environment
     import('../../utils/storage.js').then(({ isLocalDevHost }) => {
       if (!isLocalDevHost()) return;
@@ -641,6 +668,18 @@ class AdminPage extends HTMLElement {
         this.initRealTimeNotificationStream();
       });
     }).catch(() => {});
+  }
+
+  disconnectedCallback() {
+    if (this._orderPollInterval) {
+      clearInterval(this._orderPollInterval);
+      this._orderPollInterval = null;
+    }
+    if (this._storageEventListener) window.removeEventListener('storage', this._storageEventListener);
+    if (this._failedSearchesListener) window.removeEventListener('failed_searches:updated', this._failedSearchesListener);
+    if (this._ordersUpdatedHandler) window.removeEventListener('orders:updated', this._ordersUpdatedHandler);
+    if (this._storageOrdersListener) window.removeEventListener('storage', this._storageOrdersListener);
+    if (this._supabaseListener) window.removeEventListener('supabase:ready', this._supabaseListener);
   }
 
   async loadDatabase(autoRender = true) {

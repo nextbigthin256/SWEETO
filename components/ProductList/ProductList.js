@@ -1221,19 +1221,9 @@ class ProductList extends HTMLElement {
         sectionsList = storedSecs ? JSON.parse(storedSecs) : [];
       } catch(e) {}
 
-      const defaultSecs = defaultSections;
-
-      let needsSave = false;
       if (sectionsList.length === 0) {
-        sectionsList = [...defaultSecs];
+        sectionsList = [...defaultSections];
         needsSave = true;
-      } else {
-        defaultSecs.forEach(ds => {
-          if (!sectionsList.some(s => s.id === ds.id)) {
-            sectionsList.push(ds);
-            needsSave = true;
-          }
-        });
       }
 
       // Ensure order index is initialized

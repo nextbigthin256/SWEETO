@@ -661,6 +661,8 @@ export const headerCSS = `
   #wishlist-btn,
   #cart-btn,
   .nav-btn-cart,
+  .lang-toggle-btn,
+  #header-lang-toggle-btn,
   .user-profile {
     display: none !important;
   }

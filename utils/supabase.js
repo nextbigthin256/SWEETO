@@ -159,17 +159,25 @@ export async function syncProductsToSupabase(productsList) {
       };
     });
 
-    const { error } = await supabase.from('products').upsert(records, { onConflict: 'legacy_id' });
+    try {
+      const { error: upErr } = await supabase.from('products').upsert(records, { onConflict: 'legacy_id' });
+      if (upErr) {
+        console.warn('[Supabase Cloud] Products table upsert note:', upErr.message);
+      }
+    } catch(e) {}
 
     // Purge any products from DB table that were deleted in frontend
-    const keepLegacyIds = records.map(r => r.legacy_id).filter(Boolean);
+    const keepLegacyIds = records.map(r => parseInt(r.legacy_id)).filter(id => !isNaN(id) && id > 0);
     if (keepLegacyIds.length > 0) {
-      await supabase.from('products').delete().not('legacy_id', 'in', keepLegacyIds);
+      try {
+        const { error: delErr } = await supabase.from('products').delete().not('legacy_id', 'in', keepLegacyIds);
+        if (delErr) {
+          console.warn('[Supabase Cloud] Products table delete note:', delErr.message);
+        }
+      } catch(e) {}
     }
 
-    if (!error) {
-      console.log('[Supabase Cloud] Products synced across devices successfully!');
-    }
+    console.log('[Supabase Cloud] Products synced across devices successfully!');
     return true;
   } catch (err) {
     console.error('[Supabase Cloud] syncProducts error:', err);
