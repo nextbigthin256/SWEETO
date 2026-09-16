@@ -856,6 +856,36 @@ export async function initStorageSync() {
   checkAppVersionAndCleanStorage();
   validateAndCleanStaleSession();
   await retryPendingSupabaseSyncs();
+
+  // Cross-device sync for active logged-in user on app startup
+  const autoSyncUserCloudData = async () => {
+    const userJson = getStorageItem('SWEETOS_logged_in_user');
+    if (userJson) {
+      try {
+        const u = typeof userJson === 'string' ? JSON.parse(userJson) : userJson;
+        if (u && u.email) {
+          console.log('[Storage] Auto-syncing user cloud data (cart, profile, orders) across devices for:', u.email);
+          await loadUserDataFromSupabase(u.email);
+        }
+      } catch(e) {}
+    }
+  };
+
+  await autoSyncUserCloudData();
+
+  // Re-sync user cloud data when tab/window regains focus or visibility
+  if (typeof window !== 'undefined' && !window._hasUserCloudSyncListeners) {
+    window._hasUserCloudSyncListeners = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        autoSyncUserCloudData();
+      }
+    });
+    window.addEventListener('focus', () => {
+      autoSyncUserCloudData();
+    });
+  }
+
   console.log('[Storage] Initialization complete');
 }
 

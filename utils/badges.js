@@ -122,7 +122,7 @@ export function getCustomerAvatarStyle(profile, size = 88) {
 
   if (profile.avatar) {
     return {
-      style: `background-image: url('${profile.avatar}'); background-size: cover; background-position: center; border: ${borderSize} solid ${color}; box-shadow: 0 4px 14px ${color}35;`,
+      style: `background: ${gradient}; background-image: url('${profile.avatar}'), ${gradient}; background-size: cover; background-position: center; color: white; border: ${borderSize} solid ${color}; box-shadow: 0 4px 14px ${color}35;`,
       color: color,
       gradient: gradient,
       level: level

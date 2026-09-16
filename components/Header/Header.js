@@ -133,7 +133,7 @@ class Header extends HTMLElement {
     profilePill.innerHTML = `
       <div style="position: relative; display: inline-flex; align-items: center; justify-content: center;">
         <div class="user-avatar" style="${avatarStyle}">
-          ${profile?.avatar ? '' : initials}
+          ${initials}
         </div>
         ${renderLevelChevronV(avatarData.level, 15)}
       </div>

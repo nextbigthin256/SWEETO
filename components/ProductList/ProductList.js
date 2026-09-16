@@ -1216,6 +1216,7 @@ class ProductList extends HTMLElement {
     }
     if (this.currentPage === 'home') {
       let sectionsList = [];
+      let needsSave = false;
       try {
         const storedSecs = getStorageItem('SWEETOS_homepage_sections');
         sectionsList = storedSecs ? JSON.parse(storedSecs) : [];
@@ -6889,7 +6890,7 @@ class ProductList extends HTMLElement {
           <div class="profile-overview-hero">
             <div style="position: relative; width: 88px; height: 88px; flex-shrink: 0;">
               <div class="profile-avatar-circle" style="width: 88px; height: 88px; border-radius: 50%; font-size: 28px; font-weight: 850; display: flex; align-items: center; justify-content: center; position: relative; ${avatarStyle}">
-                ${profile.avatar ? '' : initials}
+                ${initials}
               </div>
               ${renderLevelChevronV(avatarData.level, 26)}
               <button id="profile-upload-avatar-trigger" title="Changer la photo de profil" style="position: absolute; bottom: 0; right: 0; width: 30px; height: 30px; border-radius: 50%; background: ${levelColor}; color: white; border: 2px solid white; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 14px; box-shadow: 0 2px 8px ${levelColor}50; transition: all 0.2s; z-index: 4;">
