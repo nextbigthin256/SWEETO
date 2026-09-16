@@ -538,6 +538,29 @@ export const headerCSS = `
   box-shadow: 0 2px 6px rgba(0, 82, 204, 0.35);
 }
 
+.nav-btn-notif {
+  background: rgba(245, 158, 11, 0.08);
+  border-color: rgba(245, 158, 11, 0.25);
+  color: #d97706;
+}
+
+.nav-btn-notif:hover {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  border-color: #d97706;
+  color: #ffffff;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.3);
+}
+
+.nav-btn-notif.has-unread svg {
+  animation: bellRing 2.5s infinite ease-in-out;
+}
+
+@keyframes bellRing {
+  0%, 100% { transform: rotate(0); }
+  10%, 30%, 50%, 70% { transform: rotate(14deg); }
+  20%, 40%, 60%, 80% { transform: rotate(-14deg); }
+}
+
 /* User Profile Pill */
 .user-profile {
   display: flex;

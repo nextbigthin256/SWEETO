@@ -171,13 +171,22 @@ class Header extends HTMLElement {
   syncNotificationBadge() {
     const notifs = getNotificationsFromStorage();
     const unreadCount = notifs.filter(n => n.unread).length;
-    const badge = this.shadowRoot.getElementById('notification-badge');
+    const shadow = this.shadowRoot;
+    const badge = shadow.getElementById('notificationBadge') || shadow.getElementById('notification-badge');
+    const notifBtn = shadow.getElementById('notification-bell-btn');
     if (badge) {
       if (unreadCount > 0) {
         badge.textContent = unreadCount;
         badge.style.display = 'flex';
       } else {
         badge.style.display = 'none';
+      }
+    }
+    if (notifBtn) {
+      if (unreadCount > 0) {
+        notifBtn.classList.add('has-unread');
+      } else {
+        notifBtn.classList.remove('has-unread');
       }
     }
   }
@@ -287,6 +296,18 @@ class Header extends HTMLElement {
         
         <!-- Right Zone: Navigation Actions & Profile -->
         <div class="nav-actions">
+          <!-- Notification Bell Button -->
+          <button class="nav-btn nav-btn-notif" id="notification-bell-btn" title="Mes Notifications">
+            <div class="nav-btn-icon-box" style="position: relative;">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+              <span class="badge notification-badge" id="notificationBadge" style="display: none;">0</span>
+            </div>
+            <span class="nav-btn-label">Notifications</span>
+          </button>
+
           <!-- Wishlist -->
           <button class="nav-btn" id="wishlist-btn" title="Mes Favoris">
             <div class="nav-btn-icon-box">
@@ -548,6 +569,14 @@ class Header extends HTMLElement {
         }, 1800);
       }
     });
+
+    // Notification drawer toggle
+    const notifBellBtn = shadow.getElementById('notification-bell-btn');
+    if (notifBellBtn) {
+      notifBellBtn.addEventListener('click', () => {
+        window.dispatchEvent(new CustomEvent('notifications:toggle'));
+      });
+    }
 
     // Cart drawer toggle
     shadow.getElementById('cart-btn').addEventListener('click', () => {
