@@ -19,6 +19,7 @@ class Header extends HTMLElement {
     this.syncCartBadge();
     this.syncNotificationBadge();
     this.syncWishlistBadge();
+    this.syncMobileBackVisibility();
   }
 
   getProductsList() {
@@ -201,6 +202,29 @@ class Header extends HTMLElement {
     }
   }
 
+  handleGoBack() {
+    if (window.history.length > 1) {
+      window.history.back();
+    } else {
+      const prevPage = sessionStorage.getItem('SWEETOS_prev_page') || 'home';
+      window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: prevPage } }));
+    }
+  }
+
+  syncMobileBackVisibility(page) {
+    const shadow = this.shadowRoot;
+    if (!shadow) return;
+    const mobileBackBtn = shadow.getElementById('mobile-back-btn');
+    if (!mobileBackBtn) return;
+    
+    const currentPage = page || getStorageItem('SWEETOS_current_page') || 'home';
+    if (currentPage && currentPage !== 'home') {
+      mobileBackBtn.classList.add('visible');
+    } else {
+      mobileBackBtn.classList.remove('visible');
+    }
+  }
+
   render() {
     const storeName = getStorageItem('SWEETOS_store_name') || localStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
     const rawCategories = getStorageItem('SWEETOS_categories') || localStorage.getItem('SWEETOS_categories');
@@ -215,6 +239,13 @@ class Header extends HTMLElement {
       <header class="top-nav">
         <!-- Left Zone: Logo & Official Badge -->
         <div class="header-left-zone">
+          <button id="mobile-back-btn" class="mobile-back-btn" title="Retour / Back" aria-label="Retour à la page précédente">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+          </button>
+
           <div class="logo" id="logo-btn" title="Retour à l'accueil">
             <div class="logo-icon-wrapper">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
@@ -584,6 +615,31 @@ class Header extends HTMLElement {
       window.dispatchEvent(new CustomEvent('navigation:changed', {
         detail: { page: 'wishlist' }
       }));
+    });
+
+    // Mobile back button listener
+    const mobileBackBtn = shadow.getElementById('mobile-back-btn');
+    if (mobileBackBtn) {
+      mobileBackBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.handleGoBack();
+      });
+    }
+
+    // Sync mobile back button visibility
+    this.syncMobileBackVisibility();
+
+    window.addEventListener('navigation:changed', (e) => {
+      if (e.detail && e.detail.page) {
+        this.syncMobileBackVisibility(e.detail.page);
+      } else {
+        this.syncMobileBackVisibility();
+      }
+    });
+
+    window.addEventListener('hashchange', () => {
+      this.syncMobileBackVisibility();
     });
 
     // Logo click home

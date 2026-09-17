@@ -6640,6 +6640,58 @@ h2.big em { font-style: italic; color: var(--accent); }
     display: none !important;
 }
 
+/* ================= MOBILE PAGE TOP BACK BAR ================= */
+.mobile-page-top-bar {
+  display: none;
+}
+
+@media (max-width: 968px) {
+  .mobile-page-top-bar {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 10px 14px;
+    margin-bottom: 20px;
+    background: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1.5px solid var(--border, #e2e8f0);
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(0, 82, 204, 0.04);
+  }
+  
+  .mobile-page-back-btn {
+    display: flex !important;
+    align-items: center;
+    gap: 7px;
+    padding: 8px 14px;
+    border-radius: 12px;
+    background: rgba(0, 82, 204, 0.08);
+    border: 1.5px solid rgba(0, 82, 204, 0.18);
+    color: var(--primary, #0052cc);
+    font-size: 13.5px;
+    font-weight: 800;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-sizing: border-box;
+  }
+  
+  .mobile-page-back-btn:active {
+    transform: scale(0.94);
+    background: rgba(0, 82, 204, 0.18);
+  }
+  
+  .mobile-page-title-label {
+    font-size: 14px;
+    font-weight: 800;
+    color: #0f172a;
+    text-transform: capitalize;
+  }
+}
+`;
+export default productListCSS;
+
 
 
 

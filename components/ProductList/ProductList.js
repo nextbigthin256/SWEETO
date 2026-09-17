@@ -25,6 +25,16 @@ import { incrementPageView } from '../../utils/engagement.js';
 import { updateProductMetaTags, resetDefaultMetaTags } from '../../utils/metaTags.js';
 import '../Admin/AdminPage.js';
 
+function safeParse(raw, fallback = null) {
+  if (raw === null || raw === undefined || raw === '') return fallback;
+  if (typeof raw !== 'string') return raw;
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    return fallback;
+  }
+}
+
 function safeParseArray(raw) {
   if (!raw) return [];
   let p = raw;
@@ -2870,8 +2880,38 @@ class ProductList extends HTMLElement {
       setTimeout(() => this.renderPageContent(), 1000);
     }
 
-    if (this.currentPage !== 'home') {
+    if (this.currentPage !== 'home' && contentArea) {
       this.injectGlobalMoreToLove();
+
+      // Mobile Top Back Navigation Bar Injection
+      if (!contentArea.querySelector('.mobile-page-top-bar')) {
+        const mobileBar = document.createElement('div');
+        mobileBar.className = 'mobile-page-top-bar animate-in';
+        mobileBar.innerHTML = `
+          <button class="mobile-page-back-btn" id="global-mobile-back-btn" title="Retour / Back">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="19" y1="12" x2="5" y2="12"></line>
+              <polyline points="12 19 5 12 12 5"></polyline>
+            </svg>
+            <span>Retour</span>
+          </button>
+          <span class="mobile-page-title-label">${pageLabel || this.currentPage}</span>
+        `;
+        contentArea.insertBefore(mobileBar, contentArea.firstChild);
+
+        const backBtn = mobileBar.querySelector('.mobile-page-back-btn');
+        if (backBtn) {
+          backBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            if (window.history.length > 1) {
+              window.history.back();
+            } else {
+              const prevPage = sessionStorage.getItem('SWEETOS_prev_page') || 'home';
+              window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: prevPage } }));
+            }
+          });
+        }
+      }
     }
 
     this.attachDynamicUIListeners();
@@ -8512,6 +8552,10 @@ class ProductList extends HTMLElement {
     const contentArea = this.shadowRoot.getElementById('page-content');
     if (!contentArea) return;
 
+    // Remove any existing More To Love sections to prevent duplicate rendering
+    const existingSections = contentArea.querySelectorAll('.more-to-love-recommendations-section');
+    existingSections.forEach(el => el.remove());
+
     const config = getMoreToLoveConfig();
     if (config.enabled === false) return;
 
@@ -8544,7 +8588,7 @@ class ProductList extends HTMLElement {
       const currentId = this.currentProductId;
       moreToLove = (this.products || []).filter(p => p.id !== currentId).slice(0, 12);
     }
-    const gridMore = this.shadowRoot.getElementById('global-more-to-love-grid');
+    const gridMore = wrapper.querySelector('#global-more-to-love-grid') || this.shadowRoot.getElementById('global-more-to-love-grid');
     if (gridMore) {
       moreToLove.forEach(p => {
         const card = document.createElement('product-card');
@@ -8553,7 +8597,7 @@ class ProductList extends HTMLElement {
       });
     }
 
-    const viewAllBtn = this.shadowRoot.getElementById('global-more-love-view-all');
+    const viewAllBtn = wrapper.querySelector('#global-more-love-view-all') || this.shadowRoot.getElementById('global-more-love-view-all');
     if (viewAllBtn) {
       viewAllBtn.addEventListener('click', () => {
         this.currentPage = 'catalog';

@@ -429,10 +429,17 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // Close ALL drawers (Cart, Notifications, Mobile Sidebar) on any navigation changes or Home click
-  window.addEventListener('navigation:changed', () => {
+  window.addEventListener('navigation:changed', (e) => {
     closeSidebarMobile();
     closeCart();
     closeNotifications();
+
+    const currentActive = sessionStorage.getItem('SWEETOS_current_active_page') || 'home';
+    const nextActive = e.detail?.page || 'home';
+    if (currentActive !== nextActive) {
+      sessionStorage.setItem('SWEETOS_prev_page', currentActive);
+      sessionStorage.setItem('SWEETOS_current_active_page', nextActive);
+    }
   });
 
   // Custom event listener to trigger mobile sidebar drawer
