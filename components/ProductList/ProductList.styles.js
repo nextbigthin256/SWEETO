@@ -6691,10 +6691,3 @@ h2.big em { font-style: italic; color: var(--accent); }
 }
 `;
 export default productListCSS;
-
-
-
-
-
-`;
-export default productListCSS;

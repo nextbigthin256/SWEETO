@@ -138,10 +138,6 @@ export async function syncProductsToSupabase(productsList) {
         description: p.description || '',
         price: parseFloat(p.price) || 0,
         original_price: (p.originalPrice || p.comparePrice) ? parseFloat(p.originalPrice || p.comparePrice) : null,
-        compare_price: (p.comparePrice || p.originalPrice) ? parseFloat(p.comparePrice || p.originalPrice) : null,
-        badge_text: bText,
-        badge: bText,
-        homepage_sections: p.homepageSections || p.homepage_sections || [],
         category_name: p.category || '',
         subcategory_name: p.subcategory || '',
         brand_name: p.brand || '',
@@ -170,10 +166,15 @@ export async function syncProductsToSupabase(productsList) {
     const keepLegacyIds = records.map(r => parseInt(r.legacy_id)).filter(id => !isNaN(id) && id > 0);
     if (keepLegacyIds.length > 0) {
       try {
-        const { error: delErr } = await supabase.from('products').delete().not('legacy_id', 'in', keepLegacyIds);
+        const inFilter = `(${keepLegacyIds.join(',')})`;
+        const { error: delErr } = await supabase.from('products').delete().not('legacy_id', 'in', inFilter);
         if (delErr) {
           console.warn('[Supabase Cloud] Products table delete note:', delErr.message);
         }
+      } catch(e) {}
+    } else {
+      try {
+        await supabase.from('products').delete().neq('legacy_id', 0);
       } catch(e) {}
     }
 
@@ -1452,7 +1453,7 @@ export async function saveCustomerToSupabase(customerData) {
     // Fetch existing profile orders from Cloud to protect Admin order status changes
     let existingOrders = [];
     try {
-      const { data: existingP } = await supabase.from('profiles').select('orders').eq('email', emailLower).maybeSingle();
+      const { data: existingP } = await supabase.from('profiles').select('*').eq('email', emailLower).maybeSingle();
       if (existingP && existingP.orders) {
         existingOrders = Array.isArray(existingP.orders) ? existingP.orders : (typeof existingP.orders === 'string' ? JSON.parse(existingP.orders) : []);
       }
