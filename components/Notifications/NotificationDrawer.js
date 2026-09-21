@@ -73,11 +73,13 @@ class NotificationDrawer extends HTMLElement {
       }
     });
     if (needsSave) {
-      this.saveNotifications();
+      localStorage.setItem(key, JSON.stringify(this.notifications));
     }
 
     this.generateExpiringReminders();
-    const totalUnread = this.notifications.filter(n => n.unread).length;
+    
+    // Update badge using centralized function
+    const totalUnread = getUnreadNotificationCount();
     window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: totalUnread }));
   }
 
@@ -147,13 +149,10 @@ class NotificationDrawer extends HTMLElement {
     });
     
     if (updated) {
-      this.saveNotifications();
+      const key = getNotificationsStorageKey();
+      localStorage.setItem(key, JSON.stringify(this.notifications));
+      window.dispatchEvent(new CustomEvent('notifications:updated'));
     }
-  }
-
-  saveNotifications() {
-    const key = getNotificationsStorageKey();
-    localStorage.setItem(key, JSON.stringify(this.notifications));
   }
 
   render() {
@@ -316,11 +315,10 @@ class NotificationDrawer extends HTMLElement {
     const markAllBtn = shadow.getElementById('notifMarkAllReadBtn');
     if (markAllBtn) {
       markAllBtn.addEventListener('click', () => {
-        this.notifications.forEach(n => n.unread = false);
-        this.saveNotifications();
+        markAllNotificationsAsRead();
+        this.loadNotifications();
         this.render();
         window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Toutes les alertes sont marquées comme lues. ✓' }));
-        window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: 0 }));
       });
     }
 
@@ -328,11 +326,10 @@ class NotificationDrawer extends HTMLElement {
     const clearBtn = shadow.getElementById('notifClearAllBtn');
     if (clearBtn) {
       clearBtn.addEventListener('click', () => {
-        this.notifications = [];
-        this.saveNotifications();
+        clearAllNotifications();
+        this.loadNotifications();
         this.render();
         window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Toutes les notifications ont été effacées.' }));
-        window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: 0 }));
       });
     }
 
@@ -341,11 +338,10 @@ class NotificationDrawer extends HTMLElement {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const id = parseInt(btn.getAttribute('data-id'));
-        this.notifications = this.notifications.filter(n => n.id !== id);
-        this.saveNotifications();
+        deleteNotification(id);
+        this.loadNotifications();
         this.render();
         window.dispatchEvent(new CustomEvent('toast:show', { detail: 'Notification supprimée.' }));
-        window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: this.notifications.filter(n => n.unread).length }));
       });
     });
 
@@ -356,12 +352,23 @@ class NotificationDrawer extends HTMLElement {
         const target = this.notifications.find(n => n.id === id);
         if (!target) return;
 
-        // 1. Mark as read
+        // 1. Mark as read using centralized function
         if (target.unread) {
-          target.unread = false;
-          this.saveNotifications();
-          item.classList.remove('unread-flag');
-          window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: this.notifications.filter(n => n.unread).length }));
+          const notifKey = getNotificationsStorageKey();
+          let notifs = [];
+          try {
+            notifs = JSON.parse(localStorage.getItem(notifKey) || '[]');
+          } catch(e) {}
+          
+          const found = notifs.find(n => n.id === id);
+          if (found && found.unread) {
+            found.unread = false;
+            localStorage.setItem(notifKey, JSON.stringify(notifs));
+            item.classList.remove('unread-flag');
+            window.dispatchEvent(new CustomEvent('notifications:badge-sync', { 
+              detail: notifs.filter(n => n.unread).length 
+            }));
+          }
         }
 
         // 2. Close notification drawer
