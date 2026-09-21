@@ -212,12 +212,35 @@ class ProductCard extends HTMLElement {
         const shareText = `Découvrez ${p.name} sur SWEETOS !\n${p.shortDesc || ''}\n\nPrix: $${p.price.toFixed(2)}`;
         const shareUrl = window.location.origin;
 
-        const copyToClipboardFallback = () => {
+        const copyToClipboardFallback = async () => {
+          try {
+            // Try to fetch image and share as file if possible
+            const response = await fetch(p.image);
+            const blob = await response.blob();
+            const extension = p.image.split('.').pop().split('?')[0] || 'jpg';
+            const file = new File([blob], `product-${p.id}.${extension}`, { type: blob.type });
+            
+            // Check if we can share files via Web Share API
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+              await navigator.share({
+                title: shareTitle,
+                text: shareText,
+                url: shareUrl,
+                files: [file]
+              });
+              return;
+            }
+          } catch (err) {
+            console.log('Could not fetch image for sharing:', err);
+          }
+          
+          // Fallback: Copy text to clipboard
           navigator.clipboard.writeText(`${shareText}\n\n${shareUrl}`)
             .then(() => {
               window.dispatchEvent(new CustomEvent('toast:show', { detail: '📋 Lien du produit copié ! / Copied to clipboard! 🌟' }));
             })
             .catch(() => {
+              // Last resort: Open WhatsApp with text only (no image possible via URL)
               const whatsappUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(shareText + '\n\n' + shareUrl)}`;
               window.open(whatsappUrl, '_blank');
             });
@@ -239,6 +262,7 @@ class ProductCard extends HTMLElement {
                 files: [file]
               });
             } else {
+              // Device supports share but not files - share with text and link only
               await navigator.share({
                 title: shareTitle,
                 text: shareText,
@@ -247,14 +271,10 @@ class ProductCard extends HTMLElement {
             }
           } catch (err) {
             console.log('Error sharing image file, falling back to text:', err);
-            navigator.share({
-              title: shareTitle,
-              text: shareText,
-              url: shareUrl
-            }).catch(() => copyToClipboardFallback());
+            await copyToClipboardFallback();
           }
         } else {
-          copyToClipboardFallback();
+          await copyToClipboardFallback();
         }
       });
     }
