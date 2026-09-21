@@ -16,7 +16,7 @@ html {
 }
 
 :root {
-  /* Ultra-Smooth Luxury Theme Variables */
+  /* Minimalist Premium Workspace Design System Tokens */
   --primary: #0052cc;
   --primary-light: #00b4d8;
   --primary-dark: #003fa3;
@@ -28,8 +28,8 @@ html {
   --bg-card: #ffffff;
   --bg-subtle: #f1f5f9;
   --white: #ffffff;
-  --text-dark: #0f172a;
-  --text-gray: #475569;
+  --text-dark: #090d16;
+  --text-gray: #334155;
   --text-light: #64748b;
   --text-faint: #94a3b8;
   --border: #e2e8f0;
@@ -38,6 +38,8 @@ html {
   --red: #ef4444;
   --green: #10b981;
   --orange: #f59e0b;
+  --font-serif: "Fraunces", Georgia, serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --header-height: 68px;
   --sidebar-width: 200px;
   --sidebar-collapsed-width: 78px;
@@ -45,9 +47,9 @@ html {
   --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
   --ease-smooth: cubic-bezier(0.25, 0.8, 0.25, 1);
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.04);
-  --shadow-md: 0 4px 16px -2px rgba(0, 0, 0, 0.05), 0 2px 4px -2px rgba(0, 0, 0, 0.03);
-  --shadow-lg: 0 12px 32px -4px rgba(0, 0, 0, 0.08), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
-  --shadow-float: 0 20px 45px -8px rgba(10, 37, 64, 0.14), 0 4px 12px -2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 6px 20px -2px rgba(9, 13, 22, 0.06), 0 2px 6px -2px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 16px 36px -4px rgba(9, 13, 22, 0.09), 0 4px 14px -2px rgba(0, 0, 0, 0.04);
+  --shadow-float: 0 24px 50px -8px rgba(0, 82, 204, 0.16), 0 4px 14px -2px rgba(0, 0, 0, 0.04);
 }
 
 html, body {

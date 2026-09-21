@@ -1,4 +1,4 @@
-// Dedicated Admin Category Management with Parent & Subcategory Hierarchy + Cover/Folder Image Support
+import { recordDeletedItem, clearDeletedItem } from '../../utils/storage.js';
 
 // Global internal state helpers
 let selectedCategoryIds = new Set();
@@ -218,6 +218,9 @@ export function renderAdminCategories(context) {
         gap: 12px;
         animation: slide-down 0.2s ease;
         box-shadow: 0 6px 20px rgba(15, 23, 42, 0.15);
+      }
+      .action-icon-btn svg, .action-icon-btn path {
+        pointer-events: none;
       }
       .category-table-container {
         background: rgba(255, 255, 255, 0.85);
@@ -836,7 +839,8 @@ export function attachAdminCategoriesListeners(context, shadow) {
   // Quick Add Subcategory under specific parent
   shadow.querySelectorAll('.add-subcat-quick-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const parentId = parseInt(btn.getAttribute('data-parent-id'));
+      const parentIdAttr = btn.getAttribute('data-parent-id');
+      const parentId = parseInt(parentIdAttr) || parentIdAttr;
       context.editingCategory = { parent: parentId };
       context.showCategoryModal = true;
       context.render();
@@ -848,8 +852,8 @@ export function attachAdminCategoriesListeners(context, shadow) {
   shadow.querySelectorAll('.edit-cat-btn, .edit-cat-link').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
-      const id = parseInt(btn.getAttribute('data-cat-id'));
-      const cat = (context.categories || []).find(c => c.id === id);
+      const idAttr = btn.getAttribute('data-cat-id') || btn.closest('[data-cat-id]')?.getAttribute('data-cat-id');
+      const cat = (context.categories || []).find(c => String(c.id) === String(idAttr) || c.id === parseInt(idAttr));
       if (cat) {
         context.editingCategory = cat;
         context.showCategoryModal = true;
@@ -890,8 +894,6 @@ export function attachAdminCategoriesListeners(context, shadow) {
       }
     });
   }
-
-
 
   // Category Image Upload Dropzone & URL Loader
   const dropzone = shadow.getElementById('cat-image-dropzone');
@@ -973,11 +975,11 @@ export function attachAdminCategoriesListeners(context, shadow) {
   // 6. Delete Category with safety check
   shadow.querySelectorAll('.delete-cat-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const id = parseInt(btn.getAttribute('data-cat-id'));
-      const index = (context.categories || []).findIndex(c => c.id === id);
+      const idAttr = btn.getAttribute('data-cat-id') || btn.closest('[data-cat-id]')?.getAttribute('data-cat-id');
+      const index = (context.categories || []).findIndex(c => String(c.id) === String(idAttr) || c.id === parseInt(idAttr));
       if (index > -1) {
         const cat = context.categories[index];
-        const hasSubs = context.categories.some(c => c.parent === id || c.parent === cat.name);
+        const hasSubs = context.categories.some(c => String(c.parent) === String(cat.id) || String(c.parent) === String(cat.name));
         if (hasSubs) {
           window.dispatchEvent(new CustomEvent('toast:show', { detail: `Cannot delete "${cat.name}" because it has active subcategories! Delete or reassign subcategories first.` }));
           return;
@@ -994,11 +996,13 @@ export function attachAdminCategoriesListeners(context, shadow) {
 
         if (confirmed) {
           // Permanently delete from Supabase cloud
-          import('../../utils/supabase.js').then(({ supabase }) => {
-            if (supabase) {
-              supabase.from('categories').delete().or(`name.eq.${encodeURIComponent(cat.name)},slug.eq.${encodeURIComponent(cat.slug || cat.name)}`).then();
-            }
+          import('../../utils/supabase.js').then(({ deleteCategoryFromSupabase }) => {
+            deleteCategoryFromSupabase(cat);
           }).catch(() => {});
+
+          recordDeletedItem('categories', cat.id);
+          if (cat.name) recordDeletedItem('categories', cat.name);
+          if (cat.slug) recordDeletedItem('categories', cat.slug);
 
           context.categories.splice(index, 1);
           context.saveDatabase('categories');
@@ -1013,8 +1017,8 @@ export function attachAdminCategoriesListeners(context, shadow) {
   // 7. Toggle Featured
   shadow.querySelectorAll('.toggle-featured-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = parseInt(btn.getAttribute('data-cat-id'));
-      const cat = (context.categories || []).find(c => c.id === id);
+      const idAttr = btn.getAttribute('data-cat-id') || btn.closest('[data-cat-id]')?.getAttribute('data-cat-id');
+      const cat = (context.categories || []).find(c => String(c.id) === String(idAttr) || c.id === parseInt(idAttr));
       if (cat) {
         cat.featured = !cat.featured;
         context.saveDatabase('categories');
@@ -1031,9 +1035,9 @@ export function attachAdminCategoriesListeners(context, shadow) {
     selectAllCb.addEventListener('change', (e) => {
       const isChecked = e.target.checked;
       shadow.querySelectorAll('.cat-select-cb').forEach(cb => {
-        const id = parseInt(cb.getAttribute('data-cat-id'));
-        if (isChecked) selectedCategoryIds.add(id);
-        else selectedCategoryIds.delete(id);
+        const idAttr = cb.getAttribute('data-cat-id');
+        if (isChecked) selectedCategoryIds.add(idAttr);
+        else selectedCategoryIds.delete(idAttr);
       });
       context.render();
       context.attachListeners();
@@ -1042,9 +1046,9 @@ export function attachAdminCategoriesListeners(context, shadow) {
 
   shadow.querySelectorAll('.cat-select-cb').forEach(cb => {
     cb.addEventListener('change', (e) => {
-      const id = parseInt(cb.getAttribute('data-cat-id'));
-      if (e.target.checked) selectedCategoryIds.add(id);
-      else selectedCategoryIds.delete(id);
+      const idAttr = cb.getAttribute('data-cat-id');
+      if (e.target.checked) selectedCategoryIds.add(idAttr);
+      else selectedCategoryIds.delete(idAttr);
       context.render();
       context.attachListeners();
     });
@@ -1062,8 +1066,8 @@ export function attachAdminCategoriesListeners(context, shadow) {
   const bulkFeature = shadow.getElementById('bulk-feature-cats-btn');
   if (bulkFeature) {
     bulkFeature.addEventListener('click', () => {
-      selectedCategoryIds.forEach(id => {
-        const c = (context.categories || []).find(cat => cat.id === id);
+      selectedCategoryIds.forEach(idAttr => {
+        const c = (context.categories || []).find(cat => String(cat.id) === String(idAttr) || cat.id === parseInt(idAttr));
         if (c) c.featured = true;
       });
       context.saveDatabase('categories');
@@ -1077,8 +1081,8 @@ export function attachAdminCategoriesListeners(context, shadow) {
   const bulkUnfeature = shadow.getElementById('bulk-unfeature-cats-btn');
   if (bulkUnfeature) {
     bulkUnfeature.addEventListener('click', () => {
-      selectedCategoryIds.forEach(id => {
-        const c = (context.categories || []).find(cat => cat.id === id);
+      selectedCategoryIds.forEach(idAttr => {
+        const c = (context.categories || []).find(cat => String(cat.id) === String(idAttr) || cat.id === parseInt(idAttr));
         if (c) c.featured = false;
       });
       context.saveDatabase('categories');
@@ -1102,7 +1106,22 @@ export function attachAdminCategoriesListeners(context, shadow) {
       }) : Promise.resolve(confirm(`Are you sure you want to delete ${selectedCategoryIds.size} selected categories?`)));
 
       if (confirmed) {
-        context.categories = context.categories.filter(c => !selectedCategoryIds.has(c.id));
+        const catsToDelete = [];
+        selectedCategoryIds.forEach(idAttr => {
+          recordDeletedItem('categories', idAttr);
+          const c = (context.categories || []).find(cat => String(cat.id) === String(idAttr) || cat.id === parseInt(idAttr));
+          if (c) {
+            catsToDelete.push(c);
+            if (c.name) recordDeletedItem('categories', c.name);
+            if (c.slug) recordDeletedItem('categories', c.slug);
+          }
+        });
+
+        import('../../utils/supabase.js').then(({ deleteMultipleCategoriesFromSupabase }) => {
+          deleteMultipleCategoriesFromSupabase(catsToDelete);
+        }).catch(() => {});
+
+        context.categories = context.categories.filter(c => !selectedCategoryIds.has(String(c.id)) && !selectedCategoryIds.has(c.id));
         context.saveDatabase('categories');
         window.dispatchEvent(new CustomEvent('toast:show', { detail: `Deleted selected categories.` }));
         selectedCategoryIds.clear();
@@ -1149,10 +1168,10 @@ export function attachAdminCategoriesListeners(context, shadow) {
         return;
       }
 
-      if (context.editingCategory && context.editingCategory.id) {
+      if (context.editingCategory && (context.editingCategory.id !== undefined && context.editingCategory.id !== null)) {
         // Edit mode
         const id = context.editingCategory.id;
-        const idx = context.categories.findIndex(c => c.id === id);
+        const idx = context.categories.findIndex(c => String(c.id) === String(id) || c.id === parseInt(id));
         if (idx > -1) {
           context.categories[idx] = {
             ...context.categories[idx],
@@ -1164,11 +1183,20 @@ export function attachAdminCategoriesListeners(context, shadow) {
             featured,
             parent: isSub ? parentId : null
           };
+          clearDeletedItem('categories', id);
+          if (name) clearDeletedItem('categories', name);
+          if (slug) clearDeletedItem('categories', slug);
           window.dispatchEvent(new CustomEvent('toast:show', { detail: `Category "${name}" updated!` }));
         }
       } else {
         // Create new
-        const newId = context.categories.length > 0 ? (Math.max(...context.categories.map(c => c.id || 0)) + 1) : 1;
+        const numericIds = (context.categories || []).map(c => parseInt(c.id)).filter(n => !isNaN(n));
+        const newId = numericIds.length > 0 ? (Math.max(...numericIds) + 1) : 1;
+        
+        clearDeletedItem('categories', newId);
+        if (name) clearDeletedItem('categories', name);
+        if (slug) clearDeletedItem('categories', slug);
+
         context.categories.push({
           id: newId,
           name,

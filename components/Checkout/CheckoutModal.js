@@ -832,6 +832,11 @@ class CheckoutModal extends HTMLElement {
         saveStorageItem(profileKey, profile);
         saveStorageItem('SWEETOS_user_profile', profile);
 
+        // Save order globally to storage & disk (triggers orders:updated & server sync)
+        const currentAllOrders = getAllOrdersFromStorage();
+        const updatedAllOrders = [newOrder, ...currentAllOrders.filter(o => o.id !== newOrder.id && o.order_number !== newOrder.id)];
+        saveAllOrdersToStorage(updatedAllOrders);
+
         // Save order to Supabase Cloud Database & local store
         import('../../utils/supabase.js').then(async ({ createOrderInSupabase, saveCustomerToSupabase }) => {
           await saveCustomerToSupabase(profile);

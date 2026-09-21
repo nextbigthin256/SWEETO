@@ -4,7 +4,7 @@ import { productListCSS } from './ProductList.styles.js';
 import { showEditAddressModal } from '../Modals/EditAddressModal.js';
 import { showCancelOrderModal } from '../Modals/CancelOrderModal.js';
 import { getAuthPageHTML, attachAuthListeners } from '../Auth/AuthPage.js';
-import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getScratchcardsStorageKey, formatPrice, formatTimeAgo, syncDeliveredNotifications, getAllOrdersFromStorage, saveAllOrdersToStorage, getStorageItem, saveStorageItem, isLocalDevHost, clearAllUserSessionData, getOrderCategory } from '../../utils/storage.js';
+import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getScratchcardsStorageKey, getWishlistFromStorage, saveWishlistToStorage, formatPrice, formatTimeAgo, syncDeliveredNotifications, getAllOrdersFromStorage, saveAllOrdersToStorage, getStorageItem, saveStorageItem, isLocalDevHost, clearAllUserSessionData, getOrderCategory, mergeGuestCartIntoUserCart, toTitleCase, getDeletedItemSet } from '../../utils/storage.js';
 
 function safeGetOrders() {
   if (isLocalDevHost()) {
@@ -194,6 +194,15 @@ class ProductList extends HTMLElement {
 
   parseHashRoute() {
     const hash = window.location.hash || '';
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.has('product') || searchParams.has('id') || searchParams.has('p')) {
+      const pId = parseInt(searchParams.get('product') || searchParams.get('id') || searchParams.get('p'));
+      if (!isNaN(pId)) {
+        this.currentPage = 'pdp';
+        this.currentProductId = pId;
+        return;
+      }
+    }
     if (hash.startsWith('#/')) {
       const route = hash.substring(2);
       if (route.startsWith('product/')) {
@@ -240,21 +249,22 @@ class ProductList extends HTMLElement {
   }
 
   updateHashURL() {
-    let hash = '#/';
+    let hash = '';
     if (this.currentPage === 'pdp' && this.currentProductId) {
-      hash += 'product/' + this.currentProductId;
+      hash = '#/product/' + this.currentProductId;
     } else if (this.currentPage === 'coupons') {
-      hash += 'coupons' + (this.currentCouponCode ? '/' + this.currentCouponCode : '');
+      hash = '#/coupons' + (this.currentCouponCode ? '/' + this.currentCouponCode : '');
     } else if (this.currentPage === 'catalog' && this.currentCategory && this.currentCategory !== 'All') {
-      hash += 'catalog/' + encodeURIComponent(this.currentCategory);
+      hash = '#/catalog/' + encodeURIComponent(this.currentCategory);
     } else if (this.currentPage === 'home') {
-      hash = '#/';
+      hash = '';
     } else {
-      hash += this.currentPage;
+      hash = '#/' + this.currentPage;
     }
     
     if (window.location.hash !== hash) {
-      history.pushState(null, '', hash);
+      const targetUrl = hash ? hash : window.location.pathname + window.location.search;
+      history.pushState(null, '', targetUrl);
     }
   }
 
@@ -288,18 +298,22 @@ class ProductList extends HTMLElement {
       }
       
       // ===== SET CATEGORIES =====
-      if (categories && categories.length > 0) {
-        this.categories = categories;
-        saveStorageItem('SWEETOS_categories', categories);
-        localStorage.setItem('SWEETOS_categories', JSON.stringify(categories));
+      if (categories !== null && Array.isArray(categories)) {
+        const deletedCats = getDeletedItemSet('categories');
+        const cleanCats = categories.filter(c => c && !deletedCats.has(String(c.id)) && (!c.name || !deletedCats.has(c.name)) && (!c.slug || !deletedCats.has(c.slug)));
+        this.categories = cleanCats;
+        saveStorageItem('SWEETOS_categories', cleanCats);
+        localStorage.setItem('SWEETOS_categories', JSON.stringify(cleanCats));
         console.log('✅ [ProductList] Categories loaded:', this.categories.length);
       }
       
       // ===== SET BRANDS =====
-      if (brands && brands.length > 0) {
-        this.brands = brands;
-        saveStorageItem('SWEETOS_brands', brands);
-        localStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
+      if (brands !== null && Array.isArray(brands)) {
+        const deletedBrands = getDeletedItemSet('brands');
+        const cleanBrands = brands.filter(b => b && !deletedBrands.has(String(b.id)) && (!b.name || !deletedBrands.has(b.name)) && (!b.slug || !deletedBrands.has(b.slug)));
+        this.brands = cleanBrands;
+        saveStorageItem('SWEETOS_brands', cleanBrands);
+        localStorage.setItem('SWEETOS_brands', JSON.stringify(cleanBrands));
         console.log('✅ [ProductList] Brands loaded:', this.brands.length);
       }
       
@@ -396,6 +410,7 @@ class ProductList extends HTMLElement {
     window.addEventListener('hashchange', () => {
       this.parseHashRoute();
       this.renderPageContent();
+      window.scrollTo(0, 0);
       
       // Dispatch sync event for other navigation elements (Sidebar, MobileNav, Header)
       window.dispatchEvent(new CustomEvent('navigation:changed', {
@@ -571,20 +586,11 @@ class ProductList extends HTMLElement {
 
   // --- Functional Wishlist Utility Methods ---
   loadWishlistFromStorage() {
-    const saved = localStorage.getItem('SWEETOS_wishlist');
-    if (saved) {
-      try {
-        return JSON.parse(saved);
-      } catch (e) {
-        return [];
-      }
-    }
-    return [];
+    return getWishlistFromStorage();
   }
 
   saveWishlistToStorage(wishlist) {
-    localStorage.setItem('SWEETOS_wishlist', JSON.stringify(wishlist));
-    window.dispatchEvent(new CustomEvent('wishlist:updated', { detail: wishlist }));
+    saveWishlistToStorage(wishlist);
   }
 
   addToWishlist(product) {
@@ -771,43 +777,52 @@ class ProductList extends HTMLElement {
   }
 
   getCategories() {
-    let cats = safeParseArray(getStorageItem('SWEETOS_categories'));
-    if (!Array.isArray(cats) || cats.length === 0) {
-      const prodCatSet = new Set((this.products || []).map(p => p.category).filter(c => c && c !== 'undefined' && c !== 'null'));
-      
-      const themeConfig = {
-        'computer & it': { icon: '💻', tag: 'Laptops & IT', desc: 'Computers and workstation accessories' },
-        'keyboards': { icon: '⌨️', tag: 'Pro Typing & Custom', desc: 'Mechanical switches & wireless boards' },
-        'audio': { icon: '🎧', tag: 'Son Haute Fidélité', desc: 'Studio headphones, earbuds & DACs' },
-        'lighting': { icon: '💡', tag: 'Ambiance Studio RGB', desc: 'Screen lamps & lightbars' },
-        'desks': { icon: '🪵', tag: 'Organisation & Bois Noble', desc: 'Oak monitor stands & desk mats' }
-      };
-
-      const catList = Array.from(prodCatSet);
-      ['computer & it', 'Keyboards', 'Audio', 'Lighting', 'Desks'].forEach(dCat => {
-        if (!catList.some(c => c.toLowerCase() === dCat.toLowerCase())) {
-          catList.push(dCat);
-        }
-      });
-
-      cats = catList.map((catName, idx) => {
-        const key = catName.toLowerCase().trim();
-        const conf = themeConfig[key] || { icon: '📁', tag: 'Tech Collection', desc: `Explore premium ${catName}` };
-        return {
-          id: idx + 1,
-          name: catName,
-          slug: catName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
-          icon: conf.icon,
-          tag: conf.tag,
-          description: conf.desc,
-          featured: true,
-          parent: null,
-          count: (this.products || []).filter(p => this.isProductInCategory(p, catName)).length
-        };
-      });
-
-      saveStorageItem('SWEETOS_categories', cats);
+    const rawVal = getStorageItem('SWEETOS_categories');
+    if (rawVal !== null && rawVal !== undefined) {
+      const parsed = safeParseArray(rawVal);
+      const deletedCats = getDeletedItemSet('categories');
+      if (deletedCats && deletedCats.size > 0 && Array.isArray(parsed) && parsed.length > 0) {
+        return parsed.filter(c => c && !deletedCats.has(String(c.id)) && (!c.name || !deletedCats.has(c.name)) && (!c.slug || !deletedCats.has(c.slug)));
+      }
+      return parsed;
     }
+
+    // Only if rawVal === null (first uninitialized run), build initial defaults
+    let cats = [];
+    const prodCatSet = new Set((this.products || []).map(p => p.category).filter(c => c && c !== 'undefined' && c !== 'null'));
+    
+    const themeConfig = {
+      'computer & it': { icon: '💻', tag: 'Laptops & IT', desc: 'Computers and workstation accessories' },
+      'keyboards': { icon: '⌨️', tag: 'Pro Typing & Custom', desc: 'Mechanical switches & wireless boards' },
+      'audio': { icon: '🎧', tag: 'Son Haute Fidélité', desc: 'Studio headphones, earbuds & DACs' },
+      'lighting': { icon: '💡', tag: 'Ambiance Studio RGB', desc: 'Screen lamps & lightbars' },
+      'desks': { icon: '🪵', tag: 'Organisation & Bois Noble', desc: 'Oak monitor stands & desk mats' }
+    };
+
+    const catList = Array.from(prodCatSet);
+    ['computer & it', 'Keyboards', 'Audio', 'Lighting', 'Desks'].forEach(dCat => {
+      if (!catList.some(c => c.toLowerCase() === dCat.toLowerCase())) {
+        catList.push(dCat);
+      }
+    });
+
+    cats = catList.map((catName, idx) => {
+      const key = catName.toLowerCase().trim();
+      const conf = themeConfig[key] || { icon: '📁', tag: 'Tech Collection', desc: `Explore premium ${catName}` };
+      return {
+        id: idx + 1,
+        name: catName,
+        slug: catName.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+        icon: conf.icon,
+        tag: conf.tag,
+        description: conf.desc,
+        featured: true,
+        parent: null,
+        count: (this.products || []).filter(p => p && p.category && String(p.category).toLowerCase() === key).length
+      };
+    });
+
+    saveStorageItem('SWEETOS_categories', cats);
     return cats;
   }
 
@@ -1129,23 +1144,42 @@ class ProductList extends HTMLElement {
     }
   }
 
+  renderSkeletonGrid() {
+    const cards = Array(8).fill(0).map(() => `
+      <div class="skeleton-card">
+        <div class="skeleton-img-box"></div>
+        <div class="skeleton-badge-row">
+          <div class="skeleton-badge-pill"></div>
+        </div>
+        <div class="skeleton-line w-80"></div>
+        <div class="skeleton-line w-60"></div>
+        <div class="skeleton-bottom-row">
+          <div class="skeleton-price-pill"></div>
+          <div class="skeleton-action-btn"></div>
+        </div>
+      </div>
+    `).join('');
+
+    return `
+      <div class="skeleton-grid-container">
+        <div class="skeleton-header-bar">
+          <div class="skeleton-title-box"></div>
+          <div class="skeleton-sub-box"></div>
+        </div>
+        <div class="skeleton-card-grid">
+          ${cards}
+        </div>
+      </div>
+    `;
+  }
+
   renderPageContent() {
     // ===== CHECK IF PRODUCTS ARE LOADED =====
     if (!this.products || this.products.length === 0) {
-      // Show loading state
+      // Display visual skeleton card wireframes immediately while code hydrates live layout
       const contentArea = this.shadowRoot ? this.shadowRoot.getElementById('page-content') : null;
       if (contentArea) {
-        contentArea.innerHTML = `
-          <div style="display:flex; align-items:center; justify-content:center; padding:80px 20px; flex-direction:column; gap:16px;">
-            <div style="width:40px; height:40px; border:3px solid #f0f0f0; border-top:3px solid #0052cc; border-radius:50%; animation:spin 0.8s linear infinite;"></div>
-            <p style="color:#64748b;">Loading products from Supabase...</p>
-            <style>
-              @keyframes spin {
-                to { transform: rotate(360deg); }
-              }
-            </style>
-          </div>
-        `;
+        contentArea.innerHTML = this.renderSkeletonGrid();
       }
       
       // Try to load from Supabase
@@ -1159,7 +1193,6 @@ class ProductList extends HTMLElement {
     console.log('📊 [renderPageContent] Products:', this.products.length);
     console.log('📦 First product:', this.products[0]?.name);
 
-    window.scrollTo(0, 0);
     try { incrementPageView(); } catch(e) {}
     
     // Log user activity
@@ -1266,6 +1299,11 @@ class ProductList extends HTMLElement {
       let homepageSectionsHTML = '';
       activeSortedSections.forEach(s => {
         if (s.type === 'categories') {
+          const storedCats = this.getCategories();
+          if (!storedCats || storedCats.length === 0) {
+            return;
+          }
+          const sectionTitleDisplay = (s.name === 'Shop by Category' || s.name === 'Explorer par Catégorie') ? 'Acheter par Catégorie' : (s.name || 'Acheter par Catégorie');
           homepageSectionsHTML += `
             <!-- Shop by Category Section (Charming Luxury Cards) -->
             <div class="home-section home-category-showcase-section animate-in" style="margin-bottom: 44px;">
@@ -1276,12 +1314,12 @@ class ProductList extends HTMLElement {
                     <span>•</span>
                     <span style="color: #64748b;">COLLECTIONS PREMIUM</span>
                   </div>
-                  <h3 class="section-title" style="font-size: 24px; font-weight: 900; color: var(--text-dark); margin: 0; letter-spacing: -0.5px; text-align: left;">${s.name || "Explorer par Catégorie"}</h3>
+                  <h3 class="section-title" style="font-size: 24px; font-weight: 900; color: var(--text-dark); margin: 0; letter-spacing: -0.5px; text-align: left;">${sectionTitleDisplay}</h3>
                 </div>
                 <div style="display: flex; align-items: center; gap: 10px; margin-left: auto;">
-                  <button class="view-all-btn" data-target-page="catalog" style="font-size: 13.5px; font-weight: 800; color: #2563eb; background: transparent; border: none; cursor: pointer; display: flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 8px; transition: all 0.2s;">
-                    <span>Tout voir</span>
-                    <span style="font-size: 15px;">→</span>
+                  <button class="view-all-btn" data-target-page="catalog" style="font-size: 13.5px; font-weight: 800; color: #2563eb; background: transparent; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 6px 12px; border-radius: 8px; transition: all 0.2s; line-height: 1;">
+                    <span style="display: inline-block;">Tout voir</span>
+                    <span style="font-size: 14px; display: inline-flex; align-items: center; transform: translateY(-0.5px);">→</span>
                   </button>
                 </div>
               </div>
@@ -1289,8 +1327,62 @@ class ProductList extends HTMLElement {
               <div class="home-category-row custom-scroll" id="home-category-row">
                 ${(() => {
                   const storedCats = this.getCategories();
+                  
+                  const formatCategoryTitle = (rawName, idx) => {
+                    const norm = String(rawName || '').trim().toLowerCase();
+                    
+                    if (norm.includes('mouse') || norm.includes('souris') || norm.includes('accessory') || norm.includes('accessoires')) {
+                      return 'SOURIS & ACCESSOIRES';
+                    }
+                    if (norm.includes('keyboard') || norm.includes('clavier')) {
+                      return 'CLAVIERS & PRO';
+                    }
+                    if (norm.includes('audio') || norm.includes('headphone') || norm.includes('casque') || norm.includes('ecouteur')) {
+                      return 'CASQUES & AUDIO';
+                    }
+                    if (norm.includes('light') || norm.includes('eclairage') || norm.includes('éclairage')) {
+                      return 'ÉCLAIRAGE STUDIO';
+                    }
+                    if (norm.includes('desk') || norm.includes('bureau') || norm.includes('support')) {
+                      return 'ACCESSOIRES BUREAU';
+                    }
+                    if (norm.includes('computer') || norm.includes('laptop') || norm.includes('ordinateurs')) {
+                      return idx === 1 ? 'SOURIS & ACCESSOIRES' : 'ORDINATEURS & IT';
+                    }
+                    
+                    // Fallback by card position index to guarantee no duplicate titles side-by-side
+                    const positionTitles = [
+                      'ORDINATEURS & IT',
+                      'SOURIS & ACCESSOIRES',
+                      'CASQUES & AUDIO',
+                      'ÉCLAIRAGE STUDIO',
+                      'ACCESSOIRES BUREAU'
+                    ];
+                    if (positionTitles[idx]) {
+                      return positionTitles[idx];
+                    }
+                    
+                    return rawName ? rawName.toUpperCase() : 'MATÉRIEL TECH';
+                  };
+
                   const themeMap = {
-                    "Keyboards": {
+                    "ORDINATEURS & IT": {
+                      bg: "linear-gradient(145deg, #0b1528 0%, #1e3a8a 100%)",
+                      accent: "#38bdf8",
+                      accentLight: "rgba(56, 189, 248, 0.16)",
+                      glow: "rgba(56, 189, 248, 0.35)",
+                      tag: "Laptops & IT Pro",
+                      desc: "Ordinateurs portables et mini PC haut de gamme"
+                    },
+                    "SOURIS & ACCESSOIRES": {
+                      bg: "linear-gradient(145deg, #06202e 0%, #0284c7 100%)",
+                      accent: "#38bdf8",
+                      accentLight: "rgba(56, 189, 248, 0.16)",
+                      glow: "rgba(56, 189, 248, 0.35)",
+                      tag: "Ergonomie & Precision",
+                      desc: "Souris sans fil, tapis feutrine et hubs USB-C"
+                    },
+                    "CLAVIERS & PRO": {
                       bg: "linear-gradient(145deg, #0b1528 0%, #1e3a8a 100%)",
                       accent: "#38bdf8",
                       accentLight: "rgba(56, 189, 248, 0.16)",
@@ -1298,15 +1390,15 @@ class ProductList extends HTMLElement {
                       tag: "Pro Typing & Custom",
                       desc: "Switches mécaniques, touches PBT et claviers sans fil"
                     },
-                    "Audio": {
+                    "CASQUES & AUDIO": {
                       bg: "linear-gradient(145deg, #19092c 0%, #581c87 100%)",
                       accent: "#c084fc",
                       accentLight: "rgba(192, 132, 252, 0.16)",
                       glow: "rgba(192, 132, 252, 0.35)",
                       tag: "Son Haute Fidélité",
-                      desc: "Casques de studio, écouteurs sans fil & amplificateurs DAC"
+                      desc: "Casques de studio, écouteurs sans fil & DACs Hi-Fi"
                     },
-                    "Lighting": {
+                    "ÉCLAIRAGE STUDIO": {
                       bg: "linear-gradient(145deg, #2a0f05 0%, #9a3412 100%)",
                       accent: "#fb923c",
                       accentLight: "rgba(251, 146, 60, 0.16)",
@@ -1314,13 +1406,13 @@ class ProductList extends HTMLElement {
                       tag: "Ambiance Studio RGB",
                       desc: "Lampes d'écran anti-reflets et barres lumineuses immersives"
                     },
-                    "Desks": {
+                    "ACCESSOIRES BUREAU": {
                       bg: "linear-gradient(145deg, #03251c 0%, #065f46 100%)",
                       accent: "#34d399",
                       accentLight: "rgba(52, 211, 153, 0.16)",
                       glow: "rgba(52, 211, 153, 0.35)",
-                      tag: "Organisation & Bois Noble",
-                      desc: "Supports d'écrans en chêne, tapis feutrine et passe-câbles"
+                      tag: "Organisation & Bois",
+                      desc: "Supports d'écrans en chêne et tapis feutrine"
                     }
                   };
 
@@ -1343,8 +1435,10 @@ class ProductList extends HTMLElement {
                     }
                   ];
 
-                  return storedCats.slice(0, 8).map((c, idx) => {
-                    const theme = themeMap[c.name] || defaultThemes[idx % defaultThemes.length];
+                  return storedCats.slice(0, 12).map((c, idx) => {
+                    const catTitle = c.name ? String(c.name).toUpperCase().trim() : 'CATÉGORIE';
+                    const themeKey = Object.keys(themeMap).find(k => k.toLowerCase() === catTitle.toLowerCase()) || catTitle;
+                    const theme = themeMap[themeKey] || themeMap[c.name] || defaultThemes[idx % defaultThemes.length];
                     
                     // Match category products including all subcategories
                     const catProducts = (this.products || []).filter(p => this.isProductInCategory(p, c.name || c.id));
@@ -1364,7 +1458,7 @@ class ProductList extends HTMLElement {
                       <div class="home-category-card" data-category="${c.name}">
                         <!-- Category Image Full-Cover Background -->
                         ${catCoverImage ? `
-                          <img src="${catCoverImage}" alt="${c.name}" loading="lazy" class="cat-cover-img">
+                          <img src="${catCoverImage}" alt="${catTitle}" loading="lazy" class="cat-cover-img">
                         ` : `
                           <div class="cat-cover-fallback" style="background: ${theme.bg}; width: 100%; height: 100%; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 52px; z-index: 0;">
                             ${c.icon || '📁'}
@@ -1382,17 +1476,16 @@ class ProductList extends HTMLElement {
                             <span class="cat-badge-icon">${c.icon || '✨'}</span>
                             <span>${count > 0 ? `${count} Articles` : 'Explorer'}</span>
                           </span>
-                          <span class="cat-card-tag">${theme.tag}</span>
+                          <span class="cat-card-tag">${c.tag || theme.tag}</span>
                         </div>
 
                         <!-- Bottom Content & Animated CTA -->
                         <div class="cat-card-footer">
                           <div class="cat-card-titles">
-                            <h4>${c.name}</h4>
+                            <h4>${catTitle}</h4>
                             <p>${c.description || theme.desc}</p>
                           </div>
                           <div class="cat-card-action">
-                            <span class="action-label" style="color: ${theme.accent};">Explorer</span>
                             <div class="action-arrow" style="background: ${theme.accent};">
                               <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#0f172a" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
                                 <line x1="5" y1="12" x2="19" y2="12"></line>
@@ -2974,6 +3067,8 @@ class ProductList extends HTMLElement {
       dealProducts.forEach(p => {
         const card = document.createElement('product-card');
         card.product = { ...p, isDeal: true };
+        card.sectionBadge = '⚡ DEAL DU JOUR';
+        card.badgeClass = 'todays-deal';
         gridTodaysDeals.appendChild(card);
       });
     }
@@ -3027,6 +3122,8 @@ class ProductList extends HTMLElement {
             displayProducts.forEach(p => {
               const card = document.createElement('product-card');
               card.product = p;
+              card.sectionBadge = '🔥 OFFRE HOT';
+              card.badgeClass = 'hot-deal';
               card.isHotDeal = true;
               gridHot.appendChild(card);
             });
@@ -3045,6 +3142,8 @@ class ProductList extends HTMLElement {
             displayProducts.forEach(p => {
               const card = document.createElement('product-card');
               card.product = p;
+              card.sectionBadge = '✨ NOUVEAUTÉ';
+              card.badgeClass = 'new';
               gridNew.appendChild(card);
             });
           }
@@ -3062,6 +3161,8 @@ class ProductList extends HTMLElement {
             displayProducts.forEach(p => {
               const card = document.createElement('product-card');
               card.product = p;
+              card.sectionBadge = '⭐ TOP VENTE';
+              card.badgeClass = 'bestseller';
               gridBest.appendChild(card);
             });
           }
@@ -3084,6 +3185,8 @@ class ProductList extends HTMLElement {
             displayProducts.forEach(p => {
               const card = document.createElement('product-card');
               card.product = p;
+              card.sectionBadge = s.badge || s.title || 'SÉLECTION';
+              card.badgeClass = 'custom';
               gridDynamic.appendChild(card);
             });
           }
@@ -3106,6 +3209,8 @@ class ProductList extends HTMLElement {
             displayProducts.forEach(p => {
               const card = document.createElement('product-card');
               card.product = p;
+              card.sectionBadge = s.badge || s.title || 'SÉLECTION';
+              card.badgeClass = 'custom';
               carousel.appendChild(card);
             });
           }
@@ -3128,6 +3233,8 @@ class ProductList extends HTMLElement {
           if (p) {
             const card = document.createElement('product-card');
             card.product = p;
+            card.sectionBadge = '❤️ POUR VOUS';
+            card.badgeClass = 'for-you';
             gridForYou.appendChild(card);
           }
         }
@@ -3373,6 +3480,8 @@ class ProductList extends HTMLElement {
         if (p) {
           const card = document.createElement('product-card');
           card.product = p;
+          card.sectionBadge = '❤️ POUR VOUS';
+          card.badgeClass = 'for-you';
           grid.appendChild(card);
           itemsAdded++;
         }
@@ -4190,7 +4299,7 @@ class ProductList extends HTMLElement {
       const requiresAuthPages = ['orders', 'profile', 'coupons'];
       const isLoggedIn = localStorage.getItem('SWEETOS_logged_in_user') !== null;
       if (requiresAuthPages.includes(targetPage) && !isLoggedIn) {
-        window.dispatchEvent(new CustomEvent('toast:show', { detail: '🔒 Veuillez vous connecter pour accéder à cette page / Please log in to access this page!' }));
+        window.dispatchEvent(new CustomEvent('toast:show', { detail: '🔒 Please sign in to access your profile and orders' }));
         setTimeout(() => {
           window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'auth' } }));
         }, 0);
@@ -4224,6 +4333,7 @@ class ProductList extends HTMLElement {
 
       this.updateHashURL();
       this.renderPageContent();
+      window.scrollTo(0, 0);
     });
 
     window.addEventListener('search:query', (e) => {
@@ -4246,6 +4356,7 @@ class ProductList extends HTMLElement {
       }
 
       this.renderPageContent();
+      window.scrollTo(0, 0);
     });
 
     window.addEventListener('product:view', (e) => {
@@ -4264,7 +4375,7 @@ class ProductList extends HTMLElement {
       this.activeReviewFilter = 'All';
       this.visibleReviewsCount = 5; 
       this.renderPageContent();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      window.scrollTo(0, 0);
     });
 
     window.addEventListener('wishlist:add', (e) => {
@@ -8590,9 +8701,47 @@ class ProductList extends HTMLElement {
     }
     const gridMore = wrapper.querySelector('#global-more-to-love-grid') || this.shadowRoot.getElementById('global-more-to-love-grid');
     if (gridMore) {
+      gridMore.innerHTML = '';
       moreToLove.forEach(p => {
-        const card = document.createElement('product-card');
-        card.product = p;
+        const cleanTitle = toTitleCase(p.name);
+        const card = document.createElement('div');
+        card.className = 'mtl-card animate-in';
+        card.setAttribute('data-product-id', p.id);
+        card.innerHTML = `
+          <div class="mtl-card-img-box">
+            <img src="${p.image}" alt="${cleanTitle}" loading="lazy" class="mtl-card-img">
+          </div>
+          <div class="mtl-card-content">
+            <div class="mtl-card-info" title="${cleanTitle}">
+              <h4 class="mtl-card-title">${cleanTitle}</h4>
+              <p class="mtl-card-price">${formatPrice(p.price)}</p>
+            </div>
+            <button class="mtl-card-add-btn" data-product-id="${p.id}" title="Ajouter au panier">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"></line>
+                <line x1="5" y1="12" x2="19" y2="12"></line>
+              </svg>
+            </button>
+          </div>
+        `;
+
+        // Plus button event listener
+        const addBtn = card.querySelector('.mtl-card-add-btn');
+        if (addBtn) {
+          addBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            window.dispatchEvent(new CustomEvent('cart:add', { detail: p }));
+          });
+        }
+
+        // Card image/title container click handler -> Open PDP
+        card.addEventListener('click', () => {
+          this.currentProductId = p.id;
+          this.currentPage = 'pdp';
+          this.renderPageContent();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
         gridMore.appendChild(card);
       });
     }
@@ -8614,12 +8763,34 @@ class ProductList extends HTMLElement {
 
   attachAuthListeners() {
     attachAuthListeners(this.shadowRoot, () => {
+      const userJson = getStorageItem('SWEETOS_logged_in_user');
+      let email = null;
+      if (userJson) {
+        try {
+          const u = typeof userJson === 'string' ? JSON.parse(userJson) : userJson;
+          email = u?.email;
+        } catch(e) {}
+      }
+      if (email) {
+        mergeGuestCartIntoUserCart(email);
+      }
+
       this.currentPage = 'home';
       this.currentCategory = 'All';
       this.updateHashURL();
       this.renderPageContent();
       window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'home' } }));
       window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      const pendingCheckout = getStorageItem('SWEETOS_pending_checkout') || localStorage.getItem('SWEETOS_pending_checkout');
+      if (pendingCheckout === 'true') {
+        saveStorageItem('SWEETOS_pending_checkout', null);
+        try { localStorage.removeItem('SWEETOS_pending_checkout'); } catch(e) {}
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('checkout:start'));
+          window.dispatchEvent(new CustomEvent('toast:show', { detail: '🛒 Connexion réussie ! Reprise de votre commande...' }));
+        }, 400);
+      }
     });
   }
 }

@@ -126,6 +126,25 @@ class ProductDetailsModal extends HTMLElement {
                 </button>
               </div>
 
+              <!-- Social Trust & Buyer Protection Grid -->
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0 16px 0; padding: 12px; background: rgba(248, 250, 252, 0.9); border: 1px solid rgba(226, 232, 240, 0.9); border-radius: 14px; text-align: center;">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                  <span style="font-size: 18px;">🚚</span>
+                  <span style="font-size: 11px; font-weight: 700; color: #0f172a;">24-48h Delivery</span>
+                  <span style="font-size: 10px; color: #64748b;">Tracked Dispatch</span>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                  <span style="font-size: 18px;">🔄</span>
+                  <span style="font-size: 11px; font-weight: 700; color: #0f172a;">30-Day Guarantee</span>
+                  <span style="font-size: 10px; color: #64748b;">Risk-Free Returns</span>
+                </div>
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 4px;">
+                  <span style="font-size: 18px;">🛡️</span>
+                  <span style="font-size: 11px; font-weight: 700; color: #0f172a;">SSL Encrypted</span>
+                  <span style="font-size: 10px; color: #64748b;">Wave, MoMo, COD</span>
+                </div>
+              </div>
+
               <!-- Product Share Section -->
               <div class="share-section" style="margin-top: 14px; padding-top: 14px; border-top: 1px solid rgba(0,0,0,0.08);">
                 <p style="font-size: 12.5px; color: #64748b; font-weight: 700; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.5px;">

@@ -1,5 +1,5 @@
 // Service Worker for SWEETOS - Web Push Notifications & Offline Support
-const CACHE_NAME = 'sweetos-v5';
+const CACHE_NAME = 'sweetos-v6';
 const OFFLINE_URL = '/index.html';
 
 // Install - Cache essential static assets
@@ -64,7 +64,14 @@ self.addEventListener('fetch', (event) => {
         }
         return response;
       }).catch(() => {
-        return caches.match(event.request).then((cached) => cached || (event.request.mode === 'navigate' ? caches.match(OFFLINE_URL) : null));
+        return caches.match(event.request).then(async (cached) => {
+          if (cached) return cached;
+          if (event.request.mode === 'navigate') {
+            const offlinePage = await caches.match(OFFLINE_URL);
+            if (offlinePage) return offlinePage;
+          }
+          return new Response('Offline', { status: 503, statusText: 'Service Unavailable' });
+        });
       })
     );
   } else {
@@ -79,7 +86,7 @@ self.addEventListener('fetch', (event) => {
             }).catch(() => {});
           }
           return response;
-        }).catch(() => null);
+        }).catch(() => new Response('', { status: 408, statusText: 'Request Timeout' }));
       })
     );
   }

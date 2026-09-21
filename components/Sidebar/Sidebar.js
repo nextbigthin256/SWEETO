@@ -1,4 +1,4 @@
-import { getScratchcardsStorageKey, getAllOrdersFromStorage, getStorageItem } from '../../utils/storage.js';
+import { getScratchcardsStorageKey, getAllOrdersFromStorage, getStorageItem, getWishlistFromStorage } from '../../utils/storage.js';
 import { loadStyles } from '../../utils/cssLoader.js';
 import { sidebarCSS } from './Sidebar.styles.js';
 
@@ -111,14 +111,8 @@ class Sidebar extends HTMLElement {
     // 2. Real Wishlist Badge
     const wishlistBadge = shadow.getElementById('sidebar-wishlist-badge');
     if (wishlistBadge) {
-      const wishlistSaved = getStorageItem('SWEETOS_wishlist');
-      let count = 0;
-      if (wishlistSaved) {
-        try {
-          const list = JSON.parse(wishlistSaved);
-          count = list.length;
-        } catch(e) {}
-      }
+      const wishlist = getWishlistFromStorage();
+      const count = Array.isArray(wishlist) ? wishlist.length : 0;
       if (count > 0) {
         wishlistBadge.textContent = `${count}`;
         wishlistBadge.style.display = 'inline-flex';

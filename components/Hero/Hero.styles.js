@@ -65,12 +65,17 @@ export const heroCSS = `/* ================= ULTRA-LUXURY SWEETOS HERO BANNER ==
   inset: 0;
   background: linear-gradient(
     90deg,
-    rgba(8, 14, 26, 0.95) 0%,
-    rgba(8, 14, 26, 0.82) 42%,
+    rgba(8, 14, 26, 0.96) 0%,
+    rgba(8, 14, 26, 0.85) 45%,
     rgba(8, 14, 26, 0.45) 75%,
     rgba(8, 14, 26, 0.15) 100%
   );
   z-index: 2;
+}
+
+/* Hidden by default on desktop */
+.hero-mobile-img-box {
+  display: none;
 }
 
 /* Atmospheric Glow Accents */
@@ -110,7 +115,7 @@ export const heroCSS = `/* ================= ULTRA-LUXURY SWEETOS HERO BANNER ==
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 44px 64px;
+  padding: 56px 80px;
   gap: 36px;
   box-sizing: border-box;
 }
@@ -119,7 +124,7 @@ export const heroCSS = `/* ================= ULTRA-LUXURY SWEETOS HERO BANNER ==
 .hero-left {
   position: relative;
   z-index: 3;
-  max-width: 600px;
+  max-width: 620px;
   flex: 1;
   display: flex;
   flex-direction: column;
@@ -148,23 +153,23 @@ export const heroCSS = `/* ================= ULTRA-LUXURY SWEETOS HERO BANNER ==
 .hero-badge .sparkle { color: #ffd700; font-size: 14px; }
 
 .hero-title {
-  font-family: 'Fraunces', Georgia, serif;
-  font-size: 46px;
+  font-family: var(--font-sans, 'Inter', -apple-system, sans-serif);
+  font-size: 44px;
   font-weight: 850;
   color: #ffffff;
-  line-height: 1.1;
-  letter-spacing: -1.2px;
+  line-height: 1.15;
+  letter-spacing: -1px;
   margin: 0;
-  text-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.8);
 }
 
 .hero-description {
   font-size: 15px;
-  color: rgba(255, 255, 255, 0.88);
+  color: rgba(255, 255, 255, 0.92);
   line-height: 1.65;
   margin: 0;
-  max-width: 520px;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  max-width: 540px;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.7);
   font-weight: 450;
 }
 
@@ -510,6 +515,31 @@ export const heroCSS = `/* ================= ULTRA-LUXURY SWEETOS HERO BANNER ==
   .slides-wrapper {
     min-height: auto;
     height: auto;
+    background: #0b0f19;
+  }
+
+  .hero-bg-image {
+    display: none;
+  }
+
+  .hero-mobile-img-box {
+    display: block;
+    width: 100%;
+    max-height: 230px;
+    border-radius: 18px;
+    overflow: hidden;
+    background: rgba(15, 23, 42, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    margin-bottom: 8px;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  }
+
+  .hero-mobile-img-box img {
+    width: 100%;
+    height: 100%;
+    max-height: 230px;
+    object-fit: cover;
+    display: block;
   }
 
   .slide {
@@ -531,59 +561,69 @@ export const heroCSS = `/* ================= ULTRA-LUXURY SWEETOS HERO BANNER ==
 
   .slide-content-grid {
     flex-direction: column;
-    padding: 24px 20px 36px 20px;
-    gap: 20px;
+    padding: 20px 16px 36px 16px;
+    gap: 16px;
     align-items: center;
+    min-height: auto;
   }
 
   .hero-overlay {
-    background: linear-gradient(
-      180deg,
-      rgba(8, 14, 26, 0.9) 0%,
-      rgba(8, 14, 26, 0.75) 50%,
-      rgba(8, 14, 26, 0.5) 100%
-    );
+    display: none;
   }
 
   .hero-left {
     max-width: 100%;
     text-align: center;
     align-items: center;
+    gap: 12px;
   }
 
   .hero-badge {
     font-size: 10px;
-    padding: 5px 12px;
+    padding: 5px 14px;
+    margin: 0 auto;
   }
 
   .hero-title {
-    font-size: 26px;
+    font-size: 24px;
+    line-height: 1.2;
     letter-spacing: -0.5px;
+    text-shadow: none;
   }
 
   .hero-description {
     font-size: 13px;
-    line-height: 1.45;
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    line-height: 1.5;
+    text-shadow: none;
+    max-width: 100%;
   }
 
   .hero-features {
     justify-content: center;
+    gap: 8px;
+  }
+
+  .hero-feature {
+    font-size: 11px;
+    padding: 4px 10px;
   }
 
   .hero-buttons {
     width: 100%;
-    gap: 8px;
+    display: flex;
+    gap: 10px;
+    margin-top: 8px;
   }
 
   .btn-shop, .btn-quick {
     flex: 1;
+    height: 46px;
     justify-content: center;
-    padding: 11px 14px;
-    font-size: 12.5px;
+    text-align: center;
+    padding: 0 16px;
+    font-size: 13px;
+    font-weight: 800;
+    border-radius: 12px;
   }
 
   .hero-showcase-card {

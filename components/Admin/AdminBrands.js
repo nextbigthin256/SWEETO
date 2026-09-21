@@ -1,4 +1,4 @@
-// Dedicated Admin Brand Management Module with Logo / Cover Image Support
+import { recordDeletedItem, clearDeletedItem } from '../../utils/storage.js';
 
 let selectedBrandIds = new Set();
 let brandViewMode = 'table'; // 'table' | 'grid'
@@ -241,6 +241,9 @@ export function renderAdminBrands(context) {
         color: #ffffff;
         border-color: #0052cc;
         transform: translateY(-1px);
+      }
+      .action-icon-btn svg, .action-icon-btn path {
+        pointer-events: none;
       }
       .action-icon-btn.delete-btn:hover {
         background: #ef4444;
@@ -683,8 +686,8 @@ export function attachAdminBrandsListeners(context, shadow) {
   shadow.querySelectorAll('.edit-brand-btn, .edit-brand-link').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
-      const id = parseInt(btn.getAttribute('data-brand-id'));
-      const brand = (context.brands || []).find(b => b.id === id);
+      const idAttr = btn.getAttribute('data-brand-id') || btn.closest('[data-brand-id]')?.getAttribute('data-brand-id');
+      const brand = (context.brands || []).find(b => String(b.id) === String(idAttr) || b.id === parseInt(idAttr));
       if (brand) {
         context.editingBrand = brand;
         context.showBrandModal = true;
@@ -796,8 +799,8 @@ export function attachAdminBrandsListeners(context, shadow) {
   // 5. Delete Brand with check for active products
   shadow.querySelectorAll('.delete-brand-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
-      const id = parseInt(btn.getAttribute('data-brand-id'));
-      const index = (context.brands || []).findIndex(b => b.id === id);
+      const idAttr = btn.getAttribute('data-brand-id') || btn.closest('[data-brand-id]')?.getAttribute('data-brand-id');
+      const index = (context.brands || []).findIndex(b => String(b.id) === String(idAttr) || b.id === parseInt(idAttr));
       if (index > -1) {
         const brand = context.brands[index];
         const hasProducts = (context.products || []).some(p => p.brand === brand.name);
@@ -817,11 +820,13 @@ export function attachAdminBrandsListeners(context, shadow) {
 
         if (confirmed) {
           // Permanently delete from Supabase cloud
-          import('../../utils/supabase.js').then(({ supabase }) => {
-            if (supabase) {
-              supabase.from('brands').delete().or(`name.eq.${encodeURIComponent(brand.name)},slug.eq.${encodeURIComponent(brand.slug || brand.name)}`).then();
-            }
+          import('../../utils/supabase.js').then(({ deleteBrandFromSupabase }) => {
+            deleteBrandFromSupabase(brand);
           }).catch(() => {});
+
+          recordDeletedItem('brands', brand.id);
+          if (brand.name) recordDeletedItem('brands', brand.name);
+          if (brand.slug) recordDeletedItem('brands', brand.slug);
 
           context.brands.splice(index, 1);
           context.saveDatabase('brands');
@@ -836,8 +841,8 @@ export function attachAdminBrandsListeners(context, shadow) {
   // 6. Toggle Featured
   shadow.querySelectorAll('.toggle-brand-featured-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = parseInt(btn.getAttribute('data-brand-id'));
-      const brand = (context.brands || []).find(b => b.id === id);
+      const idAttr = btn.getAttribute('data-brand-id') || btn.closest('[data-brand-id]')?.getAttribute('data-brand-id');
+      const brand = (context.brands || []).find(b => String(b.id) === String(idAttr) || b.id === parseInt(idAttr));
       if (brand) {
         brand.featured = !brand.featured;
         context.saveDatabase('brands');
@@ -854,9 +859,9 @@ export function attachAdminBrandsListeners(context, shadow) {
     selectAllCb.addEventListener('change', (e) => {
       const isChecked = e.target.checked;
       shadow.querySelectorAll('.brand-select-cb').forEach(cb => {
-        const id = parseInt(cb.getAttribute('data-brand-id'));
-        if (isChecked) selectedBrandIds.add(id);
-        else selectedBrandIds.delete(id);
+        const idAttr = cb.getAttribute('data-brand-id');
+        if (isChecked) selectedBrandIds.add(idAttr);
+        else selectedBrandIds.delete(idAttr);
       });
       context.render();
       context.attachListeners();
@@ -865,9 +870,9 @@ export function attachAdminBrandsListeners(context, shadow) {
 
   shadow.querySelectorAll('.brand-select-cb').forEach(cb => {
     cb.addEventListener('change', (e) => {
-      const id = parseInt(cb.getAttribute('data-brand-id'));
-      if (e.target.checked) selectedBrandIds.add(id);
-      else selectedBrandIds.delete(id);
+      const idAttr = cb.getAttribute('data-brand-id');
+      if (e.target.checked) selectedBrandIds.add(idAttr);
+      else selectedBrandIds.delete(idAttr);
       context.render();
       context.attachListeners();
     });
@@ -885,8 +890,8 @@ export function attachAdminBrandsListeners(context, shadow) {
   const bulkFeature = shadow.getElementById('bulk-feature-brands-btn');
   if (bulkFeature) {
     bulkFeature.addEventListener('click', () => {
-      selectedBrandIds.forEach(id => {
-        const b = (context.brands || []).find(br => br.id === id);
+      selectedBrandIds.forEach(idAttr => {
+        const b = (context.brands || []).find(br => String(br.id) === String(idAttr) || br.id === parseInt(idAttr));
         if (b) b.featured = true;
       });
       context.saveDatabase('brands');
@@ -900,8 +905,8 @@ export function attachAdminBrandsListeners(context, shadow) {
   const bulkUnfeature = shadow.getElementById('bulk-unfeature-brands-btn');
   if (bulkUnfeature) {
     bulkUnfeature.addEventListener('click', () => {
-      selectedBrandIds.forEach(id => {
-        const b = (context.brands || []).find(br => br.id === id);
+      selectedBrandIds.forEach(idAttr => {
+        const b = (context.brands || []).find(br => String(br.id) === String(idAttr) || br.id === parseInt(idAttr));
         if (b) b.featured = false;
       });
       context.saveDatabase('brands');
@@ -925,7 +930,22 @@ export function attachAdminBrandsListeners(context, shadow) {
       }) : Promise.resolve(confirm(`Are you sure you want to delete ${selectedBrandIds.size} selected brands?`)));
 
       if (confirmed) {
-        context.brands = context.brands.filter(b => !selectedBrandIds.has(b.id));
+        const brandsToDelete = [];
+        selectedBrandIds.forEach(idAttr => {
+          recordDeletedItem('brands', idAttr);
+          const b = (context.brands || []).find(br => String(br.id) === String(idAttr) || br.id === parseInt(idAttr));
+          if (b) {
+            brandsToDelete.push(b);
+            if (b.name) recordDeletedItem('brands', b.name);
+            if (b.slug) recordDeletedItem('brands', b.slug);
+          }
+        });
+
+        import('../../utils/supabase.js').then(({ deleteMultipleBrandsFromSupabase }) => {
+          deleteMultipleBrandsFromSupabase(brandsToDelete);
+        }).catch(() => {});
+
+        context.brands = context.brands.filter(b => !selectedBrandIds.has(String(b.id)) && !selectedBrandIds.has(b.id));
         context.saveDatabase('brands');
         window.dispatchEvent(new CustomEvent('toast:show', { detail: `Deleted selected brands.` }));
         selectedBrandIds.clear();
@@ -965,10 +985,10 @@ export function attachAdminBrandsListeners(context, shadow) {
         return;
       }
 
-      if (context.editingBrand && context.editingBrand.id) {
+      if (context.editingBrand && (context.editingBrand.id !== undefined && context.editingBrand.id !== null)) {
         // Edit mode
         const id = context.editingBrand.id;
-        const idx = context.brands.findIndex(b => b.id === id);
+        const idx = context.brands.findIndex(b => String(b.id) === String(id) || b.id === parseInt(id));
         if (idx > -1) {
           const oldName = context.brands[idx].name;
           // If brand name changed, sync product brand fields
@@ -989,11 +1009,20 @@ export function attachAdminBrandsListeners(context, shadow) {
             description,
             featured
           };
+          clearDeletedItem('brands', id);
+          if (name) clearDeletedItem('brands', name);
+          if (slug) clearDeletedItem('brands', slug);
           window.dispatchEvent(new CustomEvent('toast:show', { detail: `Brand "${name}" updated!` }));
         }
       } else {
         // Create new
-        const newId = context.brands.length > 0 ? (Math.max(...context.brands.map(b => b.id || 0)) + 1) : 1;
+        const numericIds = (context.brands || []).map(b => parseInt(b.id)).filter(n => !isNaN(n));
+        const newId = numericIds.length > 0 ? (Math.max(...numericIds) + 1) : 1;
+        
+        clearDeletedItem('brands', newId);
+        if (name) clearDeletedItem('brands', name);
+        if (slug) clearDeletedItem('brands', slug);
+
         context.brands.push({
           id: newId,
           name,

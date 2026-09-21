@@ -27,11 +27,11 @@ if [ ! -d "node_modules" ]; then
 fi
 
 # Open browser based on OS
-echo "[INFO] Launching local browser at http://localhost:8080 ..."
+echo "[INFO] Launching local browser at http://localhost:2005 ..."
 if [[ "$OSTYPE" == "darwin"* ]]; then
-    open "http://localhost:8080"
+    open "http://localhost:2005"
 elif [[ "$OSTYPE" == "linux-gnu"* ]]; then
-    xdg-open "http://localhost:8080"
+    xdg-open "http://localhost:2005"
 fi
 
 # Start server

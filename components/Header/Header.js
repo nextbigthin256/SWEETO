@@ -1,4 +1,4 @@
-import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getNotificationsFromStorage, formatPrice, getAllOrdersFromStorage, getStorageItem, saveStorageItem } from '../../utils/storage.js';
+import { getCartStorageKey, getProfileStorageKey, getNotificationsStorageKey, getNotificationsFromStorage, getWishlistFromStorage, formatPrice, getAllOrdersFromStorage, getStorageItem, saveStorageItem } from '../../utils/storage.js';
 import { loadStyles } from '../../utils/cssLoader.js';
 import { headerCSS } from './Header.styles.js';
 import { renderVerificationBadge, getCustomerBadge, getCustomerLevel, getCustomerAvatarStyle, renderLevelChevronV } from '../../utils/badges.js';
@@ -183,14 +183,8 @@ class Header extends HTMLElement {
   }
 
   syncWishlistBadge() {
-    const wishlistSaved = getStorageItem('SWEETOS_wishlist') || localStorage.getItem('SWEETOS_wishlist');
-    let count = 0;
-    if (wishlistSaved) {
-      try {
-        const wishlist = typeof wishlistSaved === 'string' ? JSON.parse(wishlistSaved) : wishlistSaved;
-        count = wishlist.length;
-      } catch (e) {}
-    }
+    const wishlist = getWishlistFromStorage();
+    const count = Array.isArray(wishlist) ? wishlist.length : 0;
     const badge = this.shadowRoot.getElementById('wishlist-badge');
     if (badge) {
       if (count > 0) {

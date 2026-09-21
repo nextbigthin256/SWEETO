@@ -1,4 +1,4 @@
-import { formatPrice, getStorageItem } from '../../utils/storage.js';
+import { formatPrice, getStorageItem, toTitleCase } from '../../utils/storage.js';
 import { loadStyles } from '../../utils/cssLoader.js';
 import { heroCSS } from './Hero.styles.js';
 
@@ -46,9 +46,9 @@ class Hero extends HTMLElement {
     }
 
     const storeName = getStorageItem('SWEETOS_store_name') || localStorage.getItem('SWEETOS_store_name') || 'SWEETOS';
-    const heroTitle = getStorageItem('SWEETOS_hero_title') || localStorage.getItem('SWEETOS_hero_title') || 'Find Your Style, Love Your Look ✨';
-    const heroSubtitle = getStorageItem('SWEETOS_hero_subtitle') || localStorage.getItem('SWEETOS_hero_subtitle') || 'Discover the latest trends in high-end tech layouts, accessories, and premium workspace gear.';
-    const entranceImg = getStorageItem('SWEETOS_store_entrance_image') || localStorage.getItem('SWEETOS_store_entrance_image') || 'https://images.unsplash.com/photo-1527443224154-c4a3942d3acf?w=1200&q=80';
+    const heroTitle = getStorageItem('SWEETOS_hero_title') || localStorage.getItem('SWEETOS_hero_title') || 'Elevate Your Workspace — Precision Gear for Creators ✨';
+    const heroSubtitle = getStorageItem('SWEETOS_hero_subtitle') || localStorage.getItem('SWEETOS_hero_subtitle') || 'Explore minimalist desk setups, ergonomic workstations, and high-performance tech accessories engineered for focus and productivity.';
+    const entranceImg = getStorageItem('SWEETOS_store_entrance_image') || localStorage.getItem('SWEETOS_store_entrance_image') || 'https://images.unsplash.com/photo-1593062096033-9a26b09da705?w=1200&q=80';
 
     if (!Array.isArray(allProds) || allProds.length === 0) {
       // 0 Products in store - Default fallback slide
@@ -74,18 +74,36 @@ class Hero extends HTMLElement {
       const pCategory = (p.category || 'COMPUTER & IT').toUpperCase();
       const pBrand = p.brand ? p.brand.toUpperCase() : 'SWEETOS';
       const origPrice = p.comparePrice || p.originalPrice || p.original_price || 0;
-      
-      const pDesc = p.description 
-        ? (p.description.length > 150 ? p.description.slice(0, 150) + '...' : p.description) 
-        : `Engineered by ${pBrand}, ${p.name} delivers high-end reliability and refined aesthetics for your setup.`;
+      const formattedTitle = toTitleCase(p.name);
+
+      let pDesc = p.description ? p.description.trim() : '';
+      if (pDesc.endsWith('...') || pDesc.endsWith(',...')) {
+        pDesc = pDesc.replace(/[\.,\s]+\.\.\.$/, '.');
+      }
+
+      const lowerName = (p.name || '').toLowerCase();
+      const lowerCat = (p.category || '').toLowerCase();
+
+      // High-converting copywriting replacement for generic/robotic/truncated descriptions
+      if (!pDesc || pDesc.includes('Upgrade your workspace with') || pDesc.length < 15) {
+        if (lowerCat.includes('charger') || lowerName.includes('chager') || lowerName.includes('charger') || lowerName.includes('power')) {
+          pDesc = `High-speed power delivery engineered for your ${toTitleCase(pBrand)} laptop. Built with premium, high-grade components for reliable everyday performance.`;
+        } else if (lowerCat.includes('case') || lowerName.includes('case') || lowerName.includes('m.2') || lowerName.includes('enclosure')) {
+          pDesc = `High-speed NVMe thermal enclosure engineered for ultra-fast data transfer, heat dissipation, and sleek mobile storage.`;
+        } else if (lowerCat.includes('computer') || lowerCat.includes('laptop') || lowerName.includes('book') || lowerName.includes('mac')) {
+          pDesc = `Precision-engineered workstation crafted for high-performance productivity, color-accurate visuals, and minimalist desk aesthetics.`;
+        } else {
+          pDesc = `High-precision desk gear engineered by ${toTitleCase(pBrand)} to elevate your daily workspace productivity and aesthetic.`;
+        }
+      }
 
       return {
         badgeText: `${storeName.toUpperCase()} • ${pCategory}`,
-        title: p.name,
+        title: formattedTitle,
         desc: pDesc,
         bgImage: p.image || entranceImg,
         productImage: p.image || entranceImg,
-        name: p.name,
+        name: formattedTitle,
         price: p.price,
         oldPrice: origPrice > p.price ? origPrice : 0,
         rating: p.rating ? Number(p.rating).toFixed(1) : '5.0',
@@ -152,6 +170,11 @@ class Hero extends HTMLElement {
                   
                   <!-- LEFT CONTENT -->
                   <div class="hero-left">
+                    <!-- Mobile Un-smothered Product Image Container -->
+                    <div class="hero-mobile-img-box">
+                      <img src="${slide.productImage}" alt="${slide.name}">
+                    </div>
+
                     <div class="hero-badge">
                       <span class="sparkle">✨</span>
                       ${slide.badgeText}

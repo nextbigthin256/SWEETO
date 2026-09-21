@@ -183,6 +183,7 @@ export const productCardCSS = `
   right: 8px;
   display: flex;
   flex-direction: column;
+  align-items: flex-end;
   gap: 4px;
   z-index: 3;
 }
@@ -190,15 +191,25 @@ export const productCardCSS = `
 .status-badge {
   font-size: 9.5px;
   font-weight: 850;
-  padding: 3px 7px;
-  border-radius: 8px;
-  color: white;
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: #ffffff;
   line-height: 1;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
 }
 
 .status-badge.hot-deal { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+.status-badge.todays-deal { background: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%); }
 .status-badge.bestseller { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
 .status-badge.new { background: linear-gradient(135deg, #10b981 0%, #059669 100%); }
+.status-badge.for-you { background: linear-gradient(135deg, #ec4899 0%, #be185d 100%); }
+.status-badge.custom { background: linear-gradient(135deg, #0284c7 0%, #0052cc 100%); }
+.status-badge.discount { background: #ef4444; color: #ffffff; font-weight: 900; }
+.status-badge.out-of-stock { background: #ef4444; color: #ffffff; }
 
 .card-content {
   padding: 10px 12px;

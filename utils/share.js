@@ -1,215 +1,363 @@
 /**
- * Helper: Format Price
+ * ============================================================================
+ * SWEETOS - PRODUCT SHARING & WHATSAPP INTEGRATION UTILITIES
+ * ============================================================================
+ * Pure ES Modules - No build step required.
+ * Handles WhatsApp Chat & Status sharing, Native Web Share API, Open Graph URL
+ * generation, clipboard copy, and Supabase share tracking.
  */
-export function formatPrice(price) {
-  if (!price && price !== 0) return '0 FCFA';
-  return `${Number(price).toLocaleString()} FCFA`;
+
+import { supabase } from './supabase.js';
+import { formatPrice as storageFormatPrice } from './storage.js';
+
+/**
+ * Re-export formatPrice from storage.js for complete application consistency
+ */
+export const formatPrice = storageFormatPrice;
+
+/**
+ * Generate absolute Share URL for a product.
+ * Points to the Supabase Edge Function gateway URL (og-product) for rich Open Graph social previews,
+ * which redirects human visitors to product.html.
+ * @param {Object} product 
+ * @returns {string}
+ */
+export function getProductShareUrl(product) {
+  if (!product) return window.location.origin;
+  const productId = product.legacy_id ?? product.id ?? product.uuid ?? product.slug;
+  const baseUrl = window.location.origin;
+  
+  // Edge Function Gateway URL for rich social crawler previews (WhatsApp, Facebook, Twitter)
+  return `https://euuzsxjsmsktegilbqpv.supabase.co/functions/v1/og-product?id=${encodeURIComponent(productId)}`;
 }
 
 /**
- * Helper: Update or create a meta tag in document.head
+ * Build rich, beautifully formatted WhatsApp markdown message template.
+ * @param {Object} product 
+ * @returns {string}
  */
-export function updateMetaTag(property, content) {
-  if (!content) return;
+export function buildWhatsAppMessage(product) {
+  if (!product) return '';
+
+  const name = (product.name || 'Product').trim().toUpperCase();
+  const priceFormatted = formatPrice(product.price);
   
-  const isTwitter = property.startsWith('twitter:');
-  const selector = isTwitter ? `meta[name="${property}"]` : `meta[property="${property}"]`;
-  let meta = document.querySelector(selector);
-  if (!meta) {
-    meta = document.createElement('meta');
-    if (isTwitter) {
-      meta.setAttribute('name', property);
-    } else {
-      meta.setAttribute('property', property);
-    }
-    document.head.appendChild(meta);
+  // Strikethrough original price if discounted
+  let priceLine = `💰 *${priceFormatted}*`;
+  const origPrice = product.originalPrice || product.comparePrice;
+  if (origPrice && Number(origPrice) > Number(product.price)) {
+    priceLine += ` ~${formatPrice(origPrice)}~`;
   }
-  meta.setAttribute('content', content);
+
+  const brand = product.brand ? product.brand.trim() : null;
+  const category = product.category ? product.category.trim() : null;
+  let tagLine = '';
+  if (brand && category) {
+    tagLine = `🏷️ ${brand} • ${category}`;
+  } else if (brand || category) {
+    tagLine = `🏷️ ${brand || category}`;
+  }
+
+  const rating = product.rating ? Number(product.rating).toFixed(1) : '5.0';
+  const shareUrl = getProductShareUrl(product);
+
+  const lines = [
+    `🛒 *${name}*`,
+    ``,
+    priceLine,
+    tagLine,
+    `⭐ ${rating}/5`,
+    ``,
+    `👉 Commander ici: ${shareUrl}`,
+    ``,
+    `— Envoyé depuis *SWEETOS* 🛒`
+  ].filter(line => line !== null);
+
+  return lines.join('\n');
 }
 
 /**
- * Helper: Update canonical URL
+ * Share Product directly to a WhatsApp Chat contact.
+ * @param {Object} product 
+ * @returns {boolean}
  */
-export function updateCanonicalUrl(url) {
-  if (!url) return;
-  let link = document.querySelector('link[rel="canonical"]');
-  if (!link) {
-    link = document.createElement('link');
-    link.setAttribute('rel', 'canonical');
-    document.head.appendChild(link);
-  }
-  link.setAttribute('href', url);
-}
-
-/**
- * Update meta tags for product sharing (WhatsApp, Facebook, Twitter/X, etc.)
- * @param {Object} product - The product object
- */
-export function updateProductShareMetaTags(product) {
-  if (!product) return;
-
-  // Get product image - use first image or fallback
-  const productImage = product.image || 
-                       (product.images && product.images.length > 0 ? product.images[0] : null) ||
-                       `${window.location.origin}/assets/sweetos_share.jpg`;
-  
-  // Format price
-  const formattedPrice = formatPrice(product.price);
-  
-  // Generate share title
-  const shareTitle = `${product.name} - ${formattedPrice} | SWEETOS`;
-  
-  // Generate share description
-  const shareDescription = product.shortDesc || 
-                           product.description || 
-                           `${product.name} disponible sur SWEETOS. Prix: ${formattedPrice}`;
-  
-  // Generate share URL (Point to server API endpoint for WhatsApp crawler preview)
-  const productId = product.legacy_id ?? product.id ?? product.uuid;
-  const shareUrl = `${window.location.origin}/api/share?product=${encodeURIComponent(productId)}`;
-  const appUrl = `${window.location.origin}/#/?product=${encodeURIComponent(productId)}`;
-
-  // Update Open Graph (Facebook, WhatsApp, LinkedIn)
-  updateMetaTag('og:title', shareTitle);
-  updateMetaTag('og:description', shareDescription);
-  updateMetaTag('og:image', productImage);
-  updateMetaTag('og:image:secure_url', productImage);
-  updateMetaTag('og:url', shareUrl);
-  updateMetaTag('og:type', 'website');
-  if (product.price) {
-    updateMetaTag('og:price:amount', product.price);
-    updateMetaTag('og:price:currency', 'XOF');
-  }
-
-  // Update Twitter Card
-  updateMetaTag('twitter:card', 'summary_large_image');
-  updateMetaTag('twitter:title', shareTitle);
-  updateMetaTag('twitter:description', shareDescription);
-  updateMetaTag('twitter:image', productImage);
-
-  // Update page title
-  document.title = `${product.name} - SWEETOS`;
-
-  // Update canonical URL
-  updateCanonicalUrl(appUrl);
-
-  console.log('✅ [Share] Meta tags updated for:', product.name);
-}
-
-/**
- * Social Sharing Handlers
- */
-export function shareOnWhatsApp(text, url) {
-  const fullText = (text ? text + '\n\n' : '') + url;
-  window.open(`https://wa.me/?text=${encodeURIComponent(fullText)}`, '_blank');
-}
-
-export function shareOnFacebook(url) {
-  window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank', 'width=600,height=500');
-}
-
-export function shareOnTwitter(text, url) {
-  const fullText = (text ? text + ' ' : '') + url;
-  window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(fullText)}`, '_blank', 'width=600,height=500');
-}
-
-export async function copyShareLink(url) {
-  try {
-    if (navigator.clipboard?.writeText) {
-      await navigator.clipboard.writeText(url);
-      window.dispatchEvent(new CustomEvent('toast:show', { detail: '📋 Lien copié dans le presse-papier!' }));
-      return true;
-    }
-  } catch (e) {
-    // Fallback
-  }
-  const textArea = document.createElement('textarea');
-  textArea.value = url;
-  document.body.appendChild(textArea);
-  textArea.select();
-  document.execCommand('copy');
-  textArea.remove();
-  window.dispatchEvent(new CustomEvent('toast:show', { detail: '📋 Lien copié dans le presse-papier!' }));
+export function shareToWhatsApp(product) {
+  if (!product) return false;
+  const message = buildWhatsAppMessage(product);
+  const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+  window.open(waUrl, '_blank', 'noopener,noreferrer');
+  trackShare(product, 'whatsapp_chat');
   return true;
 }
 
 /**
- * Generate share buttons HTML for product page or modal
+ * Share Product to WhatsApp Status with guidance modal / toast.
+ * @param {Object} product 
+ * @returns {boolean}
  */
-export function getProductShareButtons(product) {
-  if (!product) return '';
-  
-  const productId = product.legacy_id ?? product.id ?? product.uuid;
-  const shareUrl = `${window.location.origin}/api/share?product=${encodeURIComponent(productId)}`;
-  const shareText = `🛒 ${product.name}\n💰 ${formatPrice(product.price)}\n\n${product.shortDesc || product.description || ''}\n\nAcheter sur SWEETOS!`;
-  
-  const encodedText = encodeURIComponent(shareText);
-  const encodedUrl = encodeURIComponent(shareUrl);
-  
-  return `
-    <div class="share-buttons-container" style="display:flex; gap:10px; margin-top:16px; flex-wrap:wrap; align-items:center;">
-      <!-- WhatsApp -->
-      <button class="social-share-btn share-wa-btn" data-url="${shareUrl}" data-text="${encodedText}"
-              style="display:flex; align-items:center; gap:8px; background:#25D366; color:white; border:none; padding:9px 16px; border-radius:30px; font-weight:750; font-size:12.5px; cursor:pointer; transition: transform 0.2s;" title="Partager sur WhatsApp">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M17.472 14.382c-.022-.08-.124-.184-.282-.232-.078-.024-.464-.232-.536-.252-.072-.02-.124-.03-.178.05-.054.082-.21.26-.258.312-.048.052-.096.06-.178.02a1.866 1.866 0 0 1-.502-.308c-.287-.25-.482-.56-.538-.65-.056-.092-.006-.142.04-.188.04-.04.096-.11.144-.168.048-.058.064-.1.096-.168.032-.068.016-.128-.008-.178-.024-.05-.178-.436-.244-.594-.064-.158-.13-.136-.178-.138-.046-.002-.098-.002-.15-.002a.287.287 0 0 0-.208.098c-.072.078-.276.27-.276.658 0 .388.282.764.32.816.04.052.556.85 1.348 1.192.188.082.336.13.45.166.19.06.362.052.498.032.152-.022.464-.19.53-.374.066-.184.066-.342.046-.374-.022-.03-.078-.05-.156-.088zm-5.467 1.162a6.3 6.3 0 0 1-3.237-.893l-.233-.14-2.404.63 2.443-2.38-.152-.243a6.262 6.262 0 0 1-.958-3.326c0-3.468 2.82-6.29 6.29-6.29 3.47 0 6.29 2.822 6.29 6.29 0 3.47-2.82 6.29-6.29 6.29zm0-13.82c-4.148 0-7.527 3.38-7.527 7.527 0 1.326.347 2.62 1.006 3.766L4 19.5l4.636-1.216a7.487 7.487 0 0 0 3.37.804c4.148 0 7.527-3.378 7.527-7.527 0-4.15-3.38-7.527-7.527-7.527z"/></svg>
-        WhatsApp
-      </button>
-      
-      <!-- Facebook -->
-      <button class="social-share-btn share-fb-btn" data-url="${encodedUrl}"
-              style="display:flex; align-items:center; gap:8px; background:#1877F2; color:white; border:none; padding:9px 16px; border-radius:30px; font-weight:750; font-size:12.5px; cursor:pointer; transition: transform 0.2s;" title="Partager sur Facebook">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
-        Facebook
-      </button>
-      
-      <!-- Twitter / X -->
-      <button class="social-share-btn share-tw-btn" data-url="${encodedUrl}" data-text="${encodedText}"
-              style="display:flex; align-items:center; gap:8px; background:#000000; color:white; border:none; padding:9px 16px; border-radius:30px; font-weight:750; font-size:12.5px; cursor:pointer; transition: transform 0.2s;" title="Partager sur X">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="white"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-        Twitter/X
-      </button>
-      
-      <!-- Copy Link -->
-      <button class="social-share-btn share-copy-btn" data-url="${shareUrl}"
-              style="display:flex; align-items:center; gap:8px; background:#64748b; color:white; border:none; padding:9px 16px; border-radius:30px; font-weight:750; font-size:12.5px; cursor:pointer; transition: transform 0.2s;" title="Copier le lien">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-        Copier
-      </button>
-    </div>
-  `;
+export async function shareToWhatsAppStatus(product) {
+  if (!product) return false;
+  const message = buildWhatsAppMessage(product);
+  const shareUrl = getProductShareUrl(product);
+
+  // Attempt native Web Share API with image file so mobile OS offers WhatsApp Status directly
+  try {
+    if (navigator.share && product.image) {
+      const res = await fetch(product.image);
+      const blob = await res.blob();
+      const file = new File([blob], 'sweetos-product.jpg', { type: blob.type || 'image/jpeg' });
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: product.name || 'Produit SWEETOS',
+          text: message,
+          url: shareUrl
+        });
+        trackShare(product, 'whatsapp_status');
+        return true;
+      }
+    }
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      console.warn('[Share] Native status share fallback:', err);
+    }
+  }
+
+  // Desktop / Web Fallback: Open pre-filled chat composer + guidance toast
+  const waUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+  window.open(waUrl, '_blank', 'noopener,noreferrer');
+  trackShare(product, 'whatsapp_status');
+
+  window.dispatchEvent(new CustomEvent('toast:show', {
+    detail: '💡 Dans WhatsApp : appuyez longuement sur le message → Partager → Mon statut'
+  }));
+
+  return true;
 }
 
 /**
- * Primary Product Share Function
+ * Copy product share link to clipboard.
+ * @param {Object} product 
+ * @returns {Promise<boolean>}
  */
-export async function shareProduct(product) {
+export async function copyShareLink(product) {
   if (!product) return false;
+  const shareUrl = getProductShareUrl(product);
 
-  // 1. Update Open Graph & Twitter meta tags for rich social card previews
-  updateProductShareMetaTags(product);
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(shareUrl);
+      window.dispatchEvent(new CustomEvent('toast:show', { detail: '📋 Lien de produit copié !' }));
+      trackShare(product, 'copy');
+      return true;
+    }
+  } catch (e) {
+    console.warn('[Share] Clipboard API failed, attempting fallback...', e);
+  }
 
-  const productId = product.legacy_id ?? product.id ?? product.uuid;
-  const shareUrl = `${window.location.origin}/api/share?product=${encodeURIComponent(productId)}`;
-  const formattedPrice = formatPrice(product.price);
-  const shareText = `🛒 ${product.name}\n💰 ${formattedPrice}\n\n${product.shortDesc || product.description || ''}\n\nAcheter sur SWEETOS!`;
+  // Fallback for legacy browsers
+  try {
+    const textArea = document.createElement('textarea');
+    textArea.value = shareUrl;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-9999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+    document.execCommand('copy');
+    textArea.remove();
+    window.dispatchEvent(new CustomEvent('toast:show', { detail: '📋 Lien de produit copié !' }));
+    trackShare(product, 'copy');
+    return true;
+  } catch (err) {
+    console.error('[Share] Copy failed:', err);
+    window.dispatchEvent(new CustomEvent('toast:show', { detail: '❌ Impossible de copier le lien.' }));
+    return false;
+  }
+}
+
+/**
+ * Native Web Share API (mobile devices)
+ * @param {Object} product 
+ * @returns {Promise<boolean>}
+ */
+export async function nativeShare(product) {
+  if (!product) return false;
+  const shareUrl = getProductShareUrl(product);
+  const message = buildWhatsAppMessage(product);
 
   const shareData = {
-    title: `${product.name} - ${formattedPrice} | SWEETOS`,
-    text: shareText,
+    title: `${product.name} — SWEETOS`,
+    text: message,
     url: shareUrl
   };
 
   try {
     if (navigator.share) {
       await navigator.share(shareData);
+      trackShare(product, 'native');
       return true;
     }
-  } catch (error) {
-    if (error?.name === 'AbortError') return false;
-    console.warn('[Share] Web Share API failed or cancelled:', error);
+  } catch (err) {
+    if (err.name !== 'AbortError') {
+      console.warn('[Share] Native share error:', err);
+    }
   }
 
-  // Fallback to copying link
-  await copyShareLink(shareUrl);
+  // Fallback to copy link
+  return await copyShareLink(product);
+}
+
+/**
+ * Track Product Share to Supabase `product_shares` table (non-blocking)
+ * @param {Object} product 
+ * @param {string} channel ('whatsapp_chat' | 'whatsapp_status' | 'copy' | 'native')
+ */
+export async function trackShare(product, channel = 'whatsapp_chat') {
+  if (!product) return;
+  
+  const productId = String(product.legacy_id ?? product.id ?? product.uuid ?? product.slug ?? 'unknown');
+  const productName = product.name || 'Product';
+  
+  let userEmail = null;
+  try {
+    const userJson = localStorage.getItem('SWEETOS_logged_in_user');
+    if (userJson) {
+      const u = JSON.parse(userJson);
+      userEmail = u?.email || null;
+    }
+  } catch(e) {}
+
+  const record = {
+    product_id: productId,
+    product_name: productName,
+    channel: channel,
+    user_email: userEmail,
+    referrer: window.location.href,
+    shared_at: new Date().toISOString()
+  };
+
+  // Dispatch global custom event for share tracking
+  window.dispatchEvent(new CustomEvent('product:shared', { detail: record }));
+
+  // Non-blocking database write to Supabase
+  try {
+    if (supabase) {
+      const { error } = await supabase.from('product_shares').insert([record]);
+      if (error) {
+        console.warn('⚠️ [Share Tracking Note]:', error.message);
+      } else {
+        console.log('✅ [Share Tracking] Recorded:', channel, productName);
+      }
+    }
+  } catch(e) {
+    console.warn('[Share Tracking] Skipped DB log:', e);
+  }
+}
+
+/**
+ * Update document head Open Graph & Twitter meta tags dynamically (Client-side)
+ * @param {Object} product 
+ */
+export function updateProductShareMetaTags(product) {
+  if (!product || typeof document === 'undefined') return;
+
+  const shareUrl = getProductShareUrl(product);
+  const formattedPrice = formatPrice(product.price);
+  const title = `${product.name} — ${formattedPrice} | SWEETOS`;
+  const description = `${formattedPrice} • ${product.brand || 'SWEETOS'} ${product.category ? '— ' + product.category : ''}. ${product.description || ''}`.trim();
+  const image = product.image || `${window.location.origin}/assets/sweetos_share.jpg`;
+
+  const metaMap = [
+    { selector: 'meta[property="og:title"]', property: 'og:title', content: title },
+    { selector: 'meta[property="og:description"]', property: 'og:description', content: description },
+    { selector: 'meta[property="og:image"]', property: 'og:image', content: image },
+    { selector: 'meta[property="og:url"]', property: 'og:url', content: shareUrl },
+    { selector: 'meta[property="og:type"]', property: 'og:type', content: 'product' },
+    { selector: 'meta[property="product:price:amount"]', property: 'product:price:amount', content: product.price },
+    { selector: 'meta[property="product:price:currency"]', property: 'product:price:currency', content: 'XOF' },
+    { selector: 'meta[name="twitter:card"]', name: 'twitter:card', content: 'summary_large_image' },
+    { selector: 'meta[name="twitter:title"]', name: 'twitter:title', content: title },
+    { selector: 'meta[name="twitter:description"]', name: 'twitter:description', content: description },
+    { selector: 'meta[name="twitter:image"]', name: 'twitter:image', content: image }
+  ];
+
+  metaMap.forEach(({ selector, property, name, content }) => {
+    if (!content) return;
+    let el = document.querySelector(selector);
+    if (!el) {
+      el = document.createElement('meta');
+      if (property) el.setAttribute('property', property);
+      if (name) el.setAttribute('name', name);
+      document.head.appendChild(el);
+    }
+    el.setAttribute('content', String(content));
+  });
+
+  document.title = title;
+}
+
+/**
+ * Open Share Modal for a product (Main entrypoint)
+ * @param {Object} product 
+ * @returns {Promise<boolean>}
+ */
+export async function shareProduct(product) {
+  if (!product) return false;
+  let modal = document.querySelector('share-modal');
+  if (!modal) {
+    modal = document.createElement('share-modal');
+    document.body.appendChild(modal);
+  }
+  modal.open(product);
   return true;
 }
+
+/**
+ * Share on WhatsApp (Alias for shareToWhatsApp)
+ * @param {Object} product 
+ */
+export function shareOnWhatsApp(product) {
+  return shareToWhatsApp(product);
+}
+
+/**
+ * Share on Facebook
+ * @param {Object} product 
+ */
+export function shareOnFacebook(product) {
+  if (!product) return false;
+  const shareUrl = getProductShareUrl(product);
+  const fbUrl = `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`;
+  window.open(fbUrl, '_blank', 'noopener,noreferrer');
+  trackShare(product, 'facebook');
+  return true;
+}
+
+/**
+ * Share on Twitter / X
+ * @param {Object} product 
+ */
+export function shareOnTwitter(product) {
+  if (!product) return false;
+  const shareUrl = getProductShareUrl(product);
+  const text = `${product.name} — ${formatPrice(product.price)} | SWEETOS`;
+  const twUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
+  window.open(twUrl, '_blank', 'noopener,noreferrer');
+  trackShare(product, 'twitter');
+  return true;
+}
+
+/**
+ * Generate Product Share Buttons configuration array
+ * @param {Object} product 
+ */
+export function getProductShareButtons(product) {
+  return [
+    { label: 'WhatsApp Chat', icon: '💬', onClick: () => shareToWhatsApp(product) },
+    { label: 'WhatsApp Status', icon: '🟢', onClick: () => shareToWhatsAppStatus(product) },
+    { label: 'Copier le lien', icon: '🔗', onClick: () => copyShareLink(product) },
+    { label: 'Facebook', icon: '📘', onClick: () => shareOnFacebook(product) },
+    { label: 'Twitter', icon: '🐦', onClick: () => shareOnTwitter(product) }
+  ];
+}
+

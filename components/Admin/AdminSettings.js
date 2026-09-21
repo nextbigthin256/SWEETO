@@ -964,7 +964,7 @@ export function attachAdminSettingsListeners(context, shadow) {
           store_entrance_image: localStorage.getItem('SWEETOS_store_entrance_image') || null,
           currency: localStorage.getItem('SWEETOS_currency') || 'FCFA'
         };
-        await supabase.from('store_settings').insert([settingsRecord]).catch(() => {});
+        try { await supabase.from('store_settings').insert([settingsRecord]); } catch(e) {}
 
         // 2. Sync Categories
         const cats = context.categories || [];
@@ -975,7 +975,7 @@ export function attachAdminSettingsListeners(context, shadow) {
             icon: c.icon || '📦',
             description: c.description || ''
           }));
-          await supabase.from('categories').upsert(catRecords, { onConflict: 'slug' }).catch(() => {});
+          try { await supabase.from('categories').upsert(catRecords, { onConflict: 'slug' }); } catch(e) {}
         }
 
         // 3. Sync Brands
@@ -987,7 +987,7 @@ export function attachAdminSettingsListeners(context, shadow) {
             description: b.description || '',
             is_official: b.isOfficial ?? true
           }));
-          await supabase.from('brands').upsert(brandRecords, { onConflict: 'slug' }).catch(() => {});
+          try { await supabase.from('brands').upsert(brandRecords, { onConflict: 'slug' }); } catch(e) {}
         }
 
         // 4. Sync Products
@@ -1015,7 +1015,7 @@ export function attachAdminSettingsListeners(context, shadow) {
             rating: p.rating || 5.0,
             reviews_count: p.reviews || 0
           }));
-          await supabase.from('products').upsert(prodRecords, { onConflict: 'slug' }).catch(() => {});
+          try { await supabase.from('products').upsert(prodRecords, { onConflict: 'slug' }); } catch(e) {}
         }
 
         window.dispatchEvent(new CustomEvent('toast:show', { detail: '🚀 Entire Store successfully uploaded to Supabase Cloud!' }));

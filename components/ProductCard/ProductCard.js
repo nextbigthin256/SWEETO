@@ -1,4 +1,4 @@
-import { formatPrice, getStorageItem } from '../../utils/storage.js';
+import { formatPrice, getStorageItem, getWishlistFromStorage } from '../../utils/storage.js';
 import { loadStyles } from '../../utils/cssLoader.js';
 import { productCardCSS } from './ProductCard.styles.js';
 import { getInitialLanguage, getText } from '../../utils/language.js';
@@ -18,6 +18,28 @@ class ProductCard extends HTMLElement {
   set product(value) {
     this._product = value;
     this.render();
+  }
+
+  get sectionBadge() {
+    return this._sectionBadge || '';
+  }
+
+  set sectionBadge(value) {
+    this._sectionBadge = value;
+    if (this._product) {
+      this.render();
+    }
+  }
+
+  get badgeClass() {
+    return this._badgeClass || '';
+  }
+
+  set badgeClass(value) {
+    this._badgeClass = value;
+    if (this._product) {
+      this.render();
+    }
   }
 
   get isHotDeal() {
@@ -92,50 +114,76 @@ class ProductCard extends HTMLElement {
     const newIds = [46, 47, 48, 49, 50, 41, 42, 43, 44];
 
     const isHotDeal = Boolean(
-      !hasCustomBadge && (
-        this._isHotDeal || 
-        p.isHotDeal || 
-        (p.homepageSections && p.homepageSections.includes('sec-deals')) || 
-        dealIds.includes(p.id) || 
-        (p.originalPrice && p.originalPrice > p.price)
-      )
+      this._isHotDeal || 
+      p.isHotDeal || 
+      (p.homepageSections && p.homepageSections.includes('sec-deals')) || 
+      dealIds.includes(p.id) || 
+      (p.originalPrice && p.originalPrice > p.price)
     );
 
     const isNew = Boolean(
-      !hasCustomBadge && !isHotDeal && (
-        p.isNewArrival || 
-        (p.homepageSections && p.homepageSections.includes('sec-new')) || 
-        newIds.includes(p.id) || 
-        p.id > 44
-      )
+      p.isNewArrival || 
+      p.isNew ||
+      (p.homepageSections && p.homepageSections.includes('sec-new')) || 
+      newIds.includes(p.id) || 
+      p.id > 44
     );
 
     const isBestSeller = Boolean(
-      !hasCustomBadge && !isHotDeal && !isNew && (
-        p.isBestSeller || 
-        (p.homepageSections && p.homepageSections.includes('sec-best'))
-      )
+      p.isBestSeller || 
+      p.isBestseller ||
+      (p.homepageSections && p.homepageSections.includes('sec-best')) ||
+      bestIds.includes(p.id)
     );
 
-    const wishlistSaved = getStorageItem('SWEETOS_wishlist');
-    let isWishlisted = false;
-    if (wishlistSaved) {
-      try {
-        const wishlist = JSON.parse(wishlistSaved);
-        isWishlisted = wishlist.some(item => item.id === p.id);
-      } catch (e) {}
+    // Section Badge determination
+    let displayBadgeText = '';
+    let badgeTypeClass = '';
+
+    if (this._sectionBadge && String(this._sectionBadge).trim() !== '') {
+      displayBadgeText = String(this._sectionBadge).trim();
+      badgeTypeClass = this._badgeClass || 'custom';
+    } else if (hasCustomBadge) {
+      displayBadgeText = customBadgeText;
+      badgeTypeClass = 'custom';
+    } else if (isHotDeal) {
+      displayBadgeText = lang === 'fr' ? '🔥 OFFRE HOT' : '🔥 HOT DEAL';
+      badgeTypeClass = 'hot-deal';
+    } else if (isNew) {
+      displayBadgeText = lang === 'fr' ? '✨ NOUVEAUTÉ' : '✨ NEW';
+      badgeTypeClass = 'new';
+    } else if (isBestSeller) {
+      displayBadgeText = lang === 'fr' ? '⭐ TOP VENTE' : '⭐ BESTSELLER';
+      badgeTypeClass = 'bestseller';
+    } else if (p.category) {
+      displayBadgeText = p.category;
+      badgeTypeClass = 'custom';
     }
+
+    const wishlist = getWishlistFromStorage();
+    const isWishlisted = Array.isArray(wishlist) && wishlist.some(item => item.id === p.id);
 
     this.shadowRoot.innerHTML = `
       <div class="card glass-panel">
         <div class="image-wrapper">
           <img src="${p.image}" alt="${p.name}" class="card-image" loading="lazy">
           
-          ${isOutOfStock ? `
-            <span class="category-badge out-of-stock">
-              ✕ ${getText('out', lang)}
-            </span>
-          ` : ''}
+          <div class="status-badge-container">
+            ${isOutOfStock ? `
+              <span class="status-badge out-of-stock">
+                ✕ ${getText('out', lang)}
+              </span>
+            ` : displayBadgeText ? `
+              <span class="status-badge ${badgeTypeClass}">
+                ${displayBadgeText}
+              </span>
+            ` : ''}
+            ${hasDiscount ? `
+              <span class="status-badge discount">
+                -${discountVal}%
+              </span>
+            ` : ''}
+          </div>
           
           <button class="heart-btn ${isWishlisted ? 'active' : ''}" id="wishlist-add-btn" title="${isWishlisted ? (lang === 'fr' ? 'Retirer des favoris' : 'Remove from wishlist') : (lang === 'fr' ? 'Ajouter aux favoris' : 'Add to wishlist')}">
             <svg viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>

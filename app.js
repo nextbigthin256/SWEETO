@@ -1,3 +1,9 @@
+// Disable browser automatic scroll restoration so every page view opens cleanly at the top
+if ('scrollRestoration' in history) {
+  history.scrollRestoration = 'manual';
+}
+window.scrollTo(0, 0);
+
 // SPA pathname to hash router & index.html URL cleanup
 if (window.location.pathname.endsWith('/index.html')) {
   const cleanUrl = window.location.pathname.replace(/\/index\.html$/, '/') + window.location.search + window.location.hash;
@@ -10,7 +16,7 @@ if (window.location.pathname !== '/' && !window.location.pathname.endsWith('/ind
   }
 }
 
-import { getCartStorageKey, getStorageItem, saveStorageItem, initStorageSync } from './utils/storage.js';
+import { getCartStorageKey, getStorageItem, saveStorageItem, initStorageSync, mergeGuestCartIntoUserCart } from './utils/storage.js';
 import { initSupabaseSync } from './utils/supabase.js';
 import { shareProduct, updateProductShareMetaTags } from './utils/share.js';
 import './utils/modal.js';
@@ -72,27 +78,43 @@ window.refreshProducts = async () => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  // Ultra-Smooth Boot Loader Dismissal Engine (Prevents FOUC)
+  // Ultra-Smooth Boot Loader Dismissal Engine (Prevents FOUC & Infinite Loading Loop)
   const dismissBootLoader = () => {
-    const loader = document.getElementById('app-boot-loader');
-    if (loader && !loader.classList.contains('hidden')) {
-      loader.classList.add('hidden');
-      setTimeout(() => loader.remove(), 600);
-    }
+    try {
+      const loader = document.getElementById('app-boot-loader');
+      if (loader && !loader.classList.contains('hidden')) {
+        loader.classList.add('hidden');
+        setTimeout(() => {
+          try { loader.remove(); } catch(e) {}
+        }, 400);
+      }
+    } catch(e) {}
   };
 
-  Promise.all([
-    customElements.whenDefined('product-list'),
-    customElements.whenDefined('app-header'),
-    customElements.whenDefined('app-hero')
-  ]).then(dismissBootLoader).catch(dismissBootLoader);
+  try {
+    Promise.all([
+      customElements.whenDefined('product-list'),
+      customElements.whenDefined('app-header'),
+      customElements.whenDefined('app-hero')
+    ]).then(dismissBootLoader).catch(dismissBootLoader);
+  } catch(e) {
+    dismissBootLoader();
+  }
 
-  // Safety fallback timeout
-  setTimeout(dismissBootLoader, 800);
+  // Safety fallback timeout guaranteed dismissal
+  setTimeout(dismissBootLoader, 400);
 
-  // Initialize Supabase Live Backend Sync & Storage Sync Engine
-  initSupabaseSync();
-  initStorageSync();
+  // Initialize Supabase Live Backend Sync & Storage Sync Engine safely
+  try {
+    initSupabaseSync();
+  } catch(e) {
+    console.warn('[App] Supabase sync initialization warning:', e);
+  }
+  try {
+    initStorageSync();
+  } catch(e) {
+    console.warn('[App] Storage sync initialization warning:', e);
+  }
 
   // Register Service Worker for Web Push & Background Notifications
   import('./utils/pushNotifications.js').then(({ registerServiceWorker }) => {
@@ -484,14 +506,6 @@ document.addEventListener('DOMContentLoaded', () => {
     closeCart();
     closeNotifications();
 
-    // Check if user is logged in
-    const loggedInUserStr = getStorageItem('SWEETOS_logged_in_user');
-    if (!loggedInUserStr) {
-      window.dispatchEvent(new CustomEvent('toast:show', { detail: '🔒 Veuillez vous connecter pour finaliser votre commande / Please log in to complete your order!' }));
-      window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'auth' } }));
-      return;
-    }
-
     const checkoutModal = document.getElementById('global-checkout-modal');
     if (checkoutModal) {
       checkoutModal.open();
@@ -522,9 +536,35 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 150);
   }
 
-  // Listen for user login/logout to update the cart badge count dynamically
-  window.addEventListener('auth:changed', () => {
-    const saved = getStorageItem(getCartStorageKey());
+  // Listen for user login/logout to update the cart badge count dynamically & auto-resume pending checkouts
+  window.addEventListener('auth:changed', (e) => {
+    const detail = e?.detail || {};
+    const loggedInUserStr = getStorageItem('SWEETOS_logged_in_user');
+    let email = detail.email;
+    if (!email && loggedInUserStr) {
+      try {
+        const u = typeof loggedInUserStr === 'string' ? JSON.parse(loggedInUserStr) : loggedInUserStr;
+        email = u?.email;
+      } catch(e) {}
+    }
+
+    if (detail.loggedIn !== false && email) {
+      mergeGuestCartIntoUserCart(email);
+
+      const pendingCheckout = getStorageItem('SWEETOS_pending_checkout') || localStorage.getItem('SWEETOS_pending_checkout');
+      if (pendingCheckout === 'true') {
+        saveStorageItem('SWEETOS_pending_checkout', null);
+        try { localStorage.removeItem('SWEETOS_pending_checkout'); } catch(e) {}
+
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'home' } }));
+          window.dispatchEvent(new CustomEvent('checkout:start'));
+          window.dispatchEvent(new CustomEvent('toast:show', { detail: '🛒 Connexion réussie ! Reprise de votre commande...' }));
+        }, 350);
+      }
+    }
+
+    const saved = getStorageItem(getCartStorageKey(email));
     let parsed = [];
     if (saved) {
       try {

@@ -10,6 +10,36 @@ export function userKey(email) {
   return String(email || '').toLowerCase().trim().replace(/[^a-z0-9]/g, '_');
 }
 
+export function toTitleCase(str) {
+  if (!str || typeof str !== 'string') return '';
+  const raw = str.trim();
+  
+  const dictionary = {
+    'chager hp': 'HP High-Speed Power Adapter',
+    'chager': 'Charger',
+    'hp elite book': 'HP EliteBook Pro Workstation',
+    'external case m.2': 'M.2 NVMe Thermal Enclosure',
+    'hp': 'HP',
+    'it': 'IT',
+    'usb': 'USB',
+    'ssd': 'SSD',
+    'ram': 'RAM',
+    'led': 'LED',
+    'rgb': 'RGB',
+    'pc': 'PC',
+    'nvme': 'NVMe'
+  };
+
+  const lowerRaw = raw.toLowerCase();
+  if (dictionary[lowerRaw]) return dictionary[lowerRaw];
+
+  return raw.replace(/\w\S*/g, (txt) => {
+    const lowerWord = txt.toLowerCase();
+    if (dictionary[lowerWord]) return dictionary[lowerWord];
+    return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();
+  });
+}
+
 // Non-blocking async queue for Supabase cloud sync operations
 const _syncQueue = [];
 let _isProcessingSyncQueue = false;
@@ -36,10 +66,6 @@ function queueSupabaseSync(task) {
 }
 
 export function saveStorageItem(key, val) {
-  if (key === 'SWEETOS_products') {
-    try { localStorage.removeItem(key); } catch(e) {}
-    return;
-  }
   if (val === null || val === undefined) {
     try { localStorage.removeItem(key); } catch(e) {}
     return;
@@ -48,21 +74,39 @@ export function saveStorageItem(key, val) {
   try { localStorage.setItem(key, str); } catch(e) {}
   
   // Auto-sync to Supabase for known keys via queue (non-blocking)
-  const syncableKeys = ['SWEETOS_cart_', 'SWEETOS_wishlist', 'SWEETOS_notifications_', 'SWEETOS_user_scratchcards_', 'SWEETOS_coupons_', 'SWEETOS_user_profile'];
+  const syncableKeys = [
+    'SWEETOS_cart_', 'SWEETOS_wishlist', 'SWEETOS_notifications_',
+    'SWEETOS_user_scratchcards_', 'SWEETOS_coupons_', 'SWEETOS_user_profile',
+    'SWEETOS_products', 'SWEETOS_categories', 'SWEETOS_brands'
+  ];
   const shouldSync = syncableKeys.some(prefix => key.startsWith(prefix));
   
   if (shouldSync) {
     queueSupabaseSync(async () => {
       try {
+        let data;
+        try { data = typeof val === 'string' ? JSON.parse(val) : val; } catch(e) { data = val; }
+
+        if (key === 'SWEETOS_products') {
+          const { syncProductsToSupabase } = await import('./supabase.js');
+          await syncProductsToSupabase(data);
+          return;
+        } else if (key === 'SWEETOS_categories') {
+          const { syncCategoriesToSupabase } = await import('./supabase.js');
+          await syncCategoriesToSupabase(data);
+          return;
+        } else if (key === 'SWEETOS_brands') {
+          const { syncBrandsToSupabase } = await import('./supabase.js');
+          await syncBrandsToSupabase(data);
+          return;
+        }
+
         const userJson = getStorageItem('SWEETOS_logged_in_user');
         if (userJson) {
           const user = typeof userJson === 'string' ? JSON.parse(userJson) : userJson;
           if (user && user.email) {
             const { saveSiteSettingInSupabase, saveCustomerToSupabase } = await import('./supabase.js');
             const safeKey = userKey(user.email);
-            
-            let data;
-            try { data = typeof val === 'string' ? JSON.parse(val) : val; } catch(e) { data = val; }
             
             let supabaseKey = null;
             let type = null;
@@ -106,10 +150,6 @@ export function saveStorageItem(key, val) {
 }
 
 export function getStorageItem(key) {
-  if (key === 'SWEETOS_products') {
-    return null;
-  }
-  
   try {
     const localVal = localStorage.getItem(key);
     if (localVal !== null) return localVal;
@@ -120,6 +160,41 @@ export function getStorageItem(key) {
 export function removeStorageItem(key) {
   try {
     localStorage.removeItem(key);
+  } catch(e) {}
+}
+
+export function recordDeletedItem(type, idOrName) {
+  if (!type || idOrName === undefined || idOrName === null || idOrName === '') return;
+  const storageKey = `SWEETOS_deleted_${type}`;
+  let set = new Set();
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (raw) set = new Set(JSON.parse(raw));
+  } catch(e) {}
+  set.add(String(idOrName));
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(Array.from(set)));
+  } catch(e) {}
+}
+
+export function getDeletedItemSet(type) {
+  const storageKey = `SWEETOS_deleted_${type}`;
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (raw) return new Set(JSON.parse(raw));
+  } catch(e) {}
+  return new Set();
+}
+
+export function clearDeletedItem(type, idOrName) {
+  if (!type || idOrName === undefined || idOrName === null || idOrName === '') return;
+  const storageKey = `SWEETOS_deleted_${type}`;
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return;
+    const set = new Set(JSON.parse(raw));
+    set.delete(String(idOrName));
+    localStorage.setItem(storageKey, JSON.stringify(Array.from(set)));
   } catch(e) {}
 }
 
@@ -170,6 +245,81 @@ export async function saveCartToStorage(cartItems) {
   window.dispatchEvent(new CustomEvent('cart:updated', { detail: cartItems }));
 }
 
+export function mergeGuestCartIntoUserCart(email = null) {
+  let targetEmail = email;
+  if (!targetEmail) {
+    const userJson = getStorageItem('SWEETOS_logged_in_user');
+    if (userJson) {
+      try {
+        const u = typeof userJson === 'string' ? JSON.parse(userJson) : userJson;
+        targetEmail = u?.email;
+      } catch(e) {}
+    }
+  }
+  if (!targetEmail) return [];
+
+  const safeKey = userKey(targetEmail);
+  const userCartKey = `SWEETOS_cart_${safeKey}`;
+  const guestKey = 'SWEETOS_cart_guest';
+
+  let guestCart = [];
+  try {
+    const rawGuest = getStorageItem(guestKey) || localStorage.getItem(guestKey) || localStorage.getItem('SWEETOS_cart');
+    guestCart = rawGuest ? JSON.parse(rawGuest) : [];
+  } catch (e) {}
+
+  let userCart = [];
+  try {
+    const rawUser = getStorageItem(userCartKey) || localStorage.getItem(userCartKey);
+    userCart = rawUser ? JSON.parse(rawUser) : [];
+  } catch (e) {}
+
+  if (!Array.isArray(guestCart) || guestCart.length === 0) {
+    if (Array.isArray(userCart) && userCart.length > 0) {
+      saveStorageItem('SWEETOS_cart', userCart);
+      window.dispatchEvent(new CustomEvent('cart:updated', { detail: userCart }));
+    }
+    return userCart || [];
+  }
+
+  const map = new Map();
+  if (Array.isArray(userCart)) {
+    userCart.forEach(item => {
+      if (item && item.id != null) {
+        map.set(String(item.id), { ...item });
+      }
+    });
+  }
+
+  guestCart.forEach(item => {
+    if (item && item.id != null) {
+      const idKey = String(item.id);
+      if (map.has(idKey)) {
+        const existing = map.get(idKey);
+        existing.quantity = (parseInt(existing.quantity) || 1) + (parseInt(item.quantity) || 1);
+      } else {
+        map.set(idKey, { ...item });
+      }
+    }
+  });
+
+  const mergedCart = Array.from(map.values());
+  saveStorageItem(userCartKey, mergedCart);
+  saveStorageItem('SWEETOS_cart', mergedCart);
+
+  // Clear guest cart
+  saveStorageItem(guestKey, []);
+  try { localStorage.removeItem(guestKey); } catch(e) {}
+
+  // Save to Supabase Cloud
+  import('./supabase.js').then(({ saveSiteSettingInSupabase }) => {
+    saveSiteSettingInSupabase(`sweetos_cart_${safeKey}`, mergedCart);
+  }).catch(() => {});
+
+  window.dispatchEvent(new CustomEvent('cart:updated', { detail: mergedCart }));
+  return mergedCart;
+}
+
 export function getProfileStorageKey(email = null) {
   let targetEmail = email;
   if (!targetEmail) {
@@ -210,6 +360,38 @@ export function getNotificationsFromStorage() {
 
 export async function saveNotificationsToStorage() {
   window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: 0 }));
+}
+
+export function getWishlistStorageKey(targetEmail = null) {
+  let email = targetEmail;
+  if (!email) {
+    const userJson = getStorageItem('SWEETOS_logged_in_user');
+    if (userJson) {
+      try {
+        const user = typeof userJson === 'string' ? JSON.parse(userJson) : userJson;
+        email = user?.email;
+      } catch (e) {}
+    }
+  }
+  if (email) {
+    return `SWEETOS_wishlist_${userKey(email)}`;
+  }
+  return 'SWEETOS_wishlist_guest';
+}
+
+export function getWishlistFromStorage(targetEmail = null) {
+  const key = getWishlistStorageKey(targetEmail);
+  const raw = getStorageItem(key) || localStorage.getItem(key) || localStorage.getItem('SWEETOS_wishlist');
+  if (!raw) return [];
+  try { return JSON.parse(raw); } catch(e) { return []; }
+}
+
+export function saveWishlistToStorage(wishlistItems, targetEmail = null) {
+  if (!Array.isArray(wishlistItems)) return;
+  const key = getWishlistStorageKey(targetEmail);
+  saveStorageItem(key, wishlistItems);
+  try { localStorage.setItem('SWEETOS_wishlist', JSON.stringify(wishlistItems)); } catch(e) {}
+  window.dispatchEvent(new CustomEvent('wishlist:updated', { detail: wishlistItems }));
 }
 
 export function broadcastNotificationToAll(notifItem) {
@@ -596,8 +778,40 @@ export async function loadUserDataFromSupabase(email) {
     }
 
     if (cloudCart.status === 'fulfilled' && Array.isArray(cloudCart.value)) {
-      saveStorageItem(`SWEETOS_cart_${safeKey}`, cloudCart.value);
-      window.dispatchEvent(new CustomEvent('cart:updated', { detail: cloudCart.value }));
+      const guestKey = 'SWEETOS_cart_guest';
+      let guestCart = [];
+      try {
+        const rawGuest = getStorageItem(guestKey) || localStorage.getItem(guestKey);
+        guestCart = rawGuest ? JSON.parse(rawGuest) : [];
+      } catch(e) {}
+
+      let finalCart = [...cloudCart.value];
+      if (Array.isArray(guestCart) && guestCart.length > 0) {
+        const map = new Map(finalCart.map(i => [String(i.id), { ...i }]));
+        guestCart.forEach(gi => {
+          if (gi && gi.id != null) {
+            const idKey = String(gi.id);
+            if (map.has(idKey)) {
+              const existing = map.get(idKey);
+              existing.quantity = (parseInt(existing.quantity) || 1) + (parseInt(gi.quantity) || 1);
+            } else {
+              map.set(idKey, { ...gi });
+            }
+          }
+        });
+        finalCart = Array.from(map.values());
+        saveStorageItem(guestKey, []);
+        try { localStorage.removeItem(guestKey); } catch(e) {}
+
+        const { saveSiteSettingInSupabase } = await import('./supabase.js');
+        saveSiteSettingInSupabase(`sweetos_cart_${safeKey}`, finalCart).catch(() => {});
+      }
+
+      saveStorageItem(`SWEETOS_cart_${safeKey}`, finalCart);
+      saveStorageItem('SWEETOS_cart', finalCart);
+      window.dispatchEvent(new CustomEvent('cart:updated', { detail: finalCart }));
+    } else {
+      mergeGuestCartIntoUserCart(userEmailLower);
     }
 
     if (cloudWishlist.status === 'fulfilled' && Array.isArray(cloudWishlist.value)) {
@@ -700,29 +914,88 @@ export async function retryPendingSupabaseSyncs() {
 export async function syncAllStorage() {
   console.log('🔄 [Storage Sync] Syncing database state across all tabs & Cloud...');
   try {
-    const { fetchOrdersFromSupabase, fetchCustomersFromSupabase, fetchProductsFromSupabase } = await import('./supabase.js');
-    const [orders, customers, products] = await Promise.all([
+    const { fetchOrdersFromSupabase, fetchCustomersFromSupabase, fetchProductsFromSupabase, fetchCategoriesFromSupabase, fetchBrandsFromSupabase } = await import('./supabase.js');
+    const [orders, customers, products, categories, brands] = await Promise.allSettled([
       fetchOrdersFromSupabase(),
       fetchCustomersFromSupabase(),
-      fetchProductsFromSupabase()
+      fetchProductsFromSupabase(),
+      fetchCategoriesFromSupabase(),
+      fetchBrandsFromSupabase()
     ]);
 
-    if (Array.isArray(orders)) {
-      const ordersStr = JSON.stringify(orders);
+    if (orders.status === 'fulfilled' && Array.isArray(orders.value)) {
+      const ordersStr = JSON.stringify(orders.value);
       try { localStorage.setItem('SWEETOS_all_orders', ordersStr); } catch(e) {}
-      console.log('✅ [Storage Sync] Orders synced:', orders.length);
+      console.log('✅ [Storage Sync] Orders synced:', orders.value.length);
     }
 
-    if (Array.isArray(customers)) {
-      const customersStr = JSON.stringify(customers);
+    if (customers.status === 'fulfilled' && Array.isArray(customers.value)) {
+      const customersStr = JSON.stringify(customers.value);
       try { localStorage.setItem('SWEETOS_customers', customersStr); } catch(e) {}
-      console.log('✅ [Storage Sync] Customers synced:', customers.length);
+      console.log('✅ [Storage Sync] Customers synced:', customers.value.length);
     }
 
-    if (Array.isArray(products)) {
-      const productsStr = JSON.stringify(products);
-      try { localStorage.setItem('SWEETOS_products', productsStr); } catch(e) {}
-      console.log('✅ [Storage Sync] Products synced:', products.length);
+    if (products.status === 'fulfilled' && Array.isArray(products.value)) {
+      try {
+        const localRaw = localStorage.getItem('SWEETOS_products');
+        const localList = localRaw ? JSON.parse(localRaw) : [];
+        const map = new Map();
+        (localList || []).forEach(p => { if (p && p.id != null) map.set(String(p.id), p); });
+        products.value.forEach(p => {
+          if (p && p.id != null) {
+            map.set(String(p.id), map.has(String(p.id)) ? { ...map.get(String(p.id)), ...p } : p);
+          }
+        });
+        const mergedProds = Array.from(map.values());
+        localStorage.setItem('SWEETOS_products', JSON.stringify(mergedProds));
+        console.log('✅ [Storage Sync] Products synced:', mergedProds.length);
+      } catch(e) {
+        localStorage.setItem('SWEETOS_products', JSON.stringify(products.value));
+      }
+    }
+
+    if (categories.status === 'fulfilled' && Array.isArray(categories.value)) {
+      try {
+        const localRaw = localStorage.getItem('SWEETOS_categories');
+        const localList = localRaw ? JSON.parse(localRaw) : [];
+        const map = new Map();
+        (localList || []).forEach(c => {
+          const key = c.slug || c.name || c.id;
+          if (key) map.set(String(key).toLowerCase(), c);
+        });
+        categories.value.forEach(c => {
+          const key = c.slug || c.name || c.id;
+          if (key) {
+            const kStr = String(key).toLowerCase();
+            map.set(kStr, map.has(kStr) ? { ...map.get(kStr), ...c } : c);
+          }
+        });
+        const mergedCats = Array.from(map.values());
+        localStorage.setItem('SWEETOS_categories', JSON.stringify(mergedCats));
+        console.log('✅ [Storage Sync] Categories synced:', mergedCats.length);
+      } catch(e) {}
+    }
+
+    if (brands.status === 'fulfilled' && Array.isArray(brands.value)) {
+      try {
+        const localRaw = localStorage.getItem('SWEETOS_brands');
+        const localList = localRaw ? JSON.parse(localRaw) : [];
+        const map = new Map();
+        (localList || []).forEach(b => {
+          const key = b.slug || b.name || b.id;
+          if (key) map.set(String(key).toLowerCase(), b);
+        });
+        brands.value.forEach(b => {
+          const key = b.slug || b.name || b.id;
+          if (key) {
+            const kStr = String(key).toLowerCase();
+            map.set(kStr, map.has(kStr) ? { ...map.get(kStr), ...b } : b);
+          }
+        });
+        const mergedBrands = Array.from(map.values());
+        localStorage.setItem('SWEETOS_brands', JSON.stringify(mergedBrands));
+        console.log('✅ [Storage Sync] Brands synced:', mergedBrands.length);
+      } catch(e) {}
     }
 
     try { localStorage.setItem('SWEETOS_storage_sync_trigger', Date.now().toString()); } catch(e) {}
@@ -797,6 +1070,7 @@ export function clearAllUserSessionData() {
         key.startsWith('SWEETOS_user_profile_') ||
         key.startsWith('SWEETOS_notifications_') ||
         key.startsWith('SWEETOS_cart_') ||
+        key.startsWith('SWEETOS_wishlist_') ||
         key.startsWith('SWEETOS_coupons_') ||
         key.startsWith('SWEETOS_user_scratchcards_') ||
         key.startsWith('SUPABASE_SYNC_') ||
@@ -837,19 +1111,15 @@ export function checkAppVersionAndCleanStorage() {
   try {
     const storedVersion = localStorage.getItem('SWEETOS_APP_VERSION');
     if (storedVersion !== CURRENT_APP_VERSION) {
-      console.log(`🧹 [Storage] App updated from ${storedVersion || 'legacy'} to ${CURRENT_APP_VERSION}. Invalidating old local storage cache...`);
-      
-      try { localStorage.removeItem('SWEETOS_products'); } catch(e) {}
-      
+      console.log(`🧹 [Storage] App updated from ${storedVersion || 'legacy'} to ${CURRENT_APP_VERSION}. Cleaning sync status cache only.`);
       try {
         for (let i = localStorage.length - 1; i >= 0; i--) {
           const key = localStorage.key(i);
-          if (key && (key.startsWith('SWEETOS_products') || key.startsWith('SUPABASE_SYNC_'))) {
+          if (key && key.startsWith('SUPABASE_SYNC_')) {
             localStorage.removeItem(key);
           }
         }
       } catch(e) {}
-      
       localStorage.setItem('SWEETOS_APP_VERSION', CURRENT_APP_VERSION);
     }
   } catch (e) {

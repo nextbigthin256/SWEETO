@@ -1,4 +1,4 @@
-import { formatPrice, getAllOrdersFromStorage, saveAllOrdersToStorage, isLocalDevHost, saveStorageItem, getStorageItem } from '../../utils/storage.js';
+import { formatPrice, getAllOrdersFromStorage, saveAllOrdersToStorage, isLocalDevHost, saveStorageItem, getStorageItem, getDeletedItemSet } from '../../utils/storage.js';
 import '../../utils/modal.js';
 import { 
   syncProductsToSupabase, 
@@ -18,8 +18,6 @@ import {
   fetchCouponsFromSupabase,
   fetchSettingsFromSupabase
 } from '../../utils/supabase.js';
-
-import { bootstrapFromSupabase } from '../../utils/supabaseBootstrap.js';
 
 import categories from '../../data/categories.js';
 import brands from '../../data/brands.js';
@@ -540,13 +538,9 @@ class AdminPage extends HTMLElement {
     };
     window.addEventListener('storage', this._storageOrdersListener);
 
-    // Load database state from Supabase Cloud on mount
-    bootstrapFromSupabase(this).then(() => {
-      if (this.isAuthenticated) {
-        this.render(false);
-        this.attachListeners();
-      }
-    });
+    // Note: constructor's loadDatabase() already bootstraps from cloud.
+    // Removed redundant bootstrapFromSupabase(this) call — it raced loadDatabase()
+    // and could drop local-only admin additions.
 
     // Listen to live database sync signals
     this._supabaseListener = async () => {
@@ -629,32 +623,32 @@ class AdminPage extends HTMLElement {
         safeFetchJson('/api/coupons')
       ]).then(([products, categories, brands, reviews, orders, coupons]) => {
         let needsRender = false;
-        if (Array.isArray(products) && products.length > 0) {
+        if (Array.isArray(products) && products.length > 0 && (!this.products || this.products.length === 0)) {
           this.products = products;
-          localStorage.setItem('SWEETOS_products', JSON.stringify(products));
+          saveStorageItem('SWEETOS_products', products);
           needsRender = true;
         }
-        if (Array.isArray(categories) && categories.length > 0) {
+        if (Array.isArray(categories) && categories.length > 0 && (!this.categories || this.categories.length === 0)) {
           this.categories = categories;
-          localStorage.setItem('SWEETOS_categories', JSON.stringify(categories));
+          saveStorageItem('SWEETOS_categories', categories);
           needsRender = true;
         }
-        if (Array.isArray(brands) && brands.length > 0) {
+        if (Array.isArray(brands) && brands.length > 0 && (!this.brands || this.brands.length === 0)) {
           this.brands = brands;
-          localStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
+          saveStorageItem('SWEETOS_brands', brands);
           needsRender = true;
         }
-        if (Array.isArray(reviews) && reviews.length > 0) {
+        if (Array.isArray(reviews) && reviews.length > 0 && (!this.reviews || this.reviews.length === 0)) {
           this.reviews = reviews;
           localStorage.setItem('SWEETOS_reviews_all', JSON.stringify(reviews));
           needsRender = true;
         }
-        if (Array.isArray(orders) && orders.length > 0) {
+        if (Array.isArray(orders) && orders.length > 0 && (!this.orders || this.orders.length === 0)) {
           this.orders = orders;
           saveAllOrdersToStorage(orders);
           needsRender = true;
         }
-        if (Array.isArray(coupons) && coupons.length > 0) {
+        if (Array.isArray(coupons) && coupons.length > 0 && (!this.coupons || this.coupons.length === 0)) {
           this.coupons = coupons;
           localStorage.setItem('SWEETOS_coupons', JSON.stringify(coupons));
           needsRender = true;
@@ -683,7 +677,20 @@ class AdminPage extends HTMLElement {
   }
 
   async loadDatabase(autoRender = true) {
+    if (this._isDatabaseLoading) return;
+    this._isDatabaseLoading = true;
     console.log('[Supabase Cloud] Loading database state from Cloud...');
+    
+    // Load local storage items first synchronously to ensure UI state is preserved
+    const storedProds = getStorageItem('SWEETOS_products');
+    if (storedProds) try { this.products = JSON.parse(storedProds); } catch(e) {}
+
+    const storedCats = getStorageItem('SWEETOS_categories');
+    if (storedCats) try { this.categories = JSON.parse(storedCats); } catch(e) {}
+
+    const storedBrands = getStorageItem('SWEETOS_brands');
+    if (storedBrands) try { this.brands = JSON.parse(storedBrands); } catch(e) {}
+
     try {
       const [prods, cats, brands, ords, custs, secs, cpps] = await Promise.allSettled([
         fetchProductsFromSupabase(),
@@ -695,26 +702,108 @@ class AdminPage extends HTMLElement {
         fetchCouponsFromSupabase()
       ]);
 
-      if (prods.status === 'fulfilled' && Array.isArray(prods.value) && prods.value !== null) {
-        this.products = prods.value;
+      const deletedProds = getDeletedItemSet('products');
+      const deletedCats = getDeletedItemSet('categories');
+      const deletedBrands = getDeletedItemSet('brands');
+
+      const deletedProdsLower = new Set(Array.from(deletedProds).map(s => String(s).toLowerCase().trim()));
+      const deletedCatsLower = new Set(Array.from(deletedCats).map(s => String(s).toLowerCase().trim()));
+      const deletedBrandsLower = new Set(Array.from(deletedBrands).map(s => String(s).toLowerCase().trim()));
+
+      const isDeletedProd = (p) => {
+        if (!p) return true;
+        if (p.id !== undefined && p.id !== null && deletedProdsLower.has(String(p.id).toLowerCase().trim())) return true;
+        if (p.sku && deletedProdsLower.has(String(p.sku).toLowerCase().trim())) return true;
+        if (p.name && deletedProdsLower.has(String(p.name).toLowerCase().trim())) return true;
+        if (p.slug && deletedProdsLower.has(String(p.slug).toLowerCase().trim())) return true;
+        return false;
+      };
+
+      const isDeletedCat = (c) => {
+        if (!c) return true;
+        if (c.id !== undefined && c.id !== null && deletedCatsLower.has(String(c.id).toLowerCase().trim())) return true;
+        if (c.name && deletedCatsLower.has(String(c.name).toLowerCase().trim())) return true;
+        if (c.slug && deletedCatsLower.has(String(c.slug).toLowerCase().trim())) return true;
+        return false;
+      };
+
+      const isDeletedBrand = (b) => {
+        if (!b) return true;
+        if (b.id !== undefined && b.id !== null && deletedBrandsLower.has(String(b.id).toLowerCase().trim())) return true;
+        if (b.name && deletedBrandsLower.has(String(b.name).toLowerCase().trim())) return true;
+        if (b.slug && deletedBrandsLower.has(String(b.slug).toLowerCase().trim())) return true;
+        return false;
+      };
+
+      // Filter local arrays if any deleted items remain
+      if (Array.isArray(this.products)) {
+        this.products = this.products.filter(p => !isDeletedProd(p));
+      }
+      if (Array.isArray(this.categories)) {
+        this.categories = this.categories.filter(c => !isDeletedCat(c));
+      }
+      if (Array.isArray(this.brands)) {
+        this.brands = this.brands.filter(b => !isDeletedBrand(b));
+      }
+
+      // Products Merge
+      const cloudProds = (prods.status === 'fulfilled' && Array.isArray(prods.value)) ? prods.value : [];
+      if (cloudProds.length > 0 || (Array.isArray(this.products) && this.products.length > 0)) {
+        const prodMap = new Map();
+        (this.products || []).forEach(p => { if (p && p.id !== undefined && p.id !== null) prodMap.set(String(p.id), p); });
+        cloudProds.forEach(cp => {
+          if (cp && cp.id !== undefined && cp.id !== null) {
+            const key = String(cp.id);
+            if (isDeletedProd(cp)) {
+              return; // SKIP deleted product
+            }
+            prodMap.set(key, prodMap.has(key) ? { ...cp, ...prodMap.get(key) } : cp);
+          }
+        });
+        this.products = Array.from(prodMap.values()).filter(p => !isDeletedProd(p));
         saveStorageItem('SWEETOS_products', this.products);
-      } else {
-        const storedProds = getStorageItem('SWEETOS_products');
-        if (storedProds) try { this.products = JSON.parse(storedProds); } catch(e) {}
       }
 
-      if (cats.status === 'fulfilled' && Array.isArray(cats.value) && cats.value.length > 0) {
-        this.categories = cats.value;
-      } else {
-        const storedCats = getStorageItem('SWEETOS_categories');
-        if (storedCats) try { this.categories = JSON.parse(storedCats); } catch(e) {}
+      // Categories Merge
+      const cloudCats = (cats.status === 'fulfilled' && Array.isArray(cats.value)) ? cats.value : [];
+      if (cloudCats.length > 0 || (Array.isArray(this.categories) && this.categories.length > 0)) {
+        const catMap = new Map();
+        (this.categories || []).forEach(c => {
+          if (c && c.id !== undefined && c.id !== null) catMap.set(String(c.id), c);
+          else if (c && c.name) catMap.set(c.name.toLowerCase().trim(), c);
+        });
+        cloudCats.forEach(cc => {
+          const key = (cc && cc.id !== undefined && cc.id !== null) ? String(cc.id) : (cc && cc.name ? cc.name.toLowerCase().trim() : null);
+          if (key) {
+            if (isDeletedCat(cc)) {
+              return; // SKIP deleted category
+            }
+            catMap.set(key, catMap.has(key) ? { ...cc, ...catMap.get(key) } : cc);
+          }
+        });
+        this.categories = Array.from(catMap.values()).filter(c => !isDeletedCat(c));
+        saveStorageItem('SWEETOS_categories', this.categories);
       }
 
-      if (brands.status === 'fulfilled' && Array.isArray(brands.value) && brands.value.length > 0) {
-        this.brands = brands.value;
-      } else {
-        const storedBrands = getStorageItem('SWEETOS_brands');
-        if (storedBrands) try { this.brands = JSON.parse(storedBrands); } catch(e) {}
+      // Brands Merge
+      const cloudBrands = (brands.status === 'fulfilled' && Array.isArray(brands.value)) ? brands.value : [];
+      if (cloudBrands.length > 0 || (Array.isArray(this.brands) && this.brands.length > 0)) {
+        const brandMap = new Map();
+        (this.brands || []).forEach(b => {
+          if (b && b.id !== undefined && b.id !== null) brandMap.set(String(b.id), b);
+          else if (b && b.name) brandMap.set(b.name.toLowerCase().trim(), b);
+        });
+        cloudBrands.forEach(cb => {
+          const key = (cb && cb.id !== undefined && cb.id !== null) ? String(cb.id) : (cb && cb.name ? cb.name.toLowerCase().trim() : null);
+          if (key) {
+            if (isDeletedBrand(cb)) {
+              return; // SKIP deleted brand
+            }
+            brandMap.set(key, brandMap.has(key) ? { ...cb, ...brandMap.get(key) } : cb);
+          }
+        });
+        this.brands = Array.from(brandMap.values()).filter(b => !isDeletedBrand(b));
+        saveStorageItem('SWEETOS_brands', this.brands);
       }
 
       // Merge Cloud + Local Storage Orders with timestamp handling to preserve admin status updates
@@ -808,6 +897,8 @@ class AdminPage extends HTMLElement {
       }
     } catch (err) {
       console.warn('[Supabase Cloud] loadDatabase notice:', err);
+    } finally {
+      this._isDatabaseLoading = false;
     }
   }
 
@@ -896,9 +987,16 @@ class AdminPage extends HTMLElement {
 
   saveDatabase(type) {
     if (type === 'products') {
+      // saveStorageItem auto-queues syncProductsToSupabase — no need to call again
       saveStorageItem('SWEETOS_products', this.products);
       window.dispatchEvent(new CustomEvent('products:updated', { detail: this.products }));
-      syncProductsToSupabase(this.products);
+      if (isLocalDevHost()) {
+        fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.products)
+        }).catch(() => {});
+      }
     } else if (type === 'orders') {
       this._isSelfUpdatingOrders = true;
       try {
@@ -916,7 +1014,14 @@ class AdminPage extends HTMLElement {
       syncCouponsToSupabase(this.coupons);
     } else if (type === 'categories') {
       saveStorageItem('SWEETOS_categories', this.categories);
-      syncCategoriesToSupabase(this.categories);
+      window.dispatchEvent(new CustomEvent('categories:updated', { detail: this.categories }));
+      if (isLocalDevHost()) {
+        fetch('/api/categories', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.categories)
+        }).catch(() => {});
+      }
     } else if (type === 'inventory') {
       saveStorageItem('SWEETOS_inventory_logs', this.inventoryLogs);
       syncInventoryLogsToSupabase(this.inventoryLogs);
@@ -926,7 +1031,13 @@ class AdminPage extends HTMLElement {
     } else if (type === 'brands') {
       saveStorageItem('SWEETOS_brands', this.brands);
       window.dispatchEvent(new CustomEvent('brands:updated', { detail: this.brands }));
-      syncBrandsToSupabase(this.brands);
+      if (isLocalDevHost()) {
+        fetch('/api/brands', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(this.brands)
+        }).catch(() => {});
+      }
     } else if (type === 'reviews') {
       saveStorageItem('SWEETOS_reviews_all', this.reviews);
       syncReviewsToSupabase(this.reviews);
@@ -1086,27 +1197,27 @@ class AdminPage extends HTMLElement {
       safeFetchJson('/api/orders'),
       safeFetchJson('/api/coupons')
     ]).then(([products, categories, brands, reviews, orders, coupons]) => {
-      if (products) {
+      if (products && (!this.products || this.products.length === 0)) {
         this.products = products;
-        localStorage.setItem('SWEETOS_products', JSON.stringify(products));
+        saveStorageItem('SWEETOS_products', products);
       }
-      if (categories) {
+      if (categories && (!this.categories || this.categories.length === 0)) {
         this.categories = categories;
-        localStorage.setItem('SWEETOS_categories', JSON.stringify(categories));
+        saveStorageItem('SWEETOS_categories', categories);
       }
-      if (brands) {
+      if (brands && (!this.brands || this.brands.length === 0)) {
         this.brands = brands;
-        localStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
+        saveStorageItem('SWEETOS_brands', brands);
       }
-      if (reviews) {
+      if (reviews && (!this.reviews || this.reviews.length === 0)) {
         this.reviews = reviews;
         localStorage.setItem('SWEETOS_reviews_all', JSON.stringify(reviews));
       }
-      if (orders) {
+      if (orders && (!this.orders || this.orders.length === 0)) {
         this.orders = orders;
         saveAllOrdersToStorage(orders);
       }
-      if (coupons) {
+      if (coupons && (!this.coupons || this.coupons.length === 0)) {
         this.coupons = coupons;
         localStorage.setItem('SWEETOS_coupons', JSON.stringify(coupons));
       }
@@ -1141,11 +1252,23 @@ class AdminPage extends HTMLElement {
     }
     container.style.opacity = '1';
     
-    // 3. Render HTML content inside container
+    // 3. Preserve scroll position of admin-viewport across re-renders
+    const oldViewport = container.querySelector('.admin-viewport');
+    const savedScrollTop = oldViewport ? oldViewport.scrollTop : 0;
+
+    // Render HTML content inside container
     container.innerHTML = `
       ${!this.isAuthenticated ? this.renderLogin(animate) : this.renderDashboardLayout(animate)}
       <div class="admin-toast-container" id="admin-toast-container"></div>
     `;
+
+    // Restore scroll position after DOM update
+    if (savedScrollTop > 0) {
+      const newViewport = container.querySelector('.admin-viewport');
+      if (newViewport) {
+        newViewport.scrollTop = savedScrollTop;
+      }
+    }
   }
 
   renderLogin(animate = true) {

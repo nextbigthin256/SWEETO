@@ -27,8 +27,8 @@ if not exist "node_modules\" (
 )
 
 :: Launch the application in browser after a short delay
-echo [INFO] Launching local browser at http://localhost:8080 ...
-start "" "http://localhost:8080"
+echo [INFO] Launching local browser at http://localhost:2005 ...
+start "" "http://localhost:2005"
 
 :: Start the local Node.js server
 echo [INFO] Starting SWEETOS server...

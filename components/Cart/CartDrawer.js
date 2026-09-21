@@ -1,4 +1,4 @@
-import { getCartStorageKey, getScratchcardsStorageKey, formatPrice, getStorageItem, saveStorageItem } from '../../utils/storage.js';
+import { getCartStorageKey, getScratchcardsStorageKey, getWishlistFromStorage, saveWishlistToStorage, formatPrice, getStorageItem, saveStorageItem, toTitleCase } from '../../utils/storage.js';
 
 class CartDrawer extends HTMLElement {
   constructor() {
@@ -121,40 +121,43 @@ class CartDrawer extends HTMLElement {
               <p class="empty-desc">Ajoutez des articles de notre catalogue pour commencer vos achats !</p>
             </div>
           ` : this.cart.map((item, index) => {
-            const firstWord = item.name.split(' ')[0] || 'SWEETOS';
-            const originalPrice = item.price * 1.25;
+            const cleanTitle = toTitleCase(item.name);
+            const brandName = cleanTitle.split(' ')[0] || 'SWEETOS';
+            const itemSubtotal = item.price * item.quantity;
             return `
               <div class="cart-item-card animate-in" data-index="${index}">
-                <div class="cart-item-img-wrapper">
-                  <img src="${item.image}" alt="${item.name}">
+                <!-- Column 1: Image Thumbnail -->
+                <div class="cart-col-left">
+                  <img src="${item.image}" alt="${cleanTitle}">
                 </div>
-                <div class="cart-item-info">
-                  <div class="cart-item-text-details">
-                    <h3 class="cart-item-title">${item.name}</h3>
-                    <p class="cart-item-brand">${firstWord}</p>
-                    <div class="cart-item-price-badges">
-                      <span class="cart-item-price-current">${formatPrice(item.price)}</span>
-                      <span class="cart-item-price-original">${formatPrice(originalPrice)}</span>
-                      <span class="cart-item-discount-badge">-20%</span>
-                    </div>
+
+                <!-- Column 2: Title, Brand & Stepper -->
+                <div class="cart-col-mid">
+                  <h3 class="cart-item-title" title="${cleanTitle}">${cleanTitle}</h3>
+                  <p class="cart-item-brand">${brandName}</p>
+                  <div class="qty-container">
+                    <button class="dec-btn" data-index="${index}">−</button>
+                    <span class="qty-val">${item.quantity}</span>
+                    <button class="inc-btn" data-index="${index}">+</button>
                   </div>
-                  <div class="cart-item-footer-row">
-                    <div class="qty-container">
-                      <button class="dec-btn" data-index="${index}">−</button>
-                      <span class="qty-val">${item.quantity}</span>
-                      <button class="inc-btn" data-index="${index}">+</button>
-                    </div>
-                    <div style="display: flex; align-items: center; gap: 4px;">
-                      <button class="cart-item-wishlist" data-index="${index}" title="Déplacer dans les favoris" style="background: none; border: none; font-size: 16px; cursor: pointer; padding: 4px;">
-                        ❤️
-                      </button>
-                      <button class="cart-item-delete" data-index="${index}" title="Retirer l'article">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                          <polyline points="3 6 5 6 21 6"></polyline>
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                        </svg>
-                      </button>
-                    </div>
+                </div>
+
+                <!-- Column 3: Price Subtotal & Actions -->
+                <div class="cart-col-right">
+                  <div>
+                    <div class="cart-item-subtotal">${formatPrice(itemSubtotal)}</div>
+                    ${item.quantity > 1 ? `<div class="cart-item-unit-price">${formatPrice(item.price)} / u</div>` : ''}
+                  </div>
+                  <div class="cart-item-actions-row">
+                    <button class="cart-item-wishlist" data-index="${index}" title="Déplacer dans les favoris" style="background: none; border: none; font-size: 15px; cursor: pointer; padding: 2px;">
+                      ❤️
+                    </button>
+                    <button class="cart-item-delete" data-index="${index}" title="Retirer l'article">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="3 6 5 6 21 6"></polyline>
+                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                      </svg>
+                    </button>
                   </div>
                 </div>
               </div>
@@ -164,28 +167,56 @@ class CartDrawer extends HTMLElement {
 
         <!-- Footer / Checkout Section -->
         <div class="cart-footer-section">
-          <div class="totals-summary-header">Récapitulatif de la commande</div>
+          <!-- Free Shipping Progress Bar -->
+          <div style="background: rgba(0,82,204,0.06); border: 1px solid rgba(0,82,204,0.12); border-radius: 12px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; font-weight: 600; color: #0f172a; display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <span>${subtotal >= freeShippingThreshold ? '🎉 Free Express Delivery Unlocked!' : `Add ${formatPrice(freeShippingThreshold - subtotal)} for FREE Express Shipping`}</span>
+              <span style="font-weight: 700; color: #0052cc;">${Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100))}%</span>
+            </div>
+            <div style="width: 100%; height: 6px; background: #e2e8f0; border-radius: 4px; overflow: hidden;">
+              <div style="width: ${Math.min(100, Math.round((subtotal / freeShippingThreshold) * 100))}%; height: 100%; background: linear-gradient(90deg, #0052cc, #00b4d8); border-radius: 4px; transition: width 0.3s ease;"></div>
+            </div>
+          </div>
+
+          <div class="totals-summary-header">Order Summary (Upfront Pricing)</div>
           
           <!-- Totals -->
           <div class="totals-summary">
             <div class="totals-row">
-              <span>Sous-total</span>
+              <span>Subtotal</span>
               <span class="val-white">${formatPrice(subtotal)}</span>
             </div>
             <div class="totals-row">
-              <span>Livraison (Côte d'Ivoire)</span>
-              <span class="val-cyan">${subtotal >= freeShippingThreshold ? 'Gratuite ✓' : '2 000 FCFA'}</span>
+              <span>Regional Shipping</span>
+              <span class="val-cyan">${subtotal >= freeShippingThreshold || subtotal === 0 ? 'FREE ✓' : '2,000 FCFA'}</span>
             </div>
-
+            <div class="totals-row">
+              <span>Estimated Tax / VAT</span>
+              <span class="val-cyan" style="color: #10b981;">0 FCFA (Included)</span>
+            </div>
+          </div>
 
           <!-- Checkout Button -->
           <button id="checkoutBtn" class="checkout-submit-btn" ${this.cart.length === 0 ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
-            Procéder au paiement (${formatPrice(total + (subtotal >= freeShippingThreshold || subtotal === 0 ? 0 : 2000))}) →
+            Proceed to Checkout (${formatPrice(total + (subtotal >= freeShippingThreshold || subtotal === 0 ? 0 : 2000))}) →
           </button>
+
+          <!-- Social Trust & Buyer Protection Badges Row -->
+          <div style="display: flex; align-items: center; justify-content: space-around; padding: 10px 0 4px 0; border-top: 1px solid rgba(226, 232, 240, 0.7); margin-top: 8px; font-size: 11px; font-weight: 600; color: #64748b;">
+            <div style="display: flex; align-items: center; gap: 4px;" title="Tracked 24-48h Express Shipping">
+              <span>🚚</span> <span>Express Delivery</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;" title="30-Day Money Back Guarantee">
+              <span>🔄</span> <span>30-Day Returns</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 4px;" title="256-Bit SSL Encrypted Checkout">
+              <span>🛡️</span> <span>SSL Secure</span>
+            </div>
+          </div>
 
           <!-- Continue Shopping Button Bottom -->
           <button id="continueShoppingBottomBtn" class="continue-shopping-bottom-btn">
-            Continuer les achats
+            Continue Shopping
           </button>
         </div>
       </div>
@@ -282,14 +313,10 @@ class CartDrawer extends HTMLElement {
         const idx = parseInt(btn.getAttribute('data-index'));
         const item = this.cart[idx];
         if (item) {
-          let wishlist = [];
-          try {
-            wishlist = JSON.parse(localStorage.getItem('SWEETOS_wishlist') || '[]');
-          } catch(e) {}
+          const wishlist = getWishlistFromStorage();
           if (!wishlist.some(w => w.id === item.id)) {
             wishlist.push(item);
-            localStorage.setItem('SWEETOS_wishlist', JSON.stringify(wishlist));
-            window.dispatchEvent(new CustomEvent('wishlist:updated', { detail: wishlist }));
+            saveWishlistToStorage(wishlist);
           }
           this.cart.splice(idx, 1);
           this.saveCartToStorage();

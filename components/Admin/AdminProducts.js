@@ -1,4 +1,4 @@
-import { formatPrice, getStorageItem, saveStorageItem } from '../../utils/storage.js';
+import { formatPrice, getStorageItem, saveStorageItem, recordDeletedItem, clearDeletedItem } from '../../utils/storage.js';
 import { showConfirmModal, showPromptModal } from '../../utils/modal.js';
 import { deleteProductPermanentlyFromSupabase, deleteMultipleProductsPermanentlyFromSupabase } from '../../utils/supabase.js';
 import { getCategorySchema } from '../../data/productFieldsConfig.js';
@@ -514,6 +514,9 @@ export function renderAdminProducts(context) {
         background: #ef4444;
         color: #ffffff;
         border-color: #ef4444;
+      }
+      .action-icon-btn svg, .action-icon-btn path {
+        pointer-events: none;
       }
     </style>
 
@@ -1320,14 +1323,22 @@ export function attachAdminProductsListeners(context, shadow) {
       }) : Promise.resolve(confirm(`Are you sure you want to permanently delete all ${total} products forever?`)));
 
       if (confirmed) {
-        // 1. Purge Supabase cloud database table
-        import('../../utils/supabase.js').then(async ({ supabase }) => {
+        // 1. Purge Supabase cloud database table and site_settings fallback
+        import('../../utils/supabase.js').then(async ({ supabase, saveSiteSettingInSupabase }) => {
           if (supabase) {
             await supabase.from('products').delete().neq('name', '___NON_EXISTENT___');
           }
+          await saveSiteSettingInSupabase('sweetos_cloud_products', []);
         }).catch(() => {});
 
         // 2. Clear local store and server cache
+        (context.products || []).forEach(p => {
+          if (p) {
+            recordDeletedItem('products', p.id);
+            if (p.sku) recordDeletedItem('products', p.sku);
+            if (p.name) recordDeletedItem('products', p.name);
+          }
+        });
         context.products = [];
         selectedProductIds.clear();
         context.saveDatabase('products');
@@ -1369,7 +1380,15 @@ export function attachAdminProductsListeners(context, shadow) {
         deleteMultipleProductsPermanentlyFromSupabase(idsArray);
 
         // 2. Remove from local store and sync
-        context.products = context.products.filter(p => !selectedProductIds.has(p.id));
+        selectedProductIds.forEach(id => {
+          recordDeletedItem('products', id);
+          const p = (context.products || []).find(prod => String(prod.id) === String(id) || prod.id === parseInt(id));
+          if (p) {
+            if (p.sku) recordDeletedItem('products', p.sku);
+            if (p.name) recordDeletedItem('products', p.name);
+          }
+        });
+        context.products = context.products.filter(p => !selectedProductIds.has(p.id) && !selectedProductIds.has(String(p.id)));
         context.saveDatabase('products');
         
         window.dispatchEvent(new CustomEvent('toast:show', { detail: `🔥 ${count} products permanently deleted forever.` }));
@@ -1385,7 +1404,7 @@ export function attachAdminProductsListeners(context, shadow) {
     if (!prod) return;
     const hasActiveOrders = (context.orders || []).some(o => 
       ['Pending', 'En cours', 'Confirmé', 'Processing', 'Shipping'].includes(o.status) && 
-      o.products && o.products.some(item => item.id === prod.id)
+      o.products && o.products.some(item => String(item.id) === String(prod.id))
     );
     if (hasActiveOrders) {
       window.dispatchEvent(new CustomEvent('toast:show', { detail: `Cannot delete "${prod.name}" because it is part of active orders!` }));
@@ -1404,8 +1423,13 @@ export function attachAdminProductsListeners(context, shadow) {
       // 1. Delete from Supabase cloud
       deleteProductPermanentlyFromSupabase(prod);
 
+      // Record deletion key
+      recordDeletedItem('products', prod.id);
+      if (prod.sku) recordDeletedItem('products', prod.sku);
+      if (prod.name) recordDeletedItem('products', prod.name);
+
       // 2. Delete from local state & storage
-      context.products = context.products.filter(p => p.id !== prod.id);
+      context.products = context.products.filter(p => String(p.id) !== String(prod.id));
       context.showProductModal = false;
       context.editingProduct = null;
       context.saveDatabase('products');
@@ -1435,8 +1459,8 @@ export function attachAdminProductsListeners(context, shadow) {
   // 8. Inline Stock Stepper Adjusters
   shadow.querySelectorAll('.stock-increment-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = parseInt(btn.getAttribute('data-product-id'));
-      const p = context.products.find(prod => prod.id === id);
+      const idAttr = btn.getAttribute('data-product-id');
+      const p = (context.products || []).find(prod => String(prod.id) === String(idAttr) || prod.id === parseInt(idAttr));
       if (p) {
         p.stock = (p.stock || 0) + 1;
         context.saveDatabase('products');
@@ -1448,8 +1472,8 @@ export function attachAdminProductsListeners(context, shadow) {
 
   shadow.querySelectorAll('.stock-decrement-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = parseInt(btn.getAttribute('data-product-id'));
-      const p = context.products.find(prod => prod.id === id);
+      const idAttr = btn.getAttribute('data-product-id');
+      const p = (context.products || []).find(prod => String(prod.id) === String(idAttr) || prod.id === parseInt(idAttr));
       if (p && (p.stock || 0) > 0) {
         p.stock = p.stock - 1;
         context.saveDatabase('products');
@@ -1462,8 +1486,8 @@ export function attachAdminProductsListeners(context, shadow) {
   // 9. Quick Status Toggle Button
   shadow.querySelectorAll('.quick-status-toggle-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = parseInt(btn.getAttribute('data-product-id'));
-      const p = context.products.find(prod => prod.id === id);
+      const idAttr = btn.getAttribute('data-product-id');
+      const p = (context.products || []).find(prod => String(prod.id) === String(idAttr) || prod.id === parseInt(idAttr));
       if (p) {
         p.status = p.status === 'Draft' ? 'Active' : 'Draft';
         context.saveDatabase('products');
@@ -1477,10 +1501,11 @@ export function attachAdminProductsListeners(context, shadow) {
   // 10. Duplicate Product
   shadow.querySelectorAll('.duplicate-prod-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = parseInt(btn.getAttribute('data-product-id'));
-      const orig = context.products.find(prod => prod.id === id);
+      const idAttr = btn.getAttribute('data-product-id');
+      const orig = (context.products || []).find(prod => String(prod.id) === String(idAttr) || prod.id === parseInt(idAttr));
       if (orig) {
-        const newId = context.products.length > 0 ? (Math.max(...context.products.map(p => p.id)) + 1) : 1;
+        const numericIds = (context.products || []).map(p => parseInt(p.id)).filter(n => !isNaN(n));
+        const newId = numericIds.length > 0 ? (Math.max(...numericIds) + 1) : Date.now();
         const copy = {
           ...orig,
           id: newId,
@@ -1501,8 +1526,8 @@ export function attachAdminProductsListeners(context, shadow) {
   shadow.querySelectorAll('.whatsapp-share-prod-btn, .modal-whatsapp-share-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
-      const id = parseInt(btn.getAttribute('data-product-id'));
-      const prod = context.products.find(p => p.id === id);
+      const idAttr = btn.getAttribute('data-product-id');
+      const prod = (context.products || []).find(p => String(p.id) === String(idAttr) || p.id === parseInt(idAttr));
       if (prod) {
         shareProductToWhatsAppStatus(prod);
       }
@@ -1533,8 +1558,8 @@ export function attachAdminProductsListeners(context, shadow) {
   shadow.querySelectorAll('.edit-prod-action-btn, .edit-prod-title-link').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.preventDefault();
-      const id = parseInt(btn.getAttribute('data-product-id'));
-      const prod = context.products.find(p => p.id === id);
+      const idAttr = btn.getAttribute('data-product-id') || btn.closest('[data-product-id]')?.getAttribute('data-product-id');
+      const prod = (context.products || []).find(p => String(p.id) === String(idAttr) || p.id === parseInt(idAttr) || (p.sku && p.sku === idAttr) || (p.name && p.name === idAttr));
       if (prod) {
         context.editingProduct = prod;
         context.productStatus = prod.status || 'Active';
@@ -1559,8 +1584,8 @@ export function attachAdminProductsListeners(context, shadow) {
   // Permanent Delete Product (Table row button)
   shadow.querySelectorAll('.delete-prod-action-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = parseInt(btn.getAttribute('data-product-id'));
-      const prod = context.products.find(p => p.id === id);
+      const idAttr = btn.getAttribute('data-product-id') || btn.closest('[data-product-id]')?.getAttribute('data-product-id');
+      const prod = (context.products || []).find(p => String(p.id) === String(idAttr) || p.id === parseInt(idAttr));
       if (prod) {
         executePermanentDelete(prod);
       }
@@ -1570,8 +1595,8 @@ export function attachAdminProductsListeners(context, shadow) {
   // Permanent Delete Product (Modal action button)
   shadow.querySelectorAll('.modal-permanent-delete-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      const id = parseInt(btn.getAttribute('data-product-id'));
-      const prod = context.products.find(p => p.id === id);
+      const idAttr = btn.getAttribute('data-product-id') || btn.closest('[data-product-id]')?.getAttribute('data-product-id');
+      const prod = (context.products || []).find(p => String(p.id) === String(idAttr) || p.id === parseInt(idAttr));
       if (prod) {
         executePermanentDelete(prod);
       }
@@ -2030,7 +2055,7 @@ export function attachAdminProductsListeners(context, shadow) {
       if (context.editingProduct) {
         // Edit mode saving
         const pId = context.editingProduct.id;
-        const index = context.products.findIndex(p => p.id === pId);
+        const index = context.products.findIndex(p => String(p.id) === String(pId) || p.id === parseInt(pId));
         if (index > -1) {
           context.products[index] = {
             ...context.products[index],
@@ -2053,6 +2078,9 @@ export function attachAdminProductsListeners(context, shadow) {
             homepageSections: checkedSections,
             specs: finalSpecs
           };
+          clearDeletedItem('products', pId);
+          if (sku) clearDeletedItem('products', sku);
+          if (name) clearDeletedItem('products', name);
           window.dispatchEvent(new CustomEvent('toast:show', { detail: `Product "${name}" updated successfully!` }));
         }
       } else {
@@ -2083,6 +2111,10 @@ export function attachAdminProductsListeners(context, shadow) {
           rating: 5.0,
           reviews: 0
         };
+
+        clearDeletedItem('products', newId);
+        clearDeletedItem('products', finalSku);
+        clearDeletedItem('products', name);
 
         context.products.unshift(newProductItem);
 

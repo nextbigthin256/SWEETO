@@ -1,4 +1,4 @@
-import { getStorageItem, getCartFromStorage } from '../../utils/storage.js';
+import { getStorageItem, getCartFromStorage, getWishlistFromStorage } from '../../utils/storage.js';
 import { loadStyles } from '../../utils/cssLoader.js';
 import { mobileNavCSS } from './MobileNav.styles.js';
 
@@ -161,12 +161,12 @@ class MobileNav extends HTMLElement {
 
     // 2. Wishlist badge
     try {
-      const wishlistSaved = getStorageItem('SWEETOS_wishlist');
-      const wishlist = wishlistSaved ? JSON.parse(wishlistSaved) : [];
+      const wishlist = getWishlistFromStorage();
+      const count = Array.isArray(wishlist) ? wishlist.length : 0;
       const wishBadge = shadow.getElementById('mobile-wishlist-badge');
       if (wishBadge) {
-        wishBadge.textContent = wishlist.length;
-        wishBadge.style.display = wishlist.length > 0 ? 'flex' : 'none';
+        wishBadge.textContent = count;
+        wishBadge.style.display = count > 0 ? 'flex' : 'none';
       }
     } catch(e) {}
   }
