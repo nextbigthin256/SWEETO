@@ -524,8 +524,20 @@ class AdminPage extends HTMLElement {
     // Listen to live database sync & order update signals
     this._supabaseListener = () => {
       this.loadDatabase();
+      // Save scroll position before re-rendering
+      const viewport = this.shadowRoot.querySelector('.admin-viewport');
+      const scrollTop = viewport ? viewport.scrollTop : 0;
+      
       this.render();
       this.attachListeners();
+      
+      // Restore scroll position after rendering
+      requestAnimationFrame(() => {
+        const newViewport = this.shadowRoot.querySelector('.admin-viewport');
+        if (newViewport && scrollTop > 0) {
+          newViewport.scrollTop = scrollTop;
+        }
+      });
     };
     window.addEventListener('supabase:ready', this._supabaseListener);
     window.addEventListener('orders:updated', this._supabaseListener);
@@ -1002,8 +1014,20 @@ class AdminPage extends HTMLElement {
         localStorage.setItem('SWEETOS_coupons', JSON.stringify(coupons));
       }
       
+      // Save scroll position before re-rendering
+      const viewport = this.shadowRoot.querySelector('.admin-viewport');
+      const scrollTop = viewport ? viewport.scrollTop : 0;
+      
       this.render();
       this.attachListeners();
+      
+      // Restore scroll position after rendering
+      requestAnimationFrame(() => {
+        const newViewport = this.shadowRoot.querySelector('.admin-viewport');
+        if (newViewport && scrollTop > 0) {
+          newViewport.scrollTop = scrollTop;
+        }
+      });
     });
   }
 
@@ -1016,7 +1040,11 @@ class AdminPage extends HTMLElement {
       this.shadowRoot.appendChild(link);
     }
     
-    // 2. Ensure container exists
+    // 2. Save scroll position before re-rendering to prevent auto-scroll back
+    const viewport = this.shadowRoot.querySelector('.admin-viewport');
+    const scrollTop = viewport ? viewport.scrollTop : 0;
+    
+    // 3. Ensure container exists
     let container = this.shadowRoot.querySelector('.admin-page-wrapper');
     if (!container) {
       container = document.createElement('div');
@@ -1036,11 +1064,19 @@ class AdminPage extends HTMLElement {
       }, 50);
     }
     
-    // 3. Render HTML content inside container
+    // 4. Render HTML content inside container
     container.innerHTML = `
       ${!this.isAuthenticated ? this.renderLogin() : this.renderDashboardLayout()}
       <div class="admin-toast-container" id="admin-toast-container"></div>
     `;
+    
+    // 5. Restore scroll position after rendering
+    requestAnimationFrame(() => {
+      const newViewport = this.shadowRoot.querySelector('.admin-viewport');
+      if (newViewport && scrollTop > 0) {
+        newViewport.scrollTop = scrollTop;
+      }
+    });
   }
 
   renderLogin() {
