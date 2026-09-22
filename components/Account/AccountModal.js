@@ -16,18 +16,40 @@ class AccountModal extends HTMLElement {
     this.orders = [];
   }
 
-  connectedCallback() {
-    this.loadUserData();
+  async connectedCallback() {
+    await this.loadUserData();
     this.render();
     this.setupEventListeners();
   }
 
-  loadUserData() {
+  async loadUserData() {
     const loggedIn = localStorage.getItem('SWEETOS_logged_in_user');
     if (loggedIn) {
       try {
         const session = JSON.parse(loggedIn);
         const email = session.email;
+        
+        // First, try to fetch latest profile from Supabase Cloud (cross-device sync)
+        try {
+          const { fetchProfileFromSupabase } = await import('../../utils/supabase.js');
+          const cloudProfile = await fetchProfileFromSupabase(email);
+          if (cloudProfile) {
+            this.user = {
+              name: `${cloudProfile.firstName || ''} ${cloudProfile.lastName || ''}`.trim() || 'SWEETOS Member',
+              email: cloudProfile.email || email,
+              phone: cloudProfile.phone || "+225 600 000 000",
+              memberSince: "October 2025",
+              address: cloudProfile.addresses?.[0]?.street || cloudProfile.address || "Ivory Coast",
+              avatar: (cloudProfile.firstName && cloudProfile.lastName) ? `${cloudProfile.firstName.charAt(0).toUpperCase()}${cloudProfile.lastName.charAt(0).toUpperCase()}` : 'US'
+            };
+            this.orders = cloudProfile.orders || [];
+            return;
+          }
+        } catch(e) {
+          console.warn('[AccountModal] Could not fetch profile from Supabase:', e);
+        }
+        
+        // Fallback to local storage
         const profileKey = getProfileStorageKey();
         let profile = localStorage.getItem(profileKey);
         
@@ -145,20 +167,28 @@ class AccountModal extends HTMLElement {
   }
 
   setupEventListeners() {
-    window.addEventListener('account:toggle', () => {
+    window.addEventListener('account:toggle', async () => {
       const loggedIn = localStorage.getItem('SWEETOS_logged_in_user');
       if (!loggedIn) {
         window.dispatchEvent(new CustomEvent('navigation:changed', { detail: { page: 'auth' } }));
         return;
       }
       this.isOpen = !this.isOpen;
-      this.loadUserData();
+      await this.loadUserData();
       this.render();
       this.updateState();
     });
 
-    window.addEventListener('orders:updated', () => {
-      this.loadUserData();
+    // Listen to profile updates from Supabase sync (cross-device data sync)
+    window.addEventListener('profile:updated', async () => {
+      await this.loadUserData();
+      if (this.isOpen) {
+        this.render();
+      }
+    });
+
+    window.addEventListener('orders:updated', async () => {
+      await this.loadUserData();
       if (this.isOpen) {
         this.render();
       }
