@@ -7,6 +7,10 @@
       "dest": "/api/$1"
     },
     {
+      "src": "/og-product",
+      "dest": "https://euuzsxjsmsktegilbqpv.supabase.co/functions/v1/og-product"
+    },
+    {
       "src": "/sw.js",
       "dest": "/sw.js",
       "headers": {

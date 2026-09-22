@@ -101,7 +101,7 @@ serve(async (req: Request) => {
   const userAgent = req.headers.get("user-agent") || "";
   const isCrawler = /WhatsApp|facebookexternalhit|Twitterbot|LinkedInBot|TelegramBot|Slackbot|Discordbot|Googlebot|bingbot/i.test(userAgent);
 
-  const realProductPageUrl = `${APP_URL}/product.html?id=${encodeURIComponent(productId)}`;
+  const realProductPageUrl = `${APP_URL}/#/?product=${encodeURIComponent(productId)}`;
   const shareUrl = `${url.origin}${url.pathname}${url.search}`;
   const priceFormatted = formatPrice(product.price);
   
