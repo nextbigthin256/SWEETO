@@ -1408,8 +1408,8 @@ export function attachAdminProductsListeners(context, shadow) {
 
       if (confirmed) {
         const idsArray = Array.from(selectedProductIds);
-        // 1. Permanently delete from Supabase cloud
-        deleteMultipleProductsPermanentlyFromSupabase(idsArray);
+        // 1. Permanently delete from Supabase cloud (awaited)
+        await deleteMultipleProductsPermanentlyFromSupabase(idsArray);
 
         // 2. Remove from local store and sync
         selectedProductIds.forEach(id => {
@@ -1422,6 +1422,10 @@ export function attachAdminProductsListeners(context, shadow) {
         });
         context.products = context.products.filter(p => !selectedProductIds.has(p.id) && !selectedProductIds.has(String(p.id)));
         context.saveDatabase('products');
+        
+        // 3. Dispatch global sync events for cross-tab / cross-device listeners
+        window.dispatchEvent(new CustomEvent('products:updated', { detail: context.products }));
+        window.dispatchEvent(new CustomEvent('storage:synced'));
         
         window.dispatchEvent(new CustomEvent('toast:show', { detail: `🔥 ${count} products permanently deleted forever.` }));
         selectedProductIds.clear();
@@ -1452,8 +1456,8 @@ export function attachAdminProductsListeners(context, shadow) {
     }) : Promise.resolve(confirm(`Are you sure you want to permanently delete "${prod.name}" forever?`)));
 
     if (confirmed) {
-      // 1. Delete from Supabase cloud
-      deleteProductPermanentlyFromSupabase(prod);
+      // 1. Delete from Supabase cloud (awaited)
+      await deleteProductPermanentlyFromSupabase(prod);
 
       // Record deletion key
       recordDeletedItem('products', prod.id);
@@ -1466,7 +1470,11 @@ export function attachAdminProductsListeners(context, shadow) {
       context.editingProduct = null;
       context.saveDatabase('products');
 
-      // 3. Clean up from curated homepage sections
+      // 3. Dispatch global sync events for cross-tab / cross-device listeners
+      window.dispatchEvent(new CustomEvent('products:updated', { detail: context.products }));
+      window.dispatchEvent(new CustomEvent('storage:synced'));
+
+      // 4. Clean up from curated homepage sections
       try {
         const secsStr = getStorageItem('SWEETOS_homepage_sections');
         const secs = secsStr ? JSON.parse(secsStr) : [];
