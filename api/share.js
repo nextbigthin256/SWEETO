@@ -67,13 +67,15 @@ export default async function handler(req, res) {
       } catch (e) {}
     }
 
+    const defaultStoreBanner = 'https://images.unsplash.com/photo-1593062096033-9a26b09da705?w=1200&q=80';
+
     // Default fallback product structure
     if (!product) {
       product = {
         id: productId,
         name: 'SWEETOS Product',
         price: 0,
-        image: `${APP_URL}/assets/sweetos_share.jpg`,
+        image: defaultStoreBanner,
         brand: 'SWEETOS',
         category: 'Boutique',
         description: 'Découvrez nos produits sur SWEETOS.'
@@ -96,7 +98,7 @@ export default async function handler(req, res) {
     if (product.category) ogDescription += ` | ${product.category}`;
     if (product.description) ogDescription += `. ${product.description.slice(0, 150)}`;
 
-    let imageUrl = product.image || `${APP_URL}/assets/sweetos_share.jpg`;
+    let imageUrl = product.image || defaultStoreBanner;
     if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
       imageUrl = `${APP_URL}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
     }
