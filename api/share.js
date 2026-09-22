@@ -1,12 +1,13 @@
 // File: api/share.js
 // Vercel Serverless Function: Open Graph (OG) Product Share Gateway for WhatsApp, Facebook, iMessage & Twitter
+import initialProducts from '../data/products.js';
 
 const SUPABASE_URL = 'https://euuzsxjsmsktegilbqpv.supabase.co';
 const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImV1dXpzeGpzbXNrdGVnaWxicXB2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc4MzIyMzcsImV4cCI6MjEwMzQwODIzN30.BJtkw4BBkAytc5vDSr8a0dOmUyGk_1xfpdHK3sEHwHs';
 const APP_URL = 'https://www.sweeto.store';
 
 function formatPrice(price) {
-  if (price === null || price === undefined || isNaN(Number(price))) return '0 FCFA';
+  if (price === null || price === undefined || isNaN(Number(price))) return '';
   return `${Number(price).toLocaleString('fr-FR')} FCFA`;
 }
 
@@ -60,25 +61,60 @@ export default async function handler(req, res) {
         if (resp.ok) {
           const data = await resp.json();
           if (Array.isArray(data) && data[0]?.value && Array.isArray(data[0].value)) {
-            const found = data[0].value.find(p => String(p.id) === String(productId) || String(p.legacy_id) === String(productId));
+            const found = data[0].value.find(p => String(p.id) === String(productId) || String(p.legacy_id) === String(productId) || String(p.slug) === String(productId));
             if (found) product = found;
           }
         }
       } catch (e) {}
     }
 
-    const defaultStoreBanner = 'https://images.unsplash.com/photo-1593062096033-9a26b09da705?w=1200&q=80';
+    // 3. Fallback to local catalog (data/products.js)
+    if (!product && Array.isArray(initialProducts)) {
+      const localMatch = initialProducts.find(p => 
+        String(p.id) === String(productId) || 
+        String(p.legacy_id) === String(productId) || 
+        String(p.uuid) === String(productId) || 
+        String(p.slug) === String(productId)
+      );
+      if (localMatch) {
+        product = {
+          id: localMatch.legacy_id || localMatch.id,
+          name: localMatch.name,
+          price: localMatch.price,
+          originalPrice: localMatch.originalPrice,
+          image: localMatch.image,
+          brand: localMatch.brand,
+          category: localMatch.category,
+          description: localMatch.description || ''
+        };
+      }
+    }
 
-    // Default fallback product structure
+    // 4. Fallback to URL query parameters (for newly added admin products)
+    if (!product && (req.query.title || req.query.name || req.query.image)) {
+      product = {
+        id: productId,
+        name: req.query.title || req.query.name || 'Produit SWEETOS',
+        price: req.query.price ? Number(req.query.price) : null,
+        image: req.query.image || '',
+        brand: req.query.brand || 'SWEETOS',
+        category: req.query.category || '',
+        description: req.query.desc || ''
+      };
+    }
+
+    const defaultStoreLogo = `${APP_URL}/assets/sweetos_share.jpg`;
+
+    // 5. Minimal safe default (NO FAKE MOCK IMAGES OR ZERO PRICES)
     if (!product) {
       product = {
         id: productId,
-        name: 'SWEETOS Product',
-        price: 0,
-        image: defaultStoreBanner,
+        name: 'SWEETOS Store',
+        price: null,
+        image: defaultStoreLogo,
         brand: 'SWEETOS',
-        category: 'Boutique',
-        description: 'Découvrez nos produits sur SWEETOS.'
+        category: '',
+        description: 'Découvrez nos produits sur SWEETOS Store.'
       };
     }
 
@@ -94,12 +130,15 @@ export default async function handler(req, res) {
 
     // For Crawler Bots (WhatsApp, Facebook, Twitter): Return static Open Graph HTML
     const priceFormatted = formatPrice(product.price);
-    let ogDescription = `${priceFormatted} — ${product.brand || 'SWEETOS'}`;
-    if (product.category) ogDescription += ` | ${product.category}`;
-    if (product.description) ogDescription += `. ${product.description.slice(0, 150)}`;
+    const titleText = priceFormatted ? `${product.name} — ${priceFormatted} | SWEETOS` : `${product.name} | SWEETOS`;
 
-    let imageUrl = product.image || defaultStoreBanner;
-    if (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
+    let ogDescription = priceFormatted ? `${priceFormatted}` : '';
+    if (product.brand) ogDescription += ogDescription ? ` • ${product.brand}` : product.brand;
+    if (product.category) ogDescription += ` — ${product.category}`;
+    if (product.description) ogDescription += ogDescription ? `. ${product.description.slice(0, 150)}` : product.description.slice(0, 150);
+
+    let imageUrl = product.image || defaultStoreLogo;
+    if (imageUrl && !imageUrl.startsWith('http://') && !imageUrl.startsWith('https://')) {
       imageUrl = `${APP_URL}${imageUrl.startsWith('/') ? '' : '/'}${imageUrl}`;
     }
 
@@ -109,10 +148,10 @@ export default async function handler(req, res) {
 <html lang="fr">
 <head>
   <meta charset="utf-8">
-  <title>${product.name} — ${priceFormatted} | SWEETOS</title>
+  <title>${titleText}</title>
 
   <!-- Open Graph / WhatsApp Preview Tags -->
-  <meta property="og:title" content="${product.name} — ${priceFormatted} | SWEETOS">
+  <meta property="og:title" content="${titleText}">
   <meta property="og:description" content="${ogDescription}">
   <meta property="og:image" content="${imageUrl}">
   <meta property="og:image:secure_url" content="${imageUrl}">
@@ -120,19 +159,19 @@ export default async function handler(req, res) {
   <meta property="og:image:height" content="630">
   <meta property="og:url" content="${shareUrl}">
   <meta property="og:type" content="product">
-  <meta property="product:price:amount" content="${product.price}">
-  <meta property="product:price:currency" content="XOF">
+  ${product.price ? `<meta property="product:price:amount" content="${product.price}">
+  <meta property="product:price:currency" content="XOF">` : ''}
   <meta property="og:site_name" content="SWEETOS">
 
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content="${product.name} — ${priceFormatted}">
+  <meta name="twitter:title" content="${titleText}">
   <meta name="twitter:description" content="${ogDescription}">
   <meta name="twitter:image" content="${imageUrl}">
 </head>
 <body>
   <h1>${product.name}</h1>
-  <p>${priceFormatted}</p>
+  ${priceFormatted ? `<p>${priceFormatted}</p>` : ''}
   <img src="${imageUrl}" alt="${product.name}">
 </body>
 </html>`;
@@ -145,3 +184,4 @@ export default async function handler(req, res) {
     return res.redirect(302, APP_URL);
   }
 }
+

@@ -27,8 +27,16 @@ export function getProductShareUrl(product) {
   const productId = product.legacy_id ?? product.id ?? product.uuid ?? product.slug;
   const baseUrl = window.location.origin;
   
+  const params = new URLSearchParams();
+  params.set('product', productId);
+  if (product.name) params.set('title', product.name);
+  if (product.price) params.set('price', String(product.price));
+  if (product.image) params.set('image', product.image);
+  if (product.brand) params.set('brand', product.brand);
+  if (product.category) params.set('category', product.category);
+  
   // Vercel Serverless Function Gateway URL for rich social crawler previews (WhatsApp, Facebook, Twitter)
-  return `${baseUrl}/api/share?product=${encodeURIComponent(productId)}`;
+  return `${baseUrl}/api/share?${params.toString()}`;
 }
 
 /**
