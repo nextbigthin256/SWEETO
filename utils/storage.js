@@ -89,15 +89,16 @@ export function saveStorageItem(key, val) {
 
   try { localStorage.setItem(key, str); } catch(e) {}
 
+  // Parse data object at top-level function scope
+  let parsedVal = val;
+  if (typeof val === 'string') {
+    try { parsedVal = JSON.parse(val); } catch(e) {}
+  }
+
   // Prevent re-entrant infinite event loops
   if (!_isDispatchingStorageEvent) {
     _isDispatchingStorageEvent = true;
     try {
-      let parsedVal = val;
-      if (typeof val === 'string') {
-        try { parsedVal = JSON.parse(val); } catch(e) {}
-      }
-
       if (key === 'SWEETOS_products') {
         window.dispatchEvent(new CustomEvent('products:updated', { detail: parsedVal }));
         window.dispatchEvent(new CustomEvent('storage:synced'));
