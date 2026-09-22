@@ -6,33 +6,48 @@ export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiO
 
 let _clientInstance = null;
 
-if (typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
-  try {
-    _clientInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  } catch (e) {}
+export function getSupabaseClient() {
+  if (_clientInstance) return _clientInstance;
+
+  if (typeof window !== 'undefined' && window.supabase && typeof window.supabase.createClient === 'function') {
+    try {
+      _clientInstance = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      return _clientInstance;
+    } catch (e) {}
+  }
+  return _clientInstance;
 }
 
-if (!_clientInstance) {
+// Lazy/Async CDN loading fallback if window.supabase is not initialized synchronously
+if (typeof window !== 'undefined' && !_clientInstance) {
   const cdns = [
     'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm',
     'https://esm.sh/@supabase/supabase-js@2',
     'https://unpkg.com/@supabase/supabase-js@2?module'
   ];
-  for (const cdnUrl of cdns) {
-    try {
-      const mod = await import(cdnUrl);
-      const createClientFn = mod?.createClient || mod?.default?.createClient;
-      if (createClientFn) {
-        _clientInstance = createClientFn(SUPABASE_URL, SUPABASE_ANON_KEY);
-        break;
-      }
-    } catch (e) {
-      console.warn(`[Supabase CDN Loader] Failed loading from ${cdnUrl}:`, e.message);
+  (async () => {
+    for (const cdnUrl of cdns) {
+      try {
+        const mod = await import(cdnUrl);
+        const createClientFn = mod?.createClient || mod?.default?.createClient;
+        if (createClientFn) {
+          _clientInstance = createClientFn(SUPABASE_URL, SUPABASE_ANON_KEY);
+          window.dispatchEvent(new CustomEvent('supabase:ready'));
+          break;
+        }
+      } catch (e) {}
     }
-  }
+  })();
 }
 
-export const supabase = _clientInstance;
+export const supabase = new Proxy({}, {
+  get(target, prop) {
+    const client = getSupabaseClient();
+    if (!client) return undefined;
+    const value = client[prop];
+    return typeof value === 'function' ? value.bind(client) : value;
+  }
+});
 
 // ==========================================
 // 1. PRODUCTS SYNC & CRUD
@@ -991,22 +1006,43 @@ export async function fetchOrdersFromSupabase(userEmail = null) {
 
 export async function fetchSettingsFromSupabase() {
   try {
-    const { data, error } = await supabase
-      .from('store_settings')
-      .select('*')
-      .limit(1);
+    const client = getSupabaseClient();
+    if (!client) return null;
 
-    if (!error && data && data.length > 0) {
-      const s = data[0];
-      if (s.store_name) localStorage.setItem('SWEETOS_store_name', s.store_name);
-      if (s.hero_title) localStorage.setItem('SWEETOS_hero_title', s.hero_title);
-      if (s.hero_subtitle) localStorage.setItem('SWEETOS_hero_subtitle', s.hero_subtitle);
-      if (s.store_entrance_image) localStorage.setItem('SWEETOS_store_entrance_image', s.store_entrance_image);
-      if (s.currency) localStorage.setItem('SWEETOS_currency', s.currency);
+    // 1. Primary Source: store_settings table
+    try {
+      const { data, error } = await client
+        .from('store_settings')
+        .select('*')
+        .limit(1);
 
-      window.dispatchEvent(new CustomEvent('branding:updated'));
-      return s;
-    }
+      if (!error && data && data.length > 0) {
+        const s = data[0];
+        if (s.store_name) localStorage.setItem('SWEETOS_store_name', s.store_name);
+        if (s.hero_title) localStorage.setItem('SWEETOS_hero_title', s.hero_title);
+        if (s.hero_subtitle) localStorage.setItem('SWEETOS_hero_subtitle', s.hero_subtitle);
+        if (s.store_entrance_image) localStorage.setItem('SWEETOS_store_entrance_image', s.store_entrance_image);
+        if (s.currency) localStorage.setItem('SWEETOS_currency', s.currency);
+
+        window.dispatchEvent(new CustomEvent('branding:updated'));
+        return s;
+      }
+    } catch(e) {}
+
+    // 2. Secondary Fallback Source: site_settings key 'store_settings'
+    try {
+      const fallback = await fetchSiteSettingFromSupabase('store_settings');
+      if (fallback && typeof fallback === 'object') {
+        if (fallback.store_name) localStorage.setItem('SWEETOS_store_name', fallback.store_name);
+        if (fallback.hero_title) localStorage.setItem('SWEETOS_hero_title', fallback.hero_title);
+        if (fallback.hero_subtitle) localStorage.setItem('SWEETOS_hero_subtitle', fallback.hero_subtitle);
+        if (fallback.store_entrance_image) localStorage.setItem('SWEETOS_store_entrance_image', fallback.store_entrance_image);
+        if (fallback.currency) localStorage.setItem('SWEETOS_currency', fallback.currency);
+
+        window.dispatchEvent(new CustomEvent('branding:updated'));
+        return fallback;
+      }
+    } catch(e) {}
   } catch (err) {
     console.error('[Supabase Cloud] fetchSettings error:', err);
   }
