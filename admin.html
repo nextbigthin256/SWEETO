@@ -25,5 +25,77 @@
 
   <!-- App Orchestrator Script -->
   <script type="module" src="./components/Admin/AdminPage.js?v=1.0.7"></script>
+
+  <!-- Global Event Listener Engine for Cross-Tab & Cross-Device Re-rendering -->
+  <script type="module">
+    import { refreshStorageFromCloud } from './utils/storage.js';
+
+    const triggerAdminRefresh = async () => {
+      const adminEl = document.querySelector('admin-page');
+      if (adminEl && typeof adminEl.loadDatabase === 'function') {
+        await adminEl.loadDatabase(false);
+        if (typeof adminEl.render === 'function') {
+          adminEl.render(false);
+        }
+        if (typeof adminEl.attachListeners === 'function') {
+          adminEl.attachListeners();
+        }
+      }
+    };
+
+    // Listen for data update events
+    window.addEventListener('products:updated', async (e) => {
+      console.log('🔄 [Admin Sync] products:updated event received.');
+      const adminEl = document.querySelector('admin-page');
+      if (adminEl && e.detail && Array.isArray(e.detail)) {
+        adminEl.products = e.detail;
+        if (typeof adminEl.render === 'function') adminEl.render(false);
+        if (typeof adminEl.attachListeners === 'function') adminEl.attachListeners();
+      } else {
+        await triggerAdminRefresh();
+      }
+    });
+
+    window.addEventListener('categories:updated', async (e) => {
+      console.log('🔄 [Admin Sync] categories:updated event received.');
+      const adminEl = document.querySelector('admin-page');
+      if (adminEl && e.detail && Array.isArray(e.detail)) {
+        adminEl.categories = e.detail;
+        if (typeof adminEl.render === 'function') adminEl.render(false);
+        if (typeof adminEl.attachListeners === 'function') adminEl.attachListeners();
+      } else {
+        await triggerAdminRefresh();
+      }
+    });
+
+    window.addEventListener('brands:updated', async (e) => {
+      console.log('🔄 [Admin Sync] brands:updated event received.');
+      const adminEl = document.querySelector('admin-page');
+      if (adminEl && e.detail && Array.isArray(e.detail)) {
+        adminEl.brands = e.detail;
+        if (typeof adminEl.render === 'function') adminEl.render(false);
+        if (typeof adminEl.attachListeners === 'function') adminEl.attachListeners();
+      } else {
+        await triggerAdminRefresh();
+      }
+    });
+
+    window.addEventListener('storage:synced', async () => {
+      console.log('🔄 [Admin Sync] storage:synced event received.');
+      await triggerAdminRefresh();
+    });
+
+    // Re-sync on window focus / visibility change
+    window.addEventListener('focus', async () => {
+      await refreshStorageFromCloud();
+      await triggerAdminRefresh();
+    });
+    document.addEventListener('visibilitychange', async () => {
+      if (document.visibilityState === 'visible') {
+        await refreshStorageFromCloud();
+        await triggerAdminRefresh();
+      }
+    });
+  </script>
 </body>
 </html>
