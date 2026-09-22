@@ -978,64 +978,28 @@ export async function syncAllStorage() {
 
     if (products.status === 'fulfilled' && Array.isArray(products.value)) {
       try {
-        const localRaw = localStorage.getItem('SWEETOS_products');
-        const localList = localRaw ? JSON.parse(localRaw) : [];
-        const map = new Map();
-        (localList || []).forEach(p => { if (p && p.id != null) map.set(String(p.id), p); });
-        products.value.forEach(p => {
-          if (p && p.id != null) {
-            map.set(String(p.id), map.has(String(p.id)) ? { ...map.get(String(p.id)), ...p } : p);
-          }
-        });
-        const mergedProds = Array.from(map.values());
-        localStorage.setItem('SWEETOS_products', JSON.stringify(mergedProds));
-        console.log('✅ [Storage Sync] Products synced:', mergedProds.length);
-      } catch(e) {
-        localStorage.setItem('SWEETOS_products', JSON.stringify(products.value));
-      }
+        if (products.value.length > 0) {
+          localStorage.setItem('SWEETOS_products', JSON.stringify(products.value));
+          console.log('✅ [Storage Sync] Products synced from Cloud Ground Truth:', products.value.length);
+        }
+      } catch(e) {}
     }
 
     if (categories.status === 'fulfilled' && Array.isArray(categories.value)) {
       try {
-        const localRaw = localStorage.getItem('SWEETOS_categories');
-        const localList = localRaw ? JSON.parse(localRaw) : [];
-        const map = new Map();
-        (localList || []).forEach(c => {
-          const key = c.slug || c.name || c.id;
-          if (key) map.set(String(key).toLowerCase(), c);
-        });
-        categories.value.forEach(c => {
-          const key = c.slug || c.name || c.id;
-          if (key) {
-            const kStr = String(key).toLowerCase();
-            map.set(kStr, map.has(kStr) ? { ...map.get(kStr), ...c } : c);
-          }
-        });
-        const mergedCats = Array.from(map.values());
-        localStorage.setItem('SWEETOS_categories', JSON.stringify(mergedCats));
-        console.log('✅ [Storage Sync] Categories synced:', mergedCats.length);
+        if (categories.value.length > 0) {
+          localStorage.setItem('SWEETOS_categories', JSON.stringify(categories.value));
+          console.log('✅ [Storage Sync] Categories synced from Cloud Ground Truth:', categories.value.length);
+        }
       } catch(e) {}
     }
 
     if (brands.status === 'fulfilled' && Array.isArray(brands.value)) {
       try {
-        const localRaw = localStorage.getItem('SWEETOS_brands');
-        const localList = localRaw ? JSON.parse(localRaw) : [];
-        const map = new Map();
-        (localList || []).forEach(b => {
-          const key = b.slug || b.name || b.id;
-          if (key) map.set(String(key).toLowerCase(), b);
-        });
-        brands.value.forEach(b => {
-          const key = b.slug || b.name || b.id;
-          if (key) {
-            const kStr = String(key).toLowerCase();
-            map.set(kStr, map.has(kStr) ? { ...map.get(kStr), ...b } : b);
-          }
-        });
-        const mergedBrands = Array.from(map.values());
-        localStorage.setItem('SWEETOS_brands', JSON.stringify(mergedBrands));
-        console.log('✅ [Storage Sync] Brands synced:', mergedBrands.length);
+        if (brands.value.length > 0) {
+          localStorage.setItem('SWEETOS_brands', JSON.stringify(brands.value));
+          console.log('✅ [Storage Sync] Brands synced from Cloud Ground Truth:', brands.value.length);
+        }
       } catch(e) {}
     }
 
