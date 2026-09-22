@@ -1107,20 +1107,6 @@ export function validateAndCleanStaleSession() {
 
 export function checkAppVersionAndCleanStorage() {
   try {
-    const storedVersion = localStorage.getItem('SWEETOS_APP_VERSION');
-    const storedMajor = (storedVersion || '').split('.')[0];
-    const currentMajor = CURRENT_APP_VERSION.split('.')[0];
-    if (storedMajor !== currentMajor) {
-      console.log(`🧹 [Storage] Major app update from ${storedVersion || 'legacy'} to ${CURRENT_APP_VERSION}. Cleaning sync status cache.`);
-      try {
-        for (let i = localStorage.length - 1; i >= 0; i--) {
-          const key = localStorage.key(i);
-          if (key && key.startsWith('SUPABASE_SYNC_')) {
-            localStorage.removeItem(key);
-          }
-        }
-      } catch(e) {}
-    }
     localStorage.setItem('SWEETOS_APP_VERSION', CURRENT_APP_VERSION);
   } catch (e) {
     console.warn('[Storage] App version check skipped:', e);
