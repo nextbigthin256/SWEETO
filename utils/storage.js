@@ -73,41 +73,52 @@ function queueSupabaseSync(task) {
   processSyncQueue();
 }
 
+let _isDispatchingStorageEvent = false;
+
 export function saveStorageItem(key, val) {
   if (val === null || val === undefined) {
     try { localStorage.removeItem(key); } catch(e) {}
     return;
   }
 
-  // Save to localStorage for instant local disk persistence
+  const prevStr = localStorage.getItem(key);
   const str = typeof val === 'string' ? val : JSON.stringify(val);
+
+  // If value is unchanged, skip duplicate write and events
+  if (prevStr === str) return;
+
   try { localStorage.setItem(key, str); } catch(e) {}
 
-  // Parse data object for event detail
-  let parsedVal = val;
-  if (typeof val === 'string') {
-    try { parsedVal = JSON.parse(val); } catch(e) {}
-  }
-
-  // Dispatch instant event notifications for store & admin components
-  if (key === 'SWEETOS_products') {
-    window.dispatchEvent(new CustomEvent('products:updated', { detail: parsedVal }));
-    window.dispatchEvent(new CustomEvent('storage:synced'));
-  } else if (key === 'SWEETOS_categories') {
-    window.dispatchEvent(new CustomEvent('categories:updated', { detail: parsedVal }));
-    window.dispatchEvent(new CustomEvent('storage:synced'));
-  } else if (key === 'SWEETOS_brands') {
-    window.dispatchEvent(new CustomEvent('brands:updated', { detail: parsedVal }));
-    window.dispatchEvent(new CustomEvent('storage:synced'));
-  }
-
-  // Broadcast event across browser tabs/windows
-  if (typeof BroadcastChannel !== 'undefined') {
+  // Prevent re-entrant infinite event loops
+  if (!_isDispatchingStorageEvent) {
+    _isDispatchingStorageEvent = true;
     try {
-      const bc = new BroadcastChannel('SWEETOS_ADMIN_SYNC');
-      bc.postMessage({ key, timestamp: Date.now() });
-      bc.close();
-    } catch(e) {}
+      let parsedVal = val;
+      if (typeof val === 'string') {
+        try { parsedVal = JSON.parse(val); } catch(e) {}
+      }
+
+      if (key === 'SWEETOS_products') {
+        window.dispatchEvent(new CustomEvent('products:updated', { detail: parsedVal }));
+        window.dispatchEvent(new CustomEvent('storage:synced'));
+      } else if (key === 'SWEETOS_categories') {
+        window.dispatchEvent(new CustomEvent('categories:updated', { detail: parsedVal }));
+        window.dispatchEvent(new CustomEvent('storage:synced'));
+      } else if (key === 'SWEETOS_brands') {
+        window.dispatchEvent(new CustomEvent('brands:updated', { detail: parsedVal }));
+        window.dispatchEvent(new CustomEvent('storage:synced'));
+      }
+
+      if (typeof BroadcastChannel !== 'undefined') {
+        try {
+          const bc = new BroadcastChannel('SWEETOS_ADMIN_SYNC');
+          bc.postMessage({ key, timestamp: Date.now() });
+          bc.close();
+        } catch(e) {}
+      }
+    } finally {
+      _isDispatchingStorageEvent = false;
+    }
   }
   
   // Auto-sync to Supabase for known keys via queue (non-blocking)

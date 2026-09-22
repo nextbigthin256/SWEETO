@@ -480,8 +480,7 @@ class ProductList extends HTMLElement {
 
         if (Array.isArray(updatedProducts) && updatedProducts.length > 0) {
           this.products = updatedProducts;
-          saveStorageItem('SWEETOS_products', updatedProducts);
-          localStorage.setItem('SWEETOS_products', JSON.stringify(updatedProducts));
+          try { localStorage.setItem('SWEETOS_products', JSON.stringify(updatedProducts)); } catch(e) {}
         }
 
         const newJson = JSON.stringify(this.products || []);
@@ -3428,7 +3427,7 @@ class ProductList extends HTMLElement {
       }
     });
     if (migrated) {
-      saveStorageItem('SWEETOS_products', productsArray);
+      try { localStorage.setItem('SWEETOS_products', JSON.stringify(productsArray)); } catch(e) {}
     }
     return migrated;
   }
