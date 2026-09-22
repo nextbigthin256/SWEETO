@@ -995,6 +995,38 @@ export function renderAdminProducts(context) {
                 <input type="hidden" id="prod-image-url-val" value="${isEditing ? (context.editingProduct.image || '') : ''}">
               </div>
 
+              <!-- Product Gallery Images (Up to 5 total images) -->
+              <div class="form-group-modern" style="background:#0c101b; border:1px solid rgba(255,255,255,0.08); border-radius:12px; padding:14px; margin-bottom:16px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                  <strong style="color:white; font-size:13px; display:flex; align-items:center; gap:6px;">
+                    🖼️ Additional Gallery Images <small style="color:#94a3b8; font-size:11px; font-weight:400;">(Up to 5 total images)</small>
+                  </strong>
+                </div>
+                <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                  ${[2, 3, 4, 5].map((slotNum, idx) => {
+                    const gUrl = isEditing && Array.isArray(context.editingProduct.gallery) ? (context.editingProduct.gallery[idx] || '') : '';
+                    return `
+                      <div class="gallery-slot-card" style="background:rgba(255,255,255,0.03); border:1px solid rgba(255,255,255,0.08); border-radius:8px; padding:8px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                          <span style="font-size:11px; color:#cbd5e1; font-weight:700;">Image #${slotNum}</span>
+                          <button type="button" class="remove-gallery-img-btn" data-slot="${slotNum}" style="background:none; border:none; color:#ef4444; font-size:12px; cursor:pointer; ${gUrl ? '' : 'display:none;'}">✕</button>
+                        </div>
+                        <div style="display:flex; gap:6px; align-items:center; margin-bottom:6px;">
+                          <input type="text" class="prod-gallery-input" id="prod-gallery-url-${slotNum}" data-slot="${slotNum}" placeholder="Image ${slotNum} URL..." value="${gUrl}" style="padding:6px 8px; font-size:11px; background:#141b2d; border:1px solid rgba(255,255,255,0.1); color:white; border-radius:6px; width:100%;">
+                          <label class="gallery-upload-btn" style="background:#0052cc; color:white; padding:6px 8px; border-radius:6px; font-size:11px; font-weight:700; cursor:pointer; white-space:nowrap;" title="Upload Image #${slotNum}">
+                            📁
+                            <input type="file" class="gallery-file-input" data-slot="${slotNum}" accept="image/*" style="display:none;">
+                          </label>
+                        </div>
+                        <div id="gallery-preview-box-${slotNum}" style="${gUrl ? '' : 'display:none;'} text-align:center;">
+                          <img id="gallery-preview-img-${slotNum}" src="${gUrl}" style="max-height:60px; max-width:100%; border-radius:4px; object-fit:contain; border:1px solid rgba(255,255,255,0.1);">
+                        </div>
+                      </div>
+                    `;
+                  }).join('')}
+                </div>
+              </div>
+
               <!-- Product Badge / Ribbon -->
               <div class="form-group-modern">
                 <label>Promotional Ribbon / Badge Tag</label>
@@ -1800,6 +1832,72 @@ export function attachAdminProductsListeners(context, shadow) {
     });
   }
 
+  // Additional Gallery Images Listeners (Slots 2 - 5)
+  for (let idx = 2; idx <= 5; idx++) {
+    const slotNum = idx;
+    const gInput = shadow.getElementById(`prod-gallery-url-${slotNum}`);
+    const gFileInput = shadow.querySelector(`.gallery-file-input[data-slot="${slotNum}"]`);
+    const gRemoveBtn = shadow.querySelector(`.remove-gallery-img-btn[data-slot="${slotNum}"]`);
+    const gPreviewBox = shadow.getElementById(`gallery-preview-box-${slotNum}`);
+    const gPreviewImg = shadow.getElementById(`gallery-preview-img-${slotNum}`);
+
+    const updateSlotPreview = (url) => {
+      if (url) {
+        if (gPreviewImg) gPreviewImg.src = url;
+        if (gPreviewBox) gPreviewBox.style.display = 'block';
+        if (gRemoveBtn) gRemoveBtn.style.display = 'inline-block';
+      } else {
+        if (gPreviewImg) gPreviewImg.src = '';
+        if (gPreviewBox) gPreviewBox.style.display = 'none';
+        if (gRemoveBtn) gRemoveBtn.style.display = 'none';
+      }
+    };
+
+    if (gInput) {
+      gInput.addEventListener('input', () => {
+        updateSlotPreview(gInput.value.trim());
+      });
+    }
+
+    if (gFileInput) {
+      gFileInput.addEventListener('change', async () => {
+        const file = gFileInput.files[0];
+        if (file) {
+          window.dispatchEvent(new CustomEvent('toast:show', { detail: `Uploading gallery image #${slotNum}...` }));
+          try {
+            const { uploadFileToSupabaseStorage } = await import('../../utils/supabase.js');
+            const cloudUrl = await uploadFileToSupabaseStorage(file);
+            const finalUrl = cloudUrl || await new Promise(resolve => {
+              const reader = new FileReader();
+              reader.onload = (e) => resolve(e.target.result);
+              reader.readAsDataURL(file);
+            });
+            if (gInput) gInput.value = finalUrl;
+            updateSlotPreview(finalUrl);
+            window.dispatchEvent(new CustomEvent('toast:show', { detail: `Gallery image #${slotNum} uploaded! ☁️` }));
+          } catch(err) {
+            const reader = new FileReader();
+            reader.onload = (e) => {
+              const dataUrl = e.target.result;
+              if (gInput) gInput.value = dataUrl;
+              updateSlotPreview(dataUrl);
+            };
+            reader.readAsDataURL(file);
+          }
+        }
+      });
+    }
+
+    if (gRemoveBtn) {
+      gRemoveBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (gInput) gInput.value = '';
+        if (gFileInput) gFileInput.value = '';
+        updateSlotPreview('');
+      });
+    }
+  }
+
   // Active / Draft Status Toggle in Modal
   const activeBtn = shadow.getElementById('status-active-btn');
   const draftBtn = shadow.getElementById('status-draft-btn');
@@ -2041,6 +2139,15 @@ export function attachAdminProductsListeners(context, shadow) {
         }
       });
 
+      // Collect additional gallery URLs (Slots 2 - 5)
+      const galleryUrls = [];
+      for (let i = 2; i <= 5; i++) {
+        const gInp = shadow.getElementById(`prod-gallery-url-${i}`);
+        if (gInp && gInp.value && gInp.value.trim()) {
+          galleryUrls.push(gInp.value.trim());
+        }
+      }
+
       const prevSpecs = (context.editingProduct && context.editingProduct.specs) ? context.editingProduct.specs : {};
       const finalSpecs = { ...prevSpecs, ...specsObject };
 
@@ -2073,6 +2180,7 @@ export function attachAdminProductsListeners(context, shadow) {
             badge: badge || null,
             status,
             image: imageUrl,
+            gallery: galleryUrls,
             hasVariants: hasVariants && finalColors.length > 0,
             colors: finalColors,
             homepageSections: checkedSections,
@@ -2104,6 +2212,7 @@ export function attachAdminProductsListeners(context, shadow) {
           badge: badge || 'NEW ARRIVAL',
           status,
           image: imageUrl,
+          gallery: galleryUrls,
           hasVariants: hasVariants && finalColors.length > 0,
           colors: finalColors,
           homepageSections: checkedSections,

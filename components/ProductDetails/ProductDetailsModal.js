@@ -34,6 +34,10 @@ class ProductDetailsModal extends HTMLElement {
     const originalPriceVal = hasDiscount ? origPrice : 0;
     const discountVal = hasDiscount ? Math.round(((originalPriceVal - p.price) / originalPriceVal) * 100) : 0;
 
+    // Extract unique gallery images (up to 5 distinct images max)
+    const galleryList = Array.from(new Set([p.image, ...(Array.isArray(p.gallery) ? p.gallery : [])].filter(url => url && typeof url === 'string' && url.trim().length > 0))).slice(0, 5);
+    const selectedImg = this.activeImage || p.image;
+
     // 1. Ensure stylesheet link is injected exactly once to prevent layout style drops on re-renders
     if (!this.shadowRoot.querySelector('link[href*="ProductDetailsModal.css"]')) {
       const cssLink = document.createElement('link');
@@ -61,9 +65,21 @@ class ProductDetailsModal extends HTMLElement {
           </button>
           
           <div class="modal-grid">
-            <div class="modal-visual">
-              <img src="${p.image}" alt="${p.name}" class="details-img">
-              <span class="category-badge">${p.category}</span>
+            <div class="modal-visual" style="display: flex; flex-direction: column; justify-content: space-between; padding: 16px; background: #f8fafc;">
+              <div style="position: relative; width: 100%; height: 340px; overflow: hidden; border-radius: 16px; background: #e2e8f0;">
+                <img src="${selectedImg}" alt="${p.name}" class="details-img" id="main-details-img" style="width: 100%; height: 100%; object-fit: cover; border-radius: 16px;">
+                <span class="category-badge">${p.category}</span>
+              </div>
+
+              ${galleryList.length > 1 ? `
+                <div class="gallery-thumbnails-row" style="display: flex; gap: 8px; margin-top: 14px; padding: 4px; overflow-x: auto;">
+                  ${galleryList.map((imgUrl, idx) => `
+                    <div class="gallery-thumb-item ${imgUrl === selectedImg ? 'active-thumb' : ''}" data-img-url="${imgUrl}" style="width: 60px; height: 60px; border-radius: 12px; border: 2.5px solid ${imgUrl === selectedImg ? '#0052cc' : 'rgba(0,0,0,0.1)'}; overflow: hidden; cursor: pointer; flex-shrink: 0; transition: all 0.2s ease; box-shadow: ${imgUrl === selectedImg ? '0 4px 12px rgba(0,82,204,0.3)' : 'none'};">
+                      <img src="${imgUrl}" alt="Gallery ${idx + 1}" style="width: 100%; height: 100%; object-fit: cover;">
+                    </div>
+                  `).join('')}
+                </div>
+              ` : ''}
             </div>
             
             <div class="modal-info">
@@ -176,6 +192,23 @@ class ProductDetailsModal extends HTMLElement {
 
   attachDynamicListeners() {
     const shadow = this.shadowRoot;
+
+    // Gallery Thumbnail Selection
+    shadow.querySelectorAll('.gallery-thumb-item').forEach(thumb => {
+      thumb.addEventListener('click', () => {
+        const url = thumb.getAttribute('data-img-url');
+        if (url) {
+          this.activeImage = url;
+          const mainImg = shadow.getElementById('main-details-img');
+          if (mainImg) mainImg.src = url;
+          shadow.querySelectorAll('.gallery-thumb-item').forEach(t => {
+            const isMatch = t.getAttribute('data-img-url') === url;
+            t.style.borderColor = isMatch ? '#0052cc' : 'rgba(0,0,0,0.1)';
+            t.style.boxShadow = isMatch ? '0 4px 12px rgba(0,82,204,0.3)' : 'none';
+          });
+        }
+      });
+    });
     
     // Close clicks
     shadow.addEventListener('click', (e) => {
