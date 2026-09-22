@@ -744,13 +744,21 @@ export function renderAdminOrderDetails(context) {
 
   return `
     <style>
+      .order-step-pipeline-wrapper {
+        width: 100%;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        touch-action: pan-x pan-y;
+        padding-bottom: 8px;
+      }
       .order-step-pipeline {
         display: flex;
         align-items: center;
         justify-content: space-between;
         position: relative;
-        margin: 24px 0 32px;
-        padding: 0 10px;
+        margin: 16px 0 20px;
+        padding: 0 16px;
+        min-width: 480px;
       }
       .pipeline-track-bg {
         position: absolute;
@@ -781,17 +789,19 @@ export function renderAdminOrderDetails(context) {
         background: transparent;
         border: none;
         padding: 0;
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
       }
       .step-circle {
-        width: 42px;
-        height: 42px;
+        width: 44px;
+        height: 44px;
         border-radius: 50%;
         background: #ffffff;
         border: 2.5px solid #cbd5e1;
         display: flex;
         align-items: center;
         justify-content: center;
-        font-size: 16px;
+        font-size: 18px;
         transition: all 0.2s ease;
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);
       }
@@ -859,26 +869,28 @@ export function renderAdminOrderDetails(context) {
     </div>
 
     <!-- Interactive Fulfillment Pipeline Flow -->
-    <div class="glass-panel" style="background:rgba(255,255,255,0.85); border-radius:18px; padding:24px 30px; margin-bottom:24px; border:1px solid #e2e8f0;">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+    <div class="glass-panel" style="background:rgba(255,255,255,0.85); border-radius:18px; padding:20px; margin-bottom:24px; border:1px solid #e2e8f0;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
         <strong style="font-size:14px; font-weight:800; color:#1e293b;">⚡ Interactive Fulfillment Pipeline</strong>
         <span style="font-size:12px; color:#64748b;">Click any stage to instantly transition status</span>
       </div>
 
-      <div class="order-step-pipeline">
-        <div class="pipeline-track-bg"></div>
-        <div class="pipeline-track-fill" style="${trackFillStyle}"></div>
+      <div class="order-step-pipeline-wrapper">
+        <div class="order-step-pipeline">
+          <div class="pipeline-track-bg"></div>
+          <div class="pipeline-track-fill" style="${trackFillStyle}"></div>
 
-        ${steps.map((step, idx) => {
-          const isCompleted = currentStepIdx >= idx;
-          const isCurrent = currentStepIdx === idx;
-          return `
-            <button class="pipeline-step-node ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''} quick-step-jump-btn" data-target-status="${escapeHtml(step.targetStatus)}">
-              <div class="step-circle">${step.icon}</div>
-              <span class="step-label">${step.label}</span>
-            </button>
-          `;
-        }).join('')}
+          ${steps.map((step, idx) => {
+            const isCompleted = currentStepIdx >= idx;
+            const isCurrent = currentStepIdx === idx;
+            return `
+              <button class="pipeline-step-node ${isCompleted ? 'completed' : ''} ${isCurrent ? 'current' : ''} quick-step-jump-btn" data-target-status="${escapeHtml(step.targetStatus)}">
+                <div class="step-circle">${step.icon}</div>
+                <span class="step-label">${step.label}</span>
+              </button>
+            `;
+          }).join('')}
+        </div>
       </div>
     </div>
 

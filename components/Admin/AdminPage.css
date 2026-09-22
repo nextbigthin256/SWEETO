@@ -2035,18 +2035,19 @@ textarea.admin-input {
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   z-index: 9999;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   padding: 20px;
   opacity: 0;
   pointer-events: none;
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition: opacity 0.3s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .pin-modal-overlay.active {
+  display: flex !important;
   opacity: 1;
-  pointer-events: auto;
+  pointer-events: auto !important;
 }
 
 .pin-modal-card {
@@ -2148,7 +2149,7 @@ textarea.admin-input {
 }
 
 .admin-sidebar-backdrop {
-  display: none;
+  display: none !important;
   position: fixed;
   inset: 0;
   background: rgba(15, 23, 42, 0.6);
@@ -2156,13 +2157,14 @@ textarea.admin-input {
   -webkit-backdrop-filter: blur(4px);
   z-index: 9990;
   opacity: 0;
-  pointer-events: none;
+  pointer-events: none !important;
   transition: opacity 0.25s ease;
 }
 
 .admin-sidebar-backdrop.active {
+  display: block !important;
   opacity: 1;
-  pointer-events: auto;
+  pointer-events: auto !important;
 }
 
 /* Tablet & Mobile Screens (<= 768px) */
@@ -2170,15 +2172,19 @@ textarea.admin-input {
   .mobile-hamburger-btn {
     display: flex;
   }
-  
-  .admin-sidebar-backdrop {
-    display: block;
+
+  .admin-page-wrapper {
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
   }
 
   .admin-dashboard-container {
-    flex-direction: column;
-    position: relative;
-    overflow-x: hidden;
+    flex-direction: column !important;
+    position: relative !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    overflow: hidden !important;
   }
 
   /* Off-canvas Slide-over Sidebar Drawer */
@@ -2188,8 +2194,8 @@ textarea.admin-input {
     left: 0;
     bottom: 0;
     width: 280px !important;
-    height: 100vh;
-    max-height: 100vh;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
     z-index: 9999;
     transform: translateX(-100%);
     box-shadow: 4px 0 25px rgba(0, 0, 0, 0.3);
@@ -2241,17 +2247,30 @@ textarea.admin-input {
   /* Main Viewport Adjustments */
   .admin-main {
     width: 100% !important;
-    height: 100vh;
-    padding: 14px 14px 20px 14px !important;
-    gap: 14px !important;
-    overflow-x: hidden;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    padding: 10px 10px 16px 10px !important;
+    gap: 10px !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+    flex: 1 !important;
+    min-height: 0 !important;
   }
 
   .admin-topbar {
-    flex-wrap: wrap;
-    gap: 10px;
-    align-items: center;
-    justify-content: space-between;
+    flex-shrink: 0 !important;
+  }
+
+  .admin-viewport {
+    flex: 1 1 0% !important;
+    min-height: 0 !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-y !important;
+    overscroll-behavior-y: contain !important;
   }
 
   .admin-title-panel {
@@ -2293,7 +2312,8 @@ textarea.admin-input {
   .inventory-kpi-grid,
   .sections-kpi-grid,
   .coupons-kpi-grid,
-  .products-kpi-grid {
+  .products-kpi-grid,
+  .orders-kpi-grid {
     grid-template-columns: repeat(2, 1fr) !important;
     gap: 10px !important;
   }
@@ -2371,14 +2391,32 @@ textarea.admin-input {
     width: 100% !important;
   }
 
-  /* Table Horizontal Scrolling */
+  /* Table & Pipeline Horizontal Scrolling on Mobile */
   .table-wrapper,
   .sections-table-container,
-  .inventory-table-container {
+  .inventory-table-container,
+  .status-pill-list,
+  .order-step-pipeline,
+  div[style*="overflow-x:auto"] {
     overflow-x: auto !important;
-    -webkit-overflow-scrolling: touch;
-    width: 100%;
-    border-radius: 14px !important;
+    -webkit-overflow-scrolling: touch !important;
+    touch-action: pan-x pan-y !important;
+    max-width: 100% !important;
+  }
+
+  /* Touch Interaction Enhancements */
+  button, select, input, a, .status-pill-tab, .status-select-inline, .pipeline-step-node, .order-row-hover {
+    touch-action: manipulation !important;
+    -webkit-tap-highlight-color: transparent !important;
+  }
+
+  select, input[type="search"], input[type="text"], input[type="number"], .admin-btn, .status-select-inline {
+    min-height: 42px !important;
+    font-size: 13.5px !important;
+  }
+
+  .status-select-inline {
+    padding: 6px 10px !important;
   }
 
   table {
