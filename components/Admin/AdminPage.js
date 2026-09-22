@@ -605,63 +605,8 @@ class AdminPage extends HTMLElement {
         } catch(e) {}
       }, 5000);
     }
-    // Fallback local API fetch only in local dev environment
-    import('../../utils/storage.js').then(({ isLocalDevHost }) => {
-      if (!isLocalDevHost()) return;
-
-      const safeFetchJson = (url) => fetch(url).then(res => {
-        if (!res.ok || !(res.headers.get('content-type') || '').includes('application/json')) return null;
-        return res.json().catch(() => null);
-      }).catch(() => null);
-
-      Promise.all([
-        safeFetchJson('/api/products'),
-        safeFetchJson('/api/categories'),
-        safeFetchJson('/api/brands'),
-        safeFetchJson('/api/reviews'),
-        safeFetchJson('/api/orders'),
-        safeFetchJson('/api/coupons')
-      ]).then(([products, categories, brands, reviews, orders, coupons]) => {
-        let needsRender = false;
-        if (Array.isArray(products) && products.length > 0 && (!this.products || this.products.length === 0)) {
-          this.products = products;
-          saveStorageItem('SWEETOS_products', products);
-          needsRender = true;
-        }
-        if (Array.isArray(categories) && categories.length > 0 && (!this.categories || this.categories.length === 0)) {
-          this.categories = categories;
-          saveStorageItem('SWEETOS_categories', categories);
-          needsRender = true;
-        }
-        if (Array.isArray(brands) && brands.length > 0 && (!this.brands || this.brands.length === 0)) {
-          this.brands = brands;
-          saveStorageItem('SWEETOS_brands', brands);
-          needsRender = true;
-        }
-        if (Array.isArray(reviews) && reviews.length > 0 && (!this.reviews || this.reviews.length === 0)) {
-          this.reviews = reviews;
-          localStorage.setItem('SWEETOS_reviews_all', JSON.stringify(reviews));
-          needsRender = true;
-        }
-        if (Array.isArray(orders) && orders.length > 0 && (!this.orders || this.orders.length === 0)) {
-          this.orders = orders;
-          saveAllOrdersToStorage(orders);
-          needsRender = true;
-        }
-        if (Array.isArray(coupons) && coupons.length > 0 && (!this.coupons || this.coupons.length === 0)) {
-          this.coupons = coupons;
-          localStorage.setItem('SWEETOS_coupons', JSON.stringify(coupons));
-          needsRender = true;
-        }
-        if (needsRender && this.isAuthenticated) {
-          this.render();
-          this.attachListeners();
-        }
-
-        // Establish real-time notification stream (SSE)
-        this.initRealTimeNotificationStream();
-      });
-    }).catch(() => {});
+    // Establish real-time notification stream (SSE)
+    this.initRealTimeNotificationStream();
   }
 
   disconnectedCallback() {
@@ -746,102 +691,35 @@ class AdminPage extends HTMLElement {
         this.brands = this.brands.filter(b => !isDeletedBrand(b));
       }
 
-      // Products Merge
+      // Products - Cloud Ground Truth
       const cloudProds = (prods.status === 'fulfilled' && Array.isArray(prods.value)) ? prods.value : [];
-      if (cloudProds.length > 0 || (Array.isArray(this.products) && this.products.length > 0)) {
-        const prodMap = new Map();
-        (this.products || []).forEach(p => { if (p && p.id !== undefined && p.id !== null) prodMap.set(String(p.id), p); });
-        cloudProds.forEach(cp => {
-          if (cp && cp.id !== undefined && cp.id !== null) {
-            const key = String(cp.id);
-            if (isDeletedProd(cp)) {
-              return; // SKIP deleted product
-            }
-            prodMap.set(key, prodMap.has(key) ? { ...cp, ...prodMap.get(key) } : cp);
-          }
-        });
-        this.products = Array.from(prodMap.values()).filter(p => !isDeletedProd(p));
-        saveStorageItem('SWEETOS_products', this.products);
+      if (cloudProds.length > 0) {
+        this.products = cloudProds.filter(p => !isDeletedProd(p));
       }
 
-      // Categories Merge
+      // Categories - Cloud Ground Truth
       const cloudCats = (cats.status === 'fulfilled' && Array.isArray(cats.value)) ? cats.value : [];
-      if (cloudCats.length > 0 || (Array.isArray(this.categories) && this.categories.length > 0)) {
-        const catMap = new Map();
-        (this.categories || []).forEach(c => {
-          if (c && c.id !== undefined && c.id !== null) catMap.set(String(c.id), c);
-          else if (c && c.name) catMap.set(c.name.toLowerCase().trim(), c);
-        });
-        cloudCats.forEach(cc => {
-          const key = (cc && cc.id !== undefined && cc.id !== null) ? String(cc.id) : (cc && cc.name ? cc.name.toLowerCase().trim() : null);
-          if (key) {
-            if (isDeletedCat(cc)) {
-              return; // SKIP deleted category
-            }
-            catMap.set(key, catMap.has(key) ? { ...cc, ...catMap.get(key) } : cc);
-          }
-        });
-        this.categories = Array.from(catMap.values()).filter(c => !isDeletedCat(c));
-        saveStorageItem('SWEETOS_categories', this.categories);
+      if (cloudCats.length > 0) {
+        this.categories = cloudCats.filter(c => !isDeletedCat(c));
       }
 
-      // Brands Merge
+      // Brands - Cloud Ground Truth
       const cloudBrands = (brands.status === 'fulfilled' && Array.isArray(brands.value)) ? brands.value : [];
-      if (cloudBrands.length > 0 || (Array.isArray(this.brands) && this.brands.length > 0)) {
-        const brandMap = new Map();
-        (this.brands || []).forEach(b => {
-          if (b && b.id !== undefined && b.id !== null) brandMap.set(String(b.id), b);
-          else if (b && b.name) brandMap.set(b.name.toLowerCase().trim(), b);
-        });
-        cloudBrands.forEach(cb => {
-          const key = (cb && cb.id !== undefined && cb.id !== null) ? String(cb.id) : (cb && cb.name ? cb.name.toLowerCase().trim() : null);
-          if (key) {
-            if (isDeletedBrand(cb)) {
-              return; // SKIP deleted brand
-            }
-            brandMap.set(key, brandMap.has(key) ? { ...cb, ...brandMap.get(key) } : cb);
-          }
-        });
-        this.brands = Array.from(brandMap.values()).filter(b => !isDeletedBrand(b));
-        saveStorageItem('SWEETOS_brands', this.brands);
+      if (cloudBrands.length > 0) {
+        this.brands = cloudBrands.filter(b => !isDeletedBrand(b));
       }
 
-      // Merge Cloud + Local Storage Orders with timestamp handling to preserve admin status updates
+      // Orders - Cloud Ground Truth
       const cloudOrders = (ords.status === 'fulfilled' && Array.isArray(ords.value)) ? ords.value : [];
-      const localOrders = getAllOrdersFromStorage();
-      const ordersMap = new Map();
-
-      localOrders.forEach(o => {
-        if (o && (o.id || o.order_number)) {
-          ordersMap.set(o.id || o.order_number, o);
-        }
-      });
-
-      cloudOrders.forEach(co => {
-        if (co && (co.id || co.order_number)) {
-          const key = co.id || co.order_number;
-          if (!ordersMap.has(key)) {
-            ordersMap.set(key, co);
-          } else {
-            const lo = ordersMap.get(key);
-            const loTime = new Date(lo.updatedAt || lo.createdAt || lo.date || 0).getTime();
-            const coTime = new Date(co.updatedAt || co.createdAt || co.date || 0).getTime();
-            // Merge cloud order if cloud is newer or local lacks updatedAt
-            if (coTime >= loTime || !lo.updatedAt) {
-              ordersMap.set(key, { ...lo, ...co });
-            }
-          }
-        }
-      });
-
-      this.orders = Array.from(ordersMap.values());
-      // Sort orders descending by timestamp
-      this.orders.sort((a, b) => {
-        const tA = new Date(a.updatedAt || a.createdAt || a.date || 0).getTime();
-        const tB = new Date(b.updatedAt || b.createdAt || b.date || 0).getTime();
-        return tB - tA;
-      });
-      saveAllOrdersToStorage(this.orders);
+      if (cloudOrders.length > 0) {
+        this.orders = cloudOrders;
+        // Sort orders descending by timestamp
+        this.orders.sort((a, b) => {
+          const tA = new Date(a.updatedAt || a.createdAt || a.date || 0).getTime();
+          const tB = new Date(b.updatedAt || b.createdAt || b.date || 0).getTime();
+          return tB - tA;
+        });
+      }
 
       // Merge Cloud + Local Storage Customers
       const cloudCusts = (custs.status === 'fulfilled' && Array.isArray(custs.value)) ? custs.value : [];
