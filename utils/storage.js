@@ -50,10 +50,18 @@ async function processSyncQueue() {
 
   while (_syncQueue.length > 0) {
     const task = _syncQueue.shift();
-    try {
-      await task();
-    } catch(e) {
-      console.error('[Supabase Sync Queue] Error executing task:', e);
+    let attempts = 0;
+    while (attempts < 3) {
+      try {
+        await task();
+        break;
+      } catch(e) {
+        attempts++;
+        console.warn(`[Supabase Sync Queue] Task retry attempt ${attempts}/3:`, e);
+        if (attempts < 3) {
+          await new Promise(r => setTimeout(r, 1000 * attempts));
+        }
+      }
     }
   }
 
@@ -70,8 +78,13 @@ export function saveStorageItem(key, val) {
     try { localStorage.removeItem(key); } catch(e) {}
     return;
   }
-  const str = typeof val === 'string' ? val : JSON.stringify(val);
-  try { localStorage.setItem(key, str); } catch(e) {}
+
+  // Under Cloud-First architecture, store entity databases bypass localStorage disk
+  const storeEntityKeys = ['SWEETOS_products', 'SWEETOS_categories', 'SWEETOS_brands', 'SWEETOS_all_orders'];
+  if (!storeEntityKeys.includes(key)) {
+    const str = typeof val === 'string' ? val : JSON.stringify(val);
+    try { localStorage.setItem(key, str); } catch(e) {}
+  }
   
   // Auto-sync to Supabase for known keys via queue (non-blocking)
   const syncableKeys = [
@@ -89,15 +102,18 @@ export function saveStorageItem(key, val) {
 
         if (key === 'SWEETOS_products') {
           const { syncProductsToSupabase } = await import('./supabase.js');
-          await syncProductsToSupabase(data);
+          const ok = await syncProductsToSupabase(data);
+          try { localStorage.setItem('SUPABASE_SYNC_products_global', ok ? 'synced' : 'pending'); } catch(e) {}
           return;
         } else if (key === 'SWEETOS_categories') {
           const { syncCategoriesToSupabase } = await import('./supabase.js');
-          await syncCategoriesToSupabase(data);
+          const ok = await syncCategoriesToSupabase(data);
+          try { localStorage.setItem('SUPABASE_SYNC_categories_global', ok ? 'synced' : 'pending'); } catch(e) {}
           return;
         } else if (key === 'SWEETOS_brands') {
           const { syncBrandsToSupabase } = await import('./supabase.js');
-          await syncBrandsToSupabase(data);
+          const ok = await syncBrandsToSupabase(data);
+          try { localStorage.setItem('SUPABASE_SYNC_brands_global', ok ? 'synced' : 'pending'); } catch(e) {}
           return;
         }
 
@@ -354,12 +370,27 @@ export function getNotificationsStorageKey(targetEmail = null) {
   return 'SWEETOS_notifications_guest';
 }
 
-export function getNotificationsFromStorage() {
-  return [];
+export function getNotificationsFromStorage(targetEmail = null) {
+  const key = getNotificationsStorageKey(targetEmail);
+  const raw = getStorageItem(key) || localStorage.getItem(key) || localStorage.getItem('SWEETOS_notifications');
+  if (!raw) return [];
+  try {
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list : [];
+  } catch(e) {
+    return [];
+  }
 }
 
-export async function saveNotificationsToStorage() {
-  window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: 0 }));
+export async function saveNotificationsToStorage(notifications, targetEmail = null) {
+  if (!Array.isArray(notifications)) return;
+  const key = getNotificationsStorageKey(targetEmail);
+  saveStorageItem(key, notifications);
+  try { localStorage.setItem('SWEETOS_notifications', JSON.stringify(notifications)); } catch(e) {}
+  
+  const unreadCount = notifications.filter(n => n && n.unread).length;
+  window.dispatchEvent(new CustomEvent('notifications:updated', { detail: notifications }));
+  window.dispatchEvent(new CustomEvent('notifications:badge-sync', { detail: unreadCount }));
 }
 
 export function getWishlistStorageKey(targetEmail = null) {
@@ -659,10 +690,23 @@ export function isLocalDevHost() {
 
 export async function saveAllOrdersToStorage(orders, silent = false) {
   if (!Array.isArray(orders)) return;
-  const jsonStr = JSON.stringify(orders);
+
+  // Merge with existing orders before writing so partial lists never wipe data
+  const existing = getAllOrdersFromStorage() || [];
+  const map = new Map((Array.isArray(existing) ? existing : []).map(o => [o.id || o.order_number, o]));
+  orders.forEach(o => {
+    const k = o?.id || o?.order_number;
+    if (k) {
+      const prev = map.get(k) || {};
+      map.set(k, { ...prev, ...o });
+    }
+  });
+  const merged = Array.from(map.values());
+
+  const jsonStr = JSON.stringify(merged);
   try { localStorage.setItem('SWEETOS_all_orders', jsonStr); } catch(e) {}
   if (!silent) {
-    window.dispatchEvent(new CustomEvent('orders:updated', { detail: orders }));
+    window.dispatchEvent(new CustomEvent('orders:updated', { detail: merged }));
   }
   
   queueSupabaseSync(async () => {
@@ -673,7 +717,7 @@ export async function saveAllOrdersToStorage(orders, silent = false) {
         if (user && user.email) {
           const { saveSiteSettingInSupabase } = await import('./supabase.js');
           const safeKey = userKey(user.email);
-          const ok = await saveSiteSettingInSupabase(`sweetos_orders_${safeKey}`, orders);
+          const ok = await saveSiteSettingInSupabase(`sweetos_orders_${safeKey}`, merged);
           if (ok) {
             try { localStorage.setItem(`SUPABASE_SYNC_orders_${safeKey}`, 'synced'); } catch(e) {}
           } else {
@@ -1110,8 +1154,10 @@ export function validateAndCleanStaleSession() {
 export function checkAppVersionAndCleanStorage() {
   try {
     const storedVersion = localStorage.getItem('SWEETOS_APP_VERSION');
-    if (storedVersion !== CURRENT_APP_VERSION) {
-      console.log(`🧹 [Storage] App updated from ${storedVersion || 'legacy'} to ${CURRENT_APP_VERSION}. Cleaning sync status cache only.`);
+    const storedMajor = (storedVersion || '').split('.')[0];
+    const currentMajor = CURRENT_APP_VERSION.split('.')[0];
+    if (storedMajor !== currentMajor) {
+      console.log(`🧹 [Storage] Major app update from ${storedVersion || 'legacy'} to ${CURRENT_APP_VERSION}. Cleaning sync status cache.`);
       try {
         for (let i = localStorage.length - 1; i >= 0; i--) {
           const key = localStorage.key(i);
@@ -1120,10 +1166,26 @@ export function checkAppVersionAndCleanStorage() {
           }
         }
       } catch(e) {}
-      localStorage.setItem('SWEETOS_APP_VERSION', CURRENT_APP_VERSION);
     }
+    localStorage.setItem('SWEETOS_APP_VERSION', CURRENT_APP_VERSION);
   } catch (e) {
     console.warn('[Storage] App version check skipped:', e);
+  }
+}
+
+export async function refreshStorageFromCloud() {
+  try {
+    await retryPendingSupabaseSyncs();
+    await syncAllStorage();
+    const userJson = getStorageItem('SWEETOS_logged_in_user');
+    if (userJson) {
+      const u = typeof userJson === 'string' ? JSON.parse(userJson) : userJson;
+      if (u && u.email) {
+        await loadUserDataFromSupabase(u.email);
+      }
+    }
+  } catch (e) {
+    console.warn('[Storage] Refresh from cloud skipped:', e);
   }
 }
 
@@ -1132,6 +1194,9 @@ export async function initStorageSync() {
   checkAppVersionAndCleanStorage();
   validateAndCleanStaleSession();
   await retryPendingSupabaseSyncs();
+
+  // Sync public store database (products, categories, brands, sections) for guests and all users
+  await syncAllStorage();
 
   // Cross-device sync for active logged-in user on app startup
   const autoSyncUserCloudData = async () => {
@@ -1149,16 +1214,27 @@ export async function initStorageSync() {
 
   await autoSyncUserCloudData();
 
-  // Re-sync user cloud data when tab/window regains focus or visibility
+  // Re-sync store & user cloud data when tab/window regains focus or visibility, or periodically
   if (typeof window !== 'undefined' && !window._hasUserCloudSyncListeners) {
     window._hasUserCloudSyncListeners = true;
+
+    // Periodic 30-second background refresher
+    setInterval(() => {
+      refreshStorageFromCloud();
+    }, 30000);
+
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
-        autoSyncUserCloudData();
+        refreshStorageFromCloud();
       }
     });
+
     window.addEventListener('focus', () => {
-      autoSyncUserCloudData();
+      refreshStorageFromCloud();
+    });
+
+    window.addEventListener('online', () => {
+      refreshStorageFromCloud();
     });
   }
 

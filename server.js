@@ -155,6 +155,8 @@ const server = http.createServer((req, res) => {
             res.writeHead(500, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ error: 'Failed to write products to disk' }));
           } else {
+            productsCache = null;
+            lastProductsFetch = 0;
             broadcastAlert('products', 'Product catalog updated.');
             res.writeHead(200, { 'Content-Type': 'application/json' });
             res.end(JSON.stringify({ success: true }));
@@ -611,17 +613,6 @@ const server = http.createServer((req, res) => {
 
   // 3. Static File Server with SPA Fallback
   let filePath = path.join(__dirname, req.url === '/' ? 'index.html' : req.url.split('?')[0]);
-  
-  // Automatically strip timestamp suffixes (e.g. _1786...) to prevent 404s
-  if (filePath.includes('assets') && filePath.includes('_')) {
-    const ext = path.extname(filePath);
-    const baseWithoutExt = filePath.substring(0, filePath.lastIndexOf('_'));
-    const fallbackPath = baseWithoutExt + ext;
-    if (fs.existsSync(fallbackPath)) {
-      filePath = fallbackPath;
-    }
-  }
-
   let ext = path.extname(filePath);
 
   // If request has no extension (routing path e.g. /terms or /auth), fallback to index.html
@@ -650,8 +641,12 @@ const server = http.createServer((req, res) => {
         const headers = {
           'Content-Type': MIME_TYPES[ext] || 'application/octet-stream'
         };
-        if (ext === '.html' || ext === '.js' || ext === '.css') {
-          headers['Cache-Control'] = 'no-cache, must-revalidate';
+        if (ext === '.html') {
+          headers['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0';
+          headers['Pragma'] = 'no-cache';
+          headers['Expires'] = '0';
+        } else if (ext === '.js' || ext === '.css' || ext === '.json') {
+          headers['Cache-Control'] = 'no-cache, must-revalidate, max-age=0';
         }
         res.writeHead(200, headers);
         res.end(data);

@@ -43,7 +43,7 @@ export async function fetchProductsFromSupabase() {
     const productMap = new Map();
     let querySuccess = false;
 
-    // 1. Fetch from products Postgres table
+    // 1. Primary Cloud Source: Postgres products table
     try {
       const { data, error } = await supabase
         .from('products')
@@ -88,7 +88,7 @@ export async function fetchProductsFromSupabase() {
       }
     } catch(e) {}
 
-    // 2. Merge from site_settings cloud fallback (sweetos_cloud_products)
+    // 2. Secondary Cloud Source: site_settings fallback (sweetos_cloud_products) fills gaps
     try {
       const cloudFallback = await fetchSiteSettingFromSupabase('sweetos_cloud_products');
       if (Array.isArray(cloudFallback)) {
@@ -96,20 +96,7 @@ export async function fetchProductsFromSupabase() {
         cloudFallback.forEach(p => {
           if (p && p.id) {
             const key = String(p.id);
-            if (productMap.has(key)) {
-              const existing = productMap.get(key);
-              productMap.set(key, {
-                ...p,
-                ...existing,
-                badge: existing.badge || p.badge || '',
-                comparePrice: existing.comparePrice || p.comparePrice || null,
-                originalPrice: existing.originalPrice || p.originalPrice || null,
-                homepageSections: (existing.homepageSections && existing.homepageSections.length > 0) ? existing.homepageSections : (p.homepageSections || []),
-                isBestseller: existing.isBestseller || p.isBestseller || false,
-                isHotDeal: existing.isHotDeal || p.isHotDeal || false,
-                isNew: existing.isNew || p.isNew || false,
-              });
-            } else {
+            if (!productMap.has(key)) {
               productMap.set(key, p);
             }
           }
@@ -117,37 +104,8 @@ export async function fetchProductsFromSupabase() {
       }
     } catch(e) {}
 
-    // 3. Merge with local storage products that aren't deleted
-    try {
-      const localRaw = localStorage.getItem('SWEETOS_products');
-      if (localRaw) {
-        const localProds = JSON.parse(localRaw);
-        if (Array.isArray(localProds)) {
-          const deletedProdsRaw = localStorage.getItem('SWEETOS_deleted_products');
-          const deletedSet = deletedProdsRaw ? new Set(JSON.parse(deletedProdsRaw).map(s => String(s).toLowerCase().trim())) : new Set();
-          localProds.forEach(p => {
-            if (!p || p.id === undefined || p.id === null) return;
-            const key = String(p.id);
-            const idLower = key.toLowerCase().trim();
-            const nameLower = String(p.name || '').toLowerCase().trim();
-            const slugLower = String(p.slug || '').toLowerCase().trim();
-
-            if (!deletedSet.has(idLower) && !deletedSet.has(nameLower) && !deletedSet.has(slugLower)) {
-              if (!productMap.has(key)) {
-                productMap.set(key, p);
-                querySuccess = true;
-              } else {
-                productMap.set(key, { ...p, ...productMap.get(key) });
-              }
-            }
-          });
-        }
-      }
-    } catch(e) {}
-
     if (querySuccess) {
-      const formatted = Array.from(productMap.values());
-      return formatted;
+      return Array.from(productMap.values());
     }
     return null;
   } catch (err) {
@@ -160,6 +118,25 @@ export async function syncProductsToSupabase(productsList) {
   try {
     if (!supabase || !Array.isArray(productsList)) return false;
 
+    if (productsList.length === 0) {
+      console.warn('[Supabase Cloud] syncProducts received empty array. Skipping.');
+      return true;
+    }
+
+    // Safety Guard: check cloud count to detect suspicious data drop
+    let cloudCount = 0;
+    try {
+      const { count } = await supabase.from('products').select('*', { count: 'exact', head: true });
+      cloudCount = count || 0;
+    } catch(e) {}
+
+    const localCount = productsList.length;
+    const isSuspicious = cloudCount > 0 && localCount < Math.max(3, Math.floor(cloudCount * 0.7));
+
+    if (isSuspicious) {
+      console.warn(`[Supabase Cloud] Local products count (${localCount}) is far below cloud (${cloudCount}). Skipping destructive fallback overwrite; upserting entries only.`);
+    }
+
     const processedProducts = await Promise.all(productsList.map(async p => {
       let finalImg = p.image;
       if (finalImg && typeof finalImg === 'string' && finalImg.startsWith('data:')) {
@@ -169,11 +146,11 @@ export async function syncProductsToSupabase(productsList) {
       return { ...p, image: finalImg };
     }));
 
-    await saveSiteSettingInSupabase('sweetos_cloud_products', processedProducts);
-
-    if (processedProducts.length === 0) {
-      console.warn('[Supabase Cloud] syncProducts received empty array. Skipping destructive deletion.');
-      return true;
+    if (!isSuspicious) {
+      const savedFallback = await saveSiteSettingInSupabase('sweetos_cloud_products', processedProducts);
+      if (!savedFallback) {
+        console.warn('[Supabase Cloud] Warning: Could not update sweetos_cloud_products fallback (check RLS permissions).');
+      }
     }
 
     const records = processedProducts.map(p => {
@@ -215,22 +192,6 @@ export async function syncProductsToSupabase(productsList) {
         console.warn('[Supabase Cloud] Products table upsert note:', upErr.message);
       }
     } catch(e) {}
-
-    // Purge any products from DB table that were deleted in frontend
-    const keepLegacyIds = records.map(r => parseInt(r.legacy_id)).filter(id => !isNaN(id) && id > 0);
-    if (keepLegacyIds.length > 0) {
-      try {
-        const inFilter = `(${keepLegacyIds.join(',')})`;
-        const { error: delErr } = await supabase.from('products').delete().not('legacy_id', 'in', inFilter);
-        if (delErr) {
-          console.warn('[Supabase Cloud] Products table delete note:', delErr.message);
-        }
-      } catch(e) {}
-    } else {
-      try {
-        await supabase.from('products').delete().neq('legacy_id', 0);
-      } catch(e) {}
-    }
 
     console.log('[Supabase Cloud] Products synced across devices successfully!');
     return true;
@@ -404,6 +365,7 @@ export async function fetchCategoriesFromSupabase() {
   try {
     const catMap = new Map();
 
+    // 1. Primary Cloud Source: Postgres categories table
     try {
       const { data, error } = await supabase
         .from('categories')
@@ -418,6 +380,7 @@ export async function fetchCategoriesFromSupabase() {
       }
     } catch(e) {}
 
+    // 2. Secondary Cloud Source: site_settings fallback (sweetos_cloud_categories) fills gaps
     try {
       const fallback = await fetchSiteSettingFromSupabase('sweetos_cloud_categories');
       if (Array.isArray(fallback)) {
@@ -430,38 +393,12 @@ export async function fetchCategoriesFromSupabase() {
       }
     } catch(e) {}
 
-    // Merge with any local storage categories that aren't deleted
-    try {
-      const localRaw = localStorage.getItem('SWEETOS_categories');
-      if (localRaw) {
-        const localCats = JSON.parse(localRaw);
-        if (Array.isArray(localCats)) {
-          const deletedCatsRaw = localStorage.getItem('SWEETOS_deleted_categories');
-          const deletedSet = deletedCatsRaw ? new Set(JSON.parse(deletedCatsRaw).map(s => String(s).toLowerCase().trim())) : new Set();
-          localCats.forEach(c => {
-            if (!c) return;
-            const key = c.slug || c.name || c.id;
-            const keyLower = String(key || '').toLowerCase().trim();
-            const idLower = String(c.id || '').toLowerCase().trim();
-            if (keyLower && !deletedSet.has(keyLower) && !deletedSet.has(idLower)) {
-              if (!catMap.has(keyLower)) {
-                catMap.set(keyLower, c);
-              } else {
-                catMap.set(keyLower, { ...c, ...catMap.get(keyLower) });
-              }
-            }
-          });
-        }
-      }
-    } catch(e) {}
-
     const cats = Array.from(catMap.values());
-    if (cats.length > 0) {
-      localStorage.setItem('SWEETOS_categories', JSON.stringify(cats));
-      return cats;
-    }
-  } catch (e) {}
-  return null;
+    return cats.length > 0 ? cats : null;
+  } catch (e) {
+    console.error('[Supabase] fetchCategories error:', e);
+    return null;
+  }
 }
 
 export async function syncCategoriesToSupabase(categoriesList) {
@@ -478,16 +415,10 @@ export async function syncCategoriesToSupabase(categoriesList) {
 
     if (records.length > 0) {
       try { await supabase.from('categories').upsert(records, { onConflict: 'slug' }); } catch(e) {}
-      const keepSlugs = records.map(r => r.slug).filter(Boolean);
-      if (keepSlugs.length > 0) {
-        const inFilter = `(${keepSlugs.map(s => `'${s}'`).join(',')})`;
-        try { await supabase.from('categories').delete().not('slug', 'in', inFilter); } catch(e) {}
-      }
-    } else {
-      try { await supabase.from('categories').delete().neq('slug', '___NON_EXISTENT___'); } catch(e) {}
     }
     return true;
   } catch (err) {
+    console.error('[Supabase Cloud] syncCategories error:', err);
     return false;
   }
 }
@@ -500,6 +431,7 @@ export async function fetchBrandsFromSupabase() {
   try {
     const brandMap = new Map();
 
+    // 1. Primary Cloud Source: Postgres brands table
     try {
       const { data, error } = await supabase
         .from('brands')
@@ -514,6 +446,7 @@ export async function fetchBrandsFromSupabase() {
       }
     } catch(e) {}
 
+    // 2. Secondary Cloud Source: site_settings fallback (sweetos_cloud_brands) fills gaps
     try {
       const fallback = await fetchSiteSettingFromSupabase('sweetos_cloud_brands');
       if (Array.isArray(fallback)) {
@@ -526,38 +459,12 @@ export async function fetchBrandsFromSupabase() {
       }
     } catch(e) {}
 
-    // Merge with any local storage brands that aren't deleted
-    try {
-      const localRaw = localStorage.getItem('SWEETOS_brands');
-      if (localRaw) {
-        const localBrands = JSON.parse(localRaw);
-        if (Array.isArray(localBrands)) {
-          const deletedBrandsRaw = localStorage.getItem('SWEETOS_deleted_brands');
-          const deletedSet = deletedBrandsRaw ? new Set(JSON.parse(deletedBrandsRaw).map(s => String(s).toLowerCase().trim())) : new Set();
-          localBrands.forEach(b => {
-            if (!b) return;
-            const key = b.slug || b.name || b.id;
-            const keyLower = String(key || '').toLowerCase().trim();
-            const idLower = String(b.id || '').toLowerCase().trim();
-            if (keyLower && !deletedSet.has(keyLower) && !deletedSet.has(idLower)) {
-              if (!brandMap.has(keyLower)) {
-                brandMap.set(keyLower, b);
-              } else {
-                brandMap.set(keyLower, { ...b, ...brandMap.get(keyLower) });
-              }
-            }
-          });
-        }
-      }
-    } catch(e) {}
-
     const brands = Array.from(brandMap.values());
-    if (brands.length > 0) {
-      localStorage.setItem('SWEETOS_brands', JSON.stringify(brands));
-      return brands;
-    }
-  } catch (e) {}
-  return null;
+    return brands.length > 0 ? brands : null;
+  } catch (e) {
+    console.error('[Supabase] fetchBrands error:', e);
+    return null;
+  }
 }
 
 export async function syncBrandsToSupabase(brandsList) {
@@ -582,13 +489,6 @@ export async function syncBrandsToSupabase(brandsList) {
       } else {
         console.warn('⚠️ [Supabase Cloud] Brands table upsert note:', error.message);
       }
-      const keepSlugs = records.map(r => r.slug).filter(Boolean);
-      if (keepSlugs.length > 0) {
-        const inFilter = `(${keepSlugs.map(s => `'${s}'`).join(',')})`;
-        try { await supabase.from('brands').delete().not('slug', 'in', inFilter); } catch(e) {}
-      }
-    } else {
-      try { await supabase.from('brands').delete().neq('slug', '___NON_EXISTENT___'); } catch(e) {}
     }
     return true;
   } catch (err) {
@@ -1334,7 +1234,7 @@ export function subscribeToGlobalRealtimeSync() {
           } else if (payload.table === 'orders' || payload.table === 'profiles' || (payload.table === 'site_settings' && (payload.new?.key === 'sweetos_cloud_orders' || (payload.new?.key && payload.new.key.startsWith('sweetos_notifications_'))))) {
             debounceRealtimeSync('orders', async () => {
               const updated = await fetchOrdersFromSupabase();
-              if (updated) {
+              if (Array.isArray(updated) && updated.length > 0) {
                 saveAllOrdersToStorage(updated);
                 window.dispatchEvent(new CustomEvent('orders:updated', { detail: updated }));
                 const userJson = localStorage.getItem('SWEETOS_logged_in_user');
@@ -1354,6 +1254,8 @@ export function subscribeToGlobalRealtimeSync() {
                     }
                   } catch(e) {}
                 }
+              } else {
+                console.warn('[Supabase Realtime] fetchOrders returned empty array or error. Skipping order overwrite.');
               }
             });
           } else if (payload.table === 'store_settings' || payload.table === 'site_settings') {
@@ -1374,7 +1276,14 @@ export function subscribeToGlobalRealtimeSync() {
 }
 
 export async function initSupabaseSync() {
-  console.log('[Supabase] Connected to live cloud database:', SUPABASE_URL);
+  console.log('[Supabase] Connected to live cloud database (Cloud-First Mode):', SUPABASE_URL);
+
+  // Clean legacy disk store caches to guarantee 100% Cloud ground truth
+  try {
+    ['SWEETOS_products', 'SWEETOS_categories', 'SWEETOS_brands', 'SWEETOS_all_orders'].forEach(key => {
+      localStorage.removeItem(key);
+    });
+  } catch(e) {}
   
   // Start OAuth session listener
   initSupabaseAuthListener();
@@ -2138,6 +2047,8 @@ export async function saveSiteSettingInSupabase(key, value) {
     if (!error) {
       console.log(`[Supabase Cloud] site_setting '${key}' updated successfully.`);
       return true;
+    } else {
+      console.warn(`⚠️ [Supabase RLS / Permission Note] Failed to save site_setting '${key}':`, error.message);
     }
   } catch (err) {
     console.error(`[Supabase Cloud] saveSiteSetting error for '${key}':`, err);
