@@ -50,7 +50,8 @@ export async function fetchProductsFromSupabase() {
         .select('*')
         .order('created_at', { ascending: true });
 
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data)) {
+        if (data.length === 0) return [];
         return data.map(p => {
           const id = p.legacy_id || p.id;
           return {
@@ -350,12 +351,12 @@ export async function fetchCategoriesFromSupabase() {
         .select('*')
         .order('display_order', { ascending: true });
 
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data)) {
         return data;
       }
     } catch(e) {}
 
-    // 2. Secondary Cloud Source: site_settings fallback (sweetos_cloud_categories) only if table is empty/failed
+    // 2. Secondary Cloud Source: site_settings fallback (sweetos_cloud_categories) only if table query failed
     try {
       const fallback = await fetchSiteSettingFromSupabase('sweetos_cloud_categories');
       if (Array.isArray(fallback) && fallback.length > 0) {
@@ -412,7 +413,7 @@ export async function fetchBrandsFromSupabase() {
         .select('*')
         .order('display_order', { ascending: true });
 
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (!error && Array.isArray(data)) {
         return data;
       }
     } catch(e) {}
@@ -965,7 +966,7 @@ export async function fetchOrdersFromSupabase(userEmail = null) {
     }
 
     if (allOrders.length > 0) {
-      saveAllOrdersToStorage(allOrders);
+      try { localStorage.setItem('SWEETOS_all_orders', JSON.stringify(allOrders)); } catch(e) {}
     } else {
       const fallbackLocal = getAllOrdersFromStorage();
       if (fallbackLocal && fallbackLocal.length > 0) {
