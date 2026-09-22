@@ -69,12 +69,23 @@ export async function registerServiceWorker() {
     // Force update check
     registration.update().catch(() => {});
 
+    // Automatic SW update detection — reloads window when new SW activates to load fresh code & cache
+    let refreshing = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (!refreshing) {
+        refreshing = true;
+        console.log('🔄 [Service Worker] New Service Worker activated! Reloading page automatically...');
+        window.location.reload();
+      }
+    });
+
     registration.onupdatefound = () => {
       const installingWorker = registration.installing;
       if (installingWorker) {
         installingWorker.onstatechange = () => {
           if (installingWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            console.log('🔄 Service Worker updated to latest version (sweetos-v5).');
+            console.log('🔄 [Service Worker] New version detected! Reloading window for clean cache update...');
+            window.location.reload();
           }
         };
       }
