@@ -998,7 +998,7 @@ export function renderAdminOrderDetails(context) {
                 <label style="font-size:12px; font-weight:700; color:#475569;">Tracking Number</label>
                 <button type="button" id="generate-tracking-btn" style="background:none; border:none; color:#0052cc; font-size:11.5px; font-weight:700; cursor:pointer;">Generate Code</button>
               </div>
-              <input type="text" id="order-tracking-num" style="width:100%; padding:9px 12px; border-radius:10px; border:1px solid #cbd5e1; font-family:inherit; font-size:13px; box-sizing:border-box;" placeholder="e.g. WV-ABJ-920412" value="${escapeHtml(order.trackingNumber || '')}">
+              <input type="text" id="order-tracking-num" name="order_tracking_code_nocache" autocomplete="new-password" data-lpignore="true" style="width:100%; padding:9px 12px; border-radius:10px; border:1px solid #cbd5e1; font-family:inherit; font-size:13px; box-sizing:border-box;" placeholder="e.g. WV-ABJ-920412" value="${escapeHtml(order.trackingNumber || '')}">
             </div>
 
             <button class="admin-btn" id="save-order-status-btn" style="width:100%; padding:10px; font-size:13.5px; margin-top:6px;">Update Order Status</button>
