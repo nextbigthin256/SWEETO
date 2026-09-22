@@ -544,53 +544,20 @@ export async function syncDeliveredNotifications() {
             greeting = 'Bonsoir';
           }
           
-          const totalCFA = parseFloat(order.total || order.total_amount) || 0;
+          const customerName = order.customerName || profile.full_name || profile.first_name || 'Client';
           
           customerNotifs.unshift({
             id: Date.now() + Math.floor(Math.random() * 1000),
             type: 'shipping',
-            icon: '✅',
+            icon: '🎉',
             title: `Commande #${orderId} livrée !`,
-            desc: `${greeting} ! Merci infiniment pour votre achat chez SWEETOS. Votre commande #${orderId} a été livrée avec succès.<br>
-              <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
-                <button class="download-receipt-btn" data-order-id="${orderId}" style="background:var(--primary); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer;">Reçu 📄</button>
-                ${totalCFA >= 2000 ? `<button class="view-mystery-email-btn" data-order-id="${orderId}" style="background:#ff5630; color:white; border:none; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer;">Mystery Box 🎁</button>` : ''}
+            desc: `${greeting} ${customerName} ! Merci infiniment pour votre confiance et votre achat chez SWEETOS. Votre commande #${orderId} a été livrée avec succès. Nous espérons que vous apprécierez vos produits !<br>
+              <div style="display:flex; gap:8px; margin-top:10px; flex-wrap:wrap;">
+                <button class="download-receipt-btn" data-order-id="${orderId}" style="background:var(--primary); color:white; border:none; padding:8px 14px; border-radius:8px; font-size:12px; font-weight:800; cursor:pointer;">📄 Télécharger mon Reçu</button>
               </div>`,
             time: 'Just now',
             unread: true
           });
-          
-          if (totalCFA >= 2000) {
-            try {
-              const scratchKey = getScratchcardsStorageKey(userEmail);
-              let scratchcards = JSON.parse(getStorageItem(scratchKey) || '[]');
-              if (!scratchcards.some(sc => sc.orderId === orderId)) {
-                scratchcards.push({
-                  id: Date.now() + Math.floor(Math.random() * 1000) + 1,
-                  orderId: orderId,
-                  amount: totalCFA,
-                  scratched: false,
-                  couponWon: null,
-                  createdAt: Date.now(),
-                  expiresAt: Date.now() + 14 * 24 * 60 * 60 * 1000
-                });
-                saveScratchcardsToStorage(scratchcards, userEmail);
-              }
-            } catch(e) {}
-            
-            customerNotifs.unshift({
-              id: Date.now() + Math.floor(Math.random() * 1000) + 2,
-              type: 'email',
-              icon: '📧',
-              title: `Nouveau Message: Votre Boîte Mystère`,
-              desc: `Vous avez reçu un e-mail concernant votre Boîte Mystère de la commande #${orderId}.<br>
-                <div style="margin-top:8px;">
-                  <button class="open-email-modal-btn" data-order-id="${orderId}" style="background:var(--primary); color:white; border:none; padding:6px 12px; border-radius:8px; font-size:11px; font-weight:800; cursor:pointer;">Ouvrir l'E-mail 📩</button>
-                </div>`,
-              time: 'Just now',
-              unread: true
-            });
-          }
           
           changed = true;
         }
