@@ -27,8 +27,8 @@ export function getProductShareUrl(product) {
   const productId = product.legacy_id ?? product.id ?? product.uuid ?? product.slug;
   const baseUrl = window.location.origin;
   
-  // Edge Function Gateway URL for rich social crawler previews (WhatsApp, Facebook, Twitter)
-  return `https://euuzsxjsmsktegilbqpv.supabase.co/functions/v1/og-product?id=${encodeURIComponent(productId)}`;
+  // Vercel Serverless Function Gateway URL for rich social crawler previews (WhatsApp, Facebook, Twitter)
+  return `${baseUrl}/api/share?product=${encodeURIComponent(productId)}`;
 }
 
 /**
