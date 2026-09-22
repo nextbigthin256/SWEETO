@@ -50,64 +50,50 @@ export async function fetchProductsFromSupabase() {
         .select('*')
         .order('created_at', { ascending: true });
 
-      if (!error && Array.isArray(data)) {
-        querySuccess = true;
-        data.forEach(p => {
+      if (!error && Array.isArray(data) && data.length > 0) {
+        return data.map(p => {
           const id = p.legacy_id || p.id;
-          if (id) {
-            productMap.set(String(id), {
-              id: id,
-              uuid: p.id,
-              name: p.name,
-              slug: p.slug,
-              description: p.description,
-              price: parseFloat(p.price) || 0,
-              originalPrice: p.original_price ? parseFloat(p.original_price) : (p.compare_price ? parseFloat(p.compare_price) : null),
-              comparePrice: p.compare_price ? parseFloat(p.compare_price) : (p.original_price ? parseFloat(p.original_price) : null),
-              category: p.category_name || p.category || '',
-              subcategory: p.subcategory_name || p.subcategory || '',
-              brand: p.brand_name || p.brand || '',
-              image: p.image,
-              gallery: p.gallery || [],
-              colors: p.colors || [],
-              specs: p.specs || {},
-              stock: p.stock ?? 10,
-              inStock: p.in_stock ?? true,
-              badge: p.badge || p.badge_text || '',
-              homepageSections: p.homepage_sections || p.homepageSections || [],
-              isBestseller: p.is_bestseller ?? p.isBestseller ?? false,
-              isHotDeal: p.is_hot_deal ?? p.isHotDeal ?? false,
-              isNew: p.is_new ?? p.isNew ?? false,
-              rating: p.rating ? parseFloat(p.rating) : 5.0,
-              reviews: p.reviews_count ?? (Array.isArray(p.reviews) ? p.reviews.length : 0),
-              reviewsCount: p.reviews_count ?? (Array.isArray(p.reviews) ? p.reviews.length : 0),
-              createdAt: p.created_at || null
-            });
-          }
+          return {
+            id: id,
+            uuid: p.id,
+            name: p.name,
+            slug: p.slug,
+            description: p.description,
+            price: parseFloat(p.price) || 0,
+            originalPrice: p.original_price ? parseFloat(p.original_price) : (p.compare_price ? parseFloat(p.compare_price) : null),
+            comparePrice: p.compare_price ? parseFloat(p.compare_price) : (p.original_price ? parseFloat(p.original_price) : null),
+            category: p.category_name || p.category || '',
+            subcategory: p.subcategory_name || p.subcategory || '',
+            brand: p.brand_name || p.brand || '',
+            image: p.image,
+            gallery: p.gallery || [],
+            colors: p.colors || [],
+            specs: p.specs || {},
+            stock: p.stock ?? 10,
+            inStock: p.in_stock ?? true,
+            badge: p.badge || p.badge_text || '',
+            homepageSections: p.homepage_sections || p.homepageSections || [],
+            isBestseller: p.is_bestseller ?? p.isBestseller ?? false,
+            isHotDeal: p.is_hot_deal ?? p.isHotDeal ?? false,
+            isNew: p.is_new ?? p.isNew ?? false,
+            rating: p.rating ? parseFloat(p.rating) : 5.0,
+            reviews: p.reviews_count ?? (Array.isArray(p.reviews) ? p.reviews.length : 0),
+            reviewsCount: p.reviews_count ?? (Array.isArray(p.reviews) ? p.reviews.length : 0),
+            createdAt: p.created_at || null
+          };
         });
       }
     } catch(e) {}
 
-    // 2. Secondary Cloud Source: site_settings fallback (sweetos_cloud_products) fills gaps
+    // 2. Secondary Cloud Source: site_settings fallback (sweetos_cloud_products) only if table is empty or query failed
     try {
       const cloudFallback = await fetchSiteSettingFromSupabase('sweetos_cloud_products');
-      if (Array.isArray(cloudFallback)) {
-        querySuccess = true;
-        cloudFallback.forEach(p => {
-          if (p && p.id) {
-            const key = String(p.id);
-            if (!productMap.has(key)) {
-              productMap.set(key, p);
-            }
-          }
-        });
+      if (Array.isArray(cloudFallback) && cloudFallback.length > 0) {
+        return cloudFallback;
       }
     } catch(e) {}
 
-    if (querySuccess) {
-      return Array.from(productMap.values());
-    }
-    return null;
+    return [];
   } catch (err) {
     console.error('[Supabase] fetchProducts error:', err);
     return null;
@@ -357,8 +343,6 @@ export async function createProductInSupabase(prod) {
 
 export async function fetchCategoriesFromSupabase() {
   try {
-    const catMap = new Map();
-
     // 1. Primary Cloud Source: Postgres categories table
     try {
       const { data, error } = await supabase
@@ -366,29 +350,20 @@ export async function fetchCategoriesFromSupabase() {
         .select('*')
         .order('display_order', { ascending: true });
 
-      if (!error && Array.isArray(data)) {
-        data.forEach(c => {
-          const key = c.slug || c.name || c.id;
-          if (key) catMap.set(String(key).toLowerCase(), c);
-        });
+      if (!error && Array.isArray(data) && data.length > 0) {
+        return data;
       }
     } catch(e) {}
 
-    // 2. Secondary Cloud Source: site_settings fallback (sweetos_cloud_categories) fills gaps
+    // 2. Secondary Cloud Source: site_settings fallback (sweetos_cloud_categories) only if table is empty/failed
     try {
       const fallback = await fetchSiteSettingFromSupabase('sweetos_cloud_categories');
-      if (Array.isArray(fallback)) {
-        fallback.forEach(c => {
-          const key = c.slug || c.name || c.id;
-          if (key && !catMap.has(String(key).toLowerCase())) {
-            catMap.set(String(key).toLowerCase(), c);
-          }
-        });
+      if (Array.isArray(fallback) && fallback.length > 0) {
+        return fallback;
       }
     } catch(e) {}
 
-    const cats = Array.from(catMap.values());
-    return cats.length > 0 ? cats : null;
+    return [];
   } catch (e) {
     console.error('[Supabase] fetchCategories error:', e);
     return null;
@@ -423,8 +398,6 @@ export async function syncCategoriesToSupabase(categoriesList) {
 
 export async function fetchBrandsFromSupabase() {
   try {
-    const brandMap = new Map();
-
     // 1. Primary Cloud Source: Postgres brands table
     try {
       const { data, error } = await supabase
@@ -432,29 +405,20 @@ export async function fetchBrandsFromSupabase() {
         .select('*')
         .order('display_order', { ascending: true });
 
-      if (!error && Array.isArray(data)) {
-        data.forEach(b => {
-          const key = b.slug || b.name || b.id;
-          if (key) brandMap.set(String(key).toLowerCase(), b);
-        });
+      if (!error && Array.isArray(data) && data.length > 0) {
+        return data;
       }
     } catch(e) {}
 
-    // 2. Secondary Cloud Source: site_settings fallback (sweetos_cloud_brands) fills gaps
+    // 2. Secondary Cloud Source: site_settings fallback (sweetos_cloud_brands) only if table is empty/failed
     try {
       const fallback = await fetchSiteSettingFromSupabase('sweetos_cloud_brands');
-      if (Array.isArray(fallback)) {
-        fallback.forEach(b => {
-          const key = b.slug || b.name || b.id;
-          if (key && !brandMap.has(String(key).toLowerCase())) {
-            brandMap.set(String(key).toLowerCase(), b);
-          }
-        });
+      if (Array.isArray(fallback) && fallback.length > 0) {
+        return fallback;
       }
     } catch(e) {}
 
-    const brands = Array.from(brandMap.values());
-    return brands.length > 0 ? brands : null;
+    return [];
   } catch (e) {
     console.error('[Supabase] fetchBrands error:', e);
     return null;
