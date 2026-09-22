@@ -864,6 +864,9 @@ class AdminPage extends HTMLElement {
   }
 
   saveDatabase(type) {
+    if (this._adminSyncChannel) {
+      try { this._adminSyncChannel.postMessage({ type, timestamp: Date.now() }); } catch(e) {}
+    }
     if (type === 'products') {
       // saveStorageItem auto-queues syncProductsToSupabase — no need to call again
       saveStorageItem('SWEETOS_products', this.products);
