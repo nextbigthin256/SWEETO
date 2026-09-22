@@ -79,12 +79,9 @@ export function saveStorageItem(key, val) {
     return;
   }
 
-  // Under Cloud-First architecture, store entity databases bypass localStorage disk
-  const storeEntityKeys = ['SWEETOS_products', 'SWEETOS_categories', 'SWEETOS_brands', 'SWEETOS_all_orders'];
-  if (!storeEntityKeys.includes(key)) {
-    const str = typeof val === 'string' ? val : JSON.stringify(val);
-    try { localStorage.setItem(key, str); } catch(e) {}
-  }
+  // Save to localStorage for instant local disk persistence
+  const str = typeof val === 'string' ? val : JSON.stringify(val);
+  try { localStorage.setItem(key, str); } catch(e) {}
   
   // Auto-sync to Supabase for known keys via queue (non-blocking)
   const syncableKeys = [

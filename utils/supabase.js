@@ -383,7 +383,14 @@ export async function syncCategoriesToSupabase(categoriesList) {
     }));
 
     if (records.length > 0) {
-      try { await supabase.from('categories').upsert(records, { onConflict: 'slug' }); } catch(e) {}
+      try {
+        const { error } = await supabase.from('categories').upsert(records, { onConflict: 'slug' });
+        if (error) {
+          await supabase.from('categories').upsert(records);
+        }
+      } catch(e) {
+        try { await supabase.from('categories').insert(records); } catch(err) {}
+      }
     }
     return true;
   } catch (err) {
@@ -441,11 +448,13 @@ export async function syncBrandsToSupabase(brandsList) {
     }));
 
     if (records.length > 0) {
-      const { error } = await supabase.from('brands').upsert(records, { onConflict: 'slug' });
-      if (!error) {
-        console.log('✅ [Supabase Cloud] Brands synced successfully!', records.length);
-      } else {
-        console.warn('⚠️ [Supabase Cloud] Brands table upsert note:', error.message);
+      try {
+        const { error } = await supabase.from('brands').upsert(records, { onConflict: 'slug' });
+        if (error) {
+          await supabase.from('brands').upsert(records);
+        }
+      } catch(e) {
+        try { await supabase.from('brands').insert(records); } catch(err) {}
       }
     }
     return true;
