@@ -82,6 +82,33 @@ export function saveStorageItem(key, val) {
   // Save to localStorage for instant local disk persistence
   const str = typeof val === 'string' ? val : JSON.stringify(val);
   try { localStorage.setItem(key, str); } catch(e) {}
+
+  // Parse data object for event detail
+  let parsedVal = val;
+  if (typeof val === 'string') {
+    try { parsedVal = JSON.parse(val); } catch(e) {}
+  }
+
+  // Dispatch instant event notifications for store & admin components
+  if (key === 'SWEETOS_products') {
+    window.dispatchEvent(new CustomEvent('products:updated', { detail: parsedVal }));
+    window.dispatchEvent(new CustomEvent('storage:synced'));
+  } else if (key === 'SWEETOS_categories') {
+    window.dispatchEvent(new CustomEvent('categories:updated', { detail: parsedVal }));
+    window.dispatchEvent(new CustomEvent('storage:synced'));
+  } else if (key === 'SWEETOS_brands') {
+    window.dispatchEvent(new CustomEvent('brands:updated', { detail: parsedVal }));
+    window.dispatchEvent(new CustomEvent('storage:synced'));
+  }
+
+  // Broadcast event across browser tabs/windows
+  if (typeof BroadcastChannel !== 'undefined') {
+    try {
+      const bc = new BroadcastChannel('SWEETOS_ADMIN_SYNC');
+      bc.postMessage({ key, timestamp: Date.now() });
+      bc.close();
+    } catch(e) {}
+  }
   
   // Auto-sync to Supabase for known keys via queue (non-blocking)
   const syncableKeys = [
@@ -94,8 +121,7 @@ export function saveStorageItem(key, val) {
   if (shouldSync) {
     queueSupabaseSync(async () => {
       try {
-        let data;
-        try { data = typeof val === 'string' ? JSON.parse(val) : val; } catch(e) { data = val; }
+        let data = parsedVal;
 
         if (key === 'SWEETOS_products') {
           const { syncProductsToSupabase } = await import('./supabase.js');
