@@ -205,16 +205,19 @@ export async function deleteProductPermanentlyFromSupabase(productOrId) {
   try {
     if (!supabase) return false;
 
+    const targetId = typeof productOrId === 'object' ? productOrId?.id : (typeof productOrId === 'number' ? productOrId : parseInt(productOrId));
+    const targetName = typeof productOrId === 'object' ? productOrId?.name : (typeof productOrId === 'string' ? productOrId : null);
+    const targetSlug = typeof productOrId === 'object' ? productOrId?.slug : null;
+
     // 1. Clean from site_settings fallback and browser storage
     try {
       const fallback = await fetchSiteSettingFromSupabase('sweetos_cloud_products');
       if (Array.isArray(fallback)) {
-        const targetId = typeof productOrId === 'object' ? productOrId?.id : productOrId;
-        const targetName = typeof productOrId === 'object' ? productOrId?.name : productOrId;
         const filtered = fallback.filter(p => {
           if (!p) return false;
-          if (targetId && (p.id === targetId || String(p.id) === String(targetId))) return false;
-          if (targetName && p.name === targetName) return false;
+          if (targetId && !isNaN(targetId) && (String(p.id) === String(targetId) || String(p.legacy_id) === String(targetId))) return false;
+          if (targetName && String(p.name).toLowerCase().trim() === String(targetName).toLowerCase().trim()) return false;
+          if (targetSlug && String(p.slug).toLowerCase().trim() === String(targetSlug).toLowerCase().trim()) return false;
           return true;
         });
         await saveSiteSettingInSupabase('sweetos_cloud_products', filtered);
@@ -225,29 +228,20 @@ export async function deleteProductPermanentlyFromSupabase(productOrId) {
     } catch(e) {}
 
     // 2. Delete from products Postgres table
-    let query = supabase.from('products').delete();
-    if (typeof productOrId === 'object' && productOrId !== null) {
-      const conditions = [];
-      if (productOrId.id) conditions.push(`legacy_id.eq.${productOrId.id}`);
-      if (productOrId.name) conditions.push(`name.eq.${encodeURIComponent(productOrId.name)}`);
-      if (productOrId.slug) conditions.push(`slug.eq.${encodeURIComponent(productOrId.slug)}`);
-
-      if (conditions.length > 0) {
-        query = query.or(conditions.join(','));
-      } else {
-        query = query.eq('legacy_id', productOrId.id);
+    try {
+      if (targetId && !isNaN(targetId)) {
+        await supabase.from('products').delete().eq('legacy_id', targetId);
       }
-    } else if (typeof productOrId === 'number') {
-      query = query.eq('legacy_id', productOrId);
-    } else if (typeof productOrId === 'string') {
-      query = query.or(`slug.eq.${productOrId},name.eq.${productOrId}`);
+      if (targetName) {
+        await supabase.from('products').delete().eq('name', targetName);
+      }
+      if (targetSlug) {
+        await supabase.from('products').delete().eq('slug', targetSlug);
+      }
+    } catch(e) {
+      console.warn('[Supabase] Delete table warning:', e);
     }
 
-    const { error } = await query;
-    if (error) {
-      console.warn('[Supabase] Permanent product delete warning:', error.message);
-      return false;
-    }
     console.log('[Supabase] Product permanently deleted from Supabase cloud database.');
     return true;
   } catch (err) {
@@ -523,7 +517,10 @@ export async function deleteBrandFromSupabase(brandOrObj) {
 
     if (targetSlug || targetName) {
       const slugVal = (targetSlug || targetName || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      try { await supabase.from('brands').delete().or(`slug.eq.${slugVal},name.eq.${encodeURIComponent(targetName || '')}`); } catch(e) {}
+      try {
+        if (targetName) await supabase.from('brands').delete().eq('name', targetName);
+        if (slugVal) await supabase.from('brands').delete().eq('slug', slugVal);
+      } catch(e) {}
     }
     return true;
   } catch(e) {
@@ -569,8 +566,12 @@ export async function deleteMultipleBrandsFromSupabase(brandsOrIds = []) {
     } catch(e) {}
 
     const slugArray = Array.from(slugSet);
+    const nameArray = Array.from(nameSet);
     if (slugArray.length > 0) {
       try { await supabase.from('brands').delete().in('slug', slugArray); } catch(e) {}
+    }
+    if (nameArray.length > 0) {
+      try { await supabase.from('brands').delete().in('name', nameArray); } catch(e) {}
     }
     return true;
   } catch (err) {
@@ -604,7 +605,10 @@ export async function deleteCategoryFromSupabase(categoryOrObj) {
 
     if (targetSlug || targetName) {
       const slugVal = (targetSlug || targetName || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      try { await supabase.from('categories').delete().or(`slug.eq.${slugVal},name.eq.${encodeURIComponent(targetName || '')}`); } catch(e) {}
+      try {
+        if (targetName) await supabase.from('categories').delete().eq('name', targetName);
+        if (slugVal) await supabase.from('categories').delete().eq('slug', slugVal);
+      } catch(e) {}
     }
     return true;
   } catch(e) {
@@ -650,8 +654,12 @@ export async function deleteMultipleCategoriesFromSupabase(categoriesOrIds = [])
     } catch(e) {}
 
     const slugArray = Array.from(slugSet);
+    const nameArray = Array.from(nameSet);
     if (slugArray.length > 0) {
       try { await supabase.from('categories').delete().in('slug', slugArray); } catch(e) {}
+    }
+    if (nameArray.length > 0) {
+      try { await supabase.from('categories').delete().in('name', nameArray); } catch(e) {}
     }
     return true;
   } catch (err) {
